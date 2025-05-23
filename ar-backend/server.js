@@ -78,7 +78,10 @@ app.use('/api', authRoutes);
 
 app.use('/api', projectRoutes);
 
-app.listen(4000, '0.0.0.0', () => {
-  console.log("🚀 Server running at http://0.0.0.0:4000");
+const PORT = process.env.PORT || 4000;
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server running at http://localhost:${PORT}`);
 });
+
 
