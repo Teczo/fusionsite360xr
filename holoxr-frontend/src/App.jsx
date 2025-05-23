@@ -21,7 +21,6 @@ function App() {
       <Route path="/signin" element={<SignInPage />} />
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/studio" element={<StudioPage />} />
-      <Route path="*" element={<Navigate to="/signin" />} />
     </Routes>
   );
 }
