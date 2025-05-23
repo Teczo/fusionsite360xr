@@ -16,12 +16,12 @@ import ARViewer from './pages/ARViewer';
 function App() {
   return (
     <Routes>
+      <Route path="/ar/:id" element={<ARViewer />} />
       <Route path="/signup" element={<SignUpPage />} />
       <Route path="/signin" element={<SignInPage />} />
+      <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />
+      <Route path="/studio" element={<RequireAuth><StudioPage /></RequireAuth>} />
       <Route path="*" element={<Navigate to="/signin" />} />
-      <Route path="/dashboard" element={<DashboardPage />} />
-      <Route path="/studio" element={<StudioPage />} />
-      <Route path="/ar/:id" element={<ARViewer />} />
     </Routes>
   );
 }
