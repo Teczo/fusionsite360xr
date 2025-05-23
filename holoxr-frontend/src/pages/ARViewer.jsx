@@ -68,7 +68,7 @@ export default function ARViewer() {
     useEffect(() => {
         const fetchScene = async () => {
             try {
-                const res = await fetch(`${window.location.origin.replace('5173', '4000')}/api/published/${id}`);
+                const res = await fetch(`${import.meta.env.VITE_API_URL}/api/published/${id}`);
                 const data = await res.json();
                 if (res.ok && data.publishedScene) {
                     setSceneData(data.publishedScene);

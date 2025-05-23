@@ -7,7 +7,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
 
   const fetchItems = async () => {
     try {
-      const res = await fetch('http://localhost:4000/files');
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/files`);
       const data = await res.json();
       setItems(data);
     } catch (err) {
@@ -31,7 +31,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
     formData.append('type', type);
 
     try {
-      const response = await fetch('http://localhost:4000/upload', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/upload`, {
         method: 'POST',
         body: formData,
       });
