@@ -18,7 +18,7 @@ export default function DashboardPage() {
 
         const token = localStorage.getItem('token');
         try {
-            const res = await fetch('http://localhost:4000/api/projects', {
+            const res = await fetch('${import.meta.env.VITE_API_URL}/api/projects', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -58,7 +58,7 @@ export default function DashboardPage() {
 
         const fetchProjects = async () => {
             try {
-                const res = await fetch('http://localhost:4000/api/projects', {
+                const res = await fetch('${import.meta.env.VITE_API_URL}/api/projects', {
                     headers: {
                         Authorization: `Bearer ${token}`,
                     },
