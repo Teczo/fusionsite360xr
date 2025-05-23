@@ -65,7 +65,7 @@ export default function StudioPage() {
 
         const token = localStorage.getItem('token');
         try {
-            const res = await fetch(`http://localhost:4000/api/projects/${projectId}`, {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/projects/${projectId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -92,7 +92,7 @@ export default function StudioPage() {
 
         const token = localStorage.getItem('token');
         try {
-            const res = await fetch(`http://localhost:4000/api/projects/${projectId}/publish`, {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/projects/${projectId}/publish`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -125,7 +125,7 @@ export default function StudioPage() {
 
         const loadProject = async () => {
             try {
-                const res = await fetch(`http://localhost:4000/api/projects/${projectId}`, {
+                const res = await fetch(`${import.meta.env.VITE_API_URL}/api/projects/${projectId}`, {
                     headers: {
                         Authorization: `Bearer ${token}`,
                     },

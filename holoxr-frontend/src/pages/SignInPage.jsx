@@ -13,7 +13,7 @@ export default function SignInPage() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch('https://holoxr-backend.onrender.com/api/signin', {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/signin`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(form),
