@@ -70,6 +70,7 @@ export default function ARViewer() {
             try {
                 const res = await fetch(`${import.meta.env.VITE_API_URL}/api/published/${id}`);
                 const data = await res.json();
+                console.log("🎯 AR Scene Data:", data); // ✅ Add this line
                 if (res.ok && data.publishedScene) {
                     setSceneData(data.publishedScene);
                 }
