@@ -1,7 +1,6 @@
 const express = require('express');
 const Project = require('../models/Project');
 const auth = require('../middleware/authMiddleware');
-
 const router = express.Router();
 
 // Create project
@@ -96,7 +95,6 @@ router.get('/published/:id', async (req, res) => {
         res.status(500).json({ error: 'Failed to load published scene' });
     }
 });
-
 
 
 

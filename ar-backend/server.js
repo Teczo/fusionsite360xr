@@ -7,6 +7,7 @@ const multer = require('multer');
 const cors = require('cors');
 const { BlobServiceClient } = require('@azure/storage-blob');
 const File = require('./models/File');
+const fileRoutes = require('./routes/file');
 
 const app = express();
 app.use(cors());
@@ -77,6 +78,8 @@ app.get('/blobs', async (req, res) => {
 app.use('/api', authRoutes);
 
 app.use('/api', projectRoutes);
+
+app.use('/api', fileRoutes);
 
 const PORT = process.env.PORT || 4000;
 
