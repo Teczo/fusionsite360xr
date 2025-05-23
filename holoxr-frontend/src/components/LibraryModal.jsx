@@ -31,7 +31,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
     formData.append('type', type);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/upload`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
         method: 'POST',
         body: formData,
       });
