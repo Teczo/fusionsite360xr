@@ -96,6 +96,26 @@ router.get('/published/:id', async (req, res) => {
     }
 });
 
+// Return the first model from a published project
+router.get('/published-model/:id', async (req, res) => {
+    try {
+        const project = await Project.findOne({ _id: req.params.id, published: true });
 
+        if (!project || !project.publishedScene) {
+            return res.status(404).json({ error: 'Published scene not found' });
+        }
+
+        const model = project.publishedScene.find((item) => item.type === 'model');
+
+        if (!model) {
+            return res.status(404).json({ error: 'No model found in scene' });
+        }
+
+        res.json({ url: model.url });
+    } catch (err) {
+        console.error('Failed to load published model', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
 
 module.exports = router;
