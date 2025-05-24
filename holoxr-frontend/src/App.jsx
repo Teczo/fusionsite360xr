@@ -5,7 +5,6 @@ import DashboardPage from './pages/DashboardPage';
 import StudioPage from './pages/StudioPage';
 import ARViewer from './pages/ARViewer';
 
-// Inline RequireAuth component
 const RequireAuth = ({ children }) => {
   const token = localStorage.getItem('token');
   return token ? children : <Navigate to="/signin" />;
@@ -14,11 +13,16 @@ const RequireAuth = ({ children }) => {
 export default function App() {
   return (
     <Routes>
+      {/* Public routes first */}
       <Route path="/signup" element={<SignUpPage />} />
       <Route path="/signin" element={<SignInPage />} />
       <Route path="/ar/:id" element={<ARViewer />} />
+
+      {/* Auth-protected routes */}
       <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />
       <Route path="/studio" element={<RequireAuth><StudioPage /></RequireAuth>} />
+
+      {/* Catch-all must come last */}
       <Route path="*" element={<Navigate to="/signin" />} />
     </Routes>
   );
