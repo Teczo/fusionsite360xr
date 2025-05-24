@@ -1,19 +1,23 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
 export default function ARMarkerViewer() {
     const { id } = useParams();
+    const [loaded, setLoaded] = useState(false);
 
     useEffect(() => {
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.min.js';
         script.async = true;
+        script.onload = () => setLoaded(true); // ✅ only render scene when loaded
         document.body.appendChild(script);
 
         return () => {
             document.body.removeChild(script);
         };
     }, []);
+
+    if (!loaded) return <p className="text-center mt-10">Loading AR...</p>;
 
     return (
         <div>
