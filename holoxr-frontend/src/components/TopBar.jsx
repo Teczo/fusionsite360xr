@@ -5,13 +5,25 @@ export default function TopBar({
   onTogglePreview,
   isPreviewing,
   onSaveProject,
-  onPublishProject
+  onPublishProject,
+  projectName,
+  onBack
 }) {
+
 
 
   return (
     <div className="w-full h-15 bg-gray-800 text-white flex justify-between items-center px-4">
-      <h2 className="text-lg font-bold">HoloXR</h2>
+      <div className="flex items-center gap-4">
+        <button
+          onClick={onBack}
+          className="bg-gray-600 hover:bg-gray-500 px-3 py-1 rounded text-white text-sm"
+        >
+          ← Back
+        </button>
+        <h2 className="text-lg font-semibold">{projectName || 'Untitled Project'}</h2>
+      </div>
+
       <div className="flex gap-4">
         <button onClick={onLibraryOpen} className="bg-blue-500 px-3 py-1 rounded text-white">Library</button>
         <button onClick={onTogglePreview} className="bg-yellow-500 px-3 py-1 rounded text-white">Preview</button>

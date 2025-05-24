@@ -4,6 +4,7 @@ import SignInPage from './pages/SignInPage';
 import DashboardPage from './pages/DashboardPage';
 import StudioPage from './pages/StudioPage';
 import ARViewer from './pages/ARViewer';
+import ARMarkerViewer from './pages/ARMarkerViewer';
 
 const RequireAuth = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -17,6 +18,7 @@ export default function App() {
       <Route path="/signup" element={<SignUpPage />} />
       <Route path="/signin" element={<SignInPage />} />
       <Route path="/ar/:id" element={<ARViewer />} />
+      <Route path="/ar-marker/:id" element={<ARMarkerViewer />} />
 
       {/* Auth-protected routes */}
       <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />

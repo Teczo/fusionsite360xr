@@ -6,15 +6,21 @@ import SceneCanvasR3F from '../components/SceneCanvasR3F';
 import LayersPanel from '../components/LayersPanel';
 import LibraryModal from '../components/LibraryModal';
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 
 export default function StudioPage() {
     const location = useLocation();
+    const navigate = useNavigate();
+
     const projectId = new URLSearchParams(location.search).get('id');
 
     const [sceneModels, setSceneModels] = useState([]);
     const [selectedModelId, setSelectedModelId] = useState(null);
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
     const [isPreviewing, setIsPreviewing] = useState(false);
+    const [projectName, setProjectName] = useState('');
+
 
     const updateModelTransform = (id, newData) => {
         setSceneModels((prev) =>
@@ -126,16 +132,13 @@ export default function StudioPage() {
         const loadProject = async () => {
             try {
                 const res = await fetch(`${import.meta.env.VITE_API_URL}/api/projects/${projectId}`, {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
+                    headers: { Authorization: `Bearer ${token}` },
                 });
 
                 const data = await res.json();
-                if (res.ok && data.scene) {
-                    setSceneModels(data.scene);
-                } else {
-                    console.warn('No scene data found for this project.');
+                if (res.ok) {
+                    setSceneModels(data.scene || []);
+                    setProjectName(data.name || 'Untitled Project'); // ✅ Set the project name
                 }
             } catch (err) {
                 console.error('Failed to load project', err);
@@ -145,8 +148,11 @@ export default function StudioPage() {
         loadProject();
     }, [projectId]);
 
+
     return (
+
         <div className="h-screen flex flex-col">
+
             {!isPreviewing && (
                 <TopBar
                     onLibraryOpen={() => setIsLibraryOpen(true)}
@@ -154,7 +160,11 @@ export default function StudioPage() {
                     isPreviewing={isPreviewing}
                     onSaveProject={handleSaveProject}
                     onPublishProject={handlePublishProject}
+                    projectName={projectName} // ← pulled from loaded project data
+                    onBack={() => navigate('/dashboard')} // ← back button action
                 />
+
+
 
 
             )}
