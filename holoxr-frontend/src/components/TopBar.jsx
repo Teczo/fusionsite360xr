@@ -7,7 +7,8 @@ export default function TopBar({
   onSaveProject,
   onPublishProject,
   projectName,
-  onBack
+  onBack,
+  onShowQRCode
 }) {
 
 
@@ -30,10 +31,14 @@ export default function TopBar({
         <button onClick={onSaveProject} className="bg-indigo-600 px-3 py-1 rounded text-white">Save</button>
         <button
           className="bg-green-600 px-3 py-1 rounded text-white"
-          onClick={onPublishProject}
+          onClick={() => {
+            onPublishProject?.();
+            onShowQRCode?.(); // ✅ also trigger QR
+          }}
         >
           Publish
         </button>
+
 
       </div>
 

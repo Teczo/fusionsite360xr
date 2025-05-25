@@ -45,6 +45,8 @@ export default function SceneCanvasR3F({ items, selectedModelId, setSelectedMode
         camera.lookAt(center);
     };
 
+
+
     const cameraRef = useRef();
 
     const FloatingPanel = () => (
@@ -54,7 +56,7 @@ export default function SceneCanvasR3F({ items, selectedModelId, setSelectedMode
                     key={mode}
                     onClick={() => setTransformMode(mode)}
                     className={`text-sm px-2 py-1 rounded ${transformMode === mode
-                        ? 'bg-black text-white'
+                        ? 'bg-gray-50 text-gray-800 hover:bg-gray-100'
                         : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
                         }`}
                 >

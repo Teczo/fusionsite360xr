@@ -3,9 +3,10 @@ import { useLoader, useFrame } from '@react-three/fiber';
 import { TransformControls, useGLTF, Text } from '@react-three/drei';
 import * as THREE from 'three';
 
-function GLBModel({ url, name, id, transform, selectedModelId, setSelectedModelId, transformMode, updateModelTransform, handleFocusObject }) {
-    const { scene } = useGLTF(url);
+function GLBModel({ url, name, id, transform, selectedModelId, setSelectedModelId, transformMode, updateModelTransform, handleFocusObject, selectedAnimationIndex, playAnimationKey }) {
+    const { scene, animations } = useGLTF(url);
     const ref = useRef();
+    const mixerRef = useRef();
 
     useEffect(() => {
         scene.traverse((child) => {
@@ -22,10 +23,32 @@ function GLBModel({ url, name, id, transform, selectedModelId, setSelectedModelI
         }
     }, [transform]);
 
+    useEffect(() => {
+        if (animations.length > 0) {
+            const mixer = new THREE.AnimationMixer(scene);
+            mixerRef.current = mixer;
+
+            const clip = animations[selectedAnimationIndex] || animations[0];
+            const action = mixer.clipAction(clip);
+            action.reset().play();
+            console.log('🎬 Playing animation:', animations[selectedAnimationIndex]?.name);
+
+
+            return () => {
+                mixer.stopAllAction();
+            };
+        }
+    }, [animations, selectedAnimationIndex, scene, playAnimationKey]);
+
+    useFrame((_, delta) => {
+        mixerRef.current?.update(delta);
+    });
+
     return (
         <>
-            <group
+            <primitive
                 ref={ref}
+                object={scene}
                 onClick={(e) => {
                     e.stopPropagation();
                     setSelectedModelId(id);
@@ -34,10 +57,8 @@ function GLBModel({ url, name, id, transform, selectedModelId, setSelectedModelI
                     e.stopPropagation();
                     handleFocusObject(ref);
                 }}
-            >
-                <primitive object={scene} />
-            </group>
-
+                scale={1}
+            />
             {selectedModelId === id && transformMode !== 'none' && ref.current && (
                 <TransformControls
                     object={ref.current}
@@ -186,6 +207,8 @@ function SceneContent({ items, selectedModelId, setSelectedModelId, transformMod
                             transformMode={transformMode}
                             updateModelTransform={updateModelTransform}
                             handleFocusObject={handleFocusObject}
+                            selectedAnimationIndex={item.selectedAnimationIndex || 0}
+                            playAnimationKey={item.playAnimationKey || 0}
                         />
                     );
                 }

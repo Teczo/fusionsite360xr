@@ -5,8 +5,10 @@ import PropertyPanel from '../components/PropertyPanel';
 import SceneCanvasR3F from '../components/SceneCanvasR3F';
 import LayersPanel from '../components/LayersPanel';
 import LibraryModal from '../components/LibraryModal';
+import QRCodeModal from '../components/QRCodeModal';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 
 
 export default function StudioPage() {
@@ -20,6 +22,8 @@ export default function StudioPage() {
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
     const [isPreviewing, setIsPreviewing] = useState(false);
     const [projectName, setProjectName] = useState('');
+    const [showQRModal, setShowQRModal] = useState(false);
+
 
 
     const updateModelTransform = (id, newData) => {
@@ -30,11 +34,14 @@ export default function StudioPage() {
                         ...model,
                         transform: { ...model.transform, ...newData },
                         ...(model.type === 'text' && newData.content ? { content: newData.content } : {}),
+                        ...(typeof newData.selectedAnimationIndex !== 'undefined' && { selectedAnimationIndex: newData.selectedAnimationIndex }),
+                        ...(typeof newData.playAnimationKey !== 'undefined' && { playAnimationKey: newData.playAnimationKey }),
                     }
                     : model
             )
         );
     };
+
 
     const updateTextProperty = (id, updates) => {
         setSceneModels((prev) =>
@@ -46,8 +53,20 @@ export default function StudioPage() {
         );
     };
 
-    const handleLibraryItemSelect = (item) => {
+    const handleLibraryItemSelect = async (item) => {
         const id = Date.now().toString();
+
+        let animations = [];
+
+        if (item.type === 'model') {
+            try {
+                const gltf = await new GLTFLoader().loadAsync(item.url);
+                animations = gltf.animations.map((clip) => clip.name);
+            } catch (err) {
+                console.error('Failed to load animations for model:', err);
+            }
+        }
+
         setSceneModels((prev) => [
             ...prev,
             {
@@ -56,6 +75,8 @@ export default function StudioPage() {
                 type: item.type,
                 url: item.url || null,
                 content: item.content || '',
+                animations,
+                selectedAnimationIndex: 0,
                 transform: {
                     x: 0, y: 0, z: 0,
                     rx: 0, ry: 0, rz: 0,
@@ -63,8 +84,10 @@ export default function StudioPage() {
                 },
             },
         ]);
+
         setIsLibraryOpen(false);
     };
+
 
     const handleSaveProject = async () => {
         if (!projectId || !sceneModels.length) return;
@@ -125,6 +148,11 @@ export default function StudioPage() {
 
     const selectedModel = sceneModels.find((m) => m.id === selectedModelId);
 
+    const handlePlayAnimation = (id) => {
+        updateModelTransform(id, { playAnimationKey: Date.now() });
+    };
+
+
     useEffect(() => {
         const token = localStorage.getItem('token');
         if (!projectId || !token) return;
@@ -162,12 +190,20 @@ export default function StudioPage() {
                     onPublishProject={handlePublishProject}
                     projectName={projectName} // ← pulled from loaded project data
                     onBack={() => navigate('/dashboard')} // ← back button action
+                    onShowQRCode={() => setShowQRModal(true)}
                 />
 
 
 
 
             )}
+
+            <QRCodeModal
+                isOpen={showQRModal}
+                onClose={() => setShowQRModal(false)}
+                url={`https://holoxr.onrender.com/ar/${projectId}`}
+            />
+
 
             <div className="flex flex-1">
                 {!isPreviewing && (
@@ -186,6 +222,7 @@ export default function StudioPage() {
                         selectedModelId={selectedModelId}
                         setSelectedModelId={setSelectedModelId}
                         updateModelTransform={updateModelTransform}
+                        onPlayAnimation={handlePlayAnimation}
                     />
                 </div>
 

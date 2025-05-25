@@ -1,75 +1,138 @@
-export default function PropertyPanel({ model, updateModelTransform, updateTextProperty }) {
-  if (!model) {
-    return <div className="p-4 text-gray-500">No model selected</div>;
-  }
+import React from 'react';
+
+export default function PropertyPanel({ model, updateModelTransform, updateTextProperty, onPlayAnimation }) {
+  if (!model) return <div className="p-4 bg-gray-100 h-full border-l relative">No item selected</div>;
 
   const handleChange = (field, value) => {
-    updateModelTransform(model.id, {
-      ...model.transform,
-      [field]: parseFloat(value) || 0,
-    });
+    const parsed = parseFloat(value);
+    if (!isNaN(parsed)) {
+      updateModelTransform(model.id, { [field]: parsed });
+    }
   };
 
-  const fields = [
-    { label: 'Position', keys: ['x', 'y', 'z'] },
-    { label: 'Rotation', keys: ['rx', 'ry', 'rz'] },
-    { label: 'Scale', keys: ['sx', 'sy', 'sz'] },
-  ];
+  const handleTextPropertyChange = (field, value) => {
+    updateTextProperty(model.id, { [field]: value });
+  };
+
+  const transform = model.transform || {};
 
   return (
-    <div className="h-full w-full p-4 bg-gray-100 overflow-y-auto">
-      <h2 className="text-lg font-bold mb-4">Properties: {model.name}</h2>
+    <div className="p-4 bg-gray-100 h-full border-l relative">
+      <h2 className="text-lg font-semibold mb-2">Properties</h2>
 
-      {fields.map(({ label, keys }) => (
-        <div className="mb-4" key={label}>
-          <h3 className="font-semibold mb-2">{label}</h3>
-          <div className="flex space-x-2">
-            {keys.map((key) => (
-              <div key={key} className="flex flex-col">
-                <label className="text-sm uppercase">{key}</label>
-                <input
-                  type="number"
-                  value={model.transform[key]}
-                  onChange={(e) => handleChange(key, e.target.value)}
-                  className="border rounded px-2 py-1 w-16"
-                  step={key.startsWith('s') ? 0.1 : 0.01}
-                />
-              </div>
-            ))}
-          </div>
+      {/* Position */}
+      <div className="mb-2">
+        <label className="block font-medium">Position</label>
+        <div className="flex gap-2">
+          {['x', 'y', 'z'].map((axis) => (
+            <input
+              key={axis}
+              type="number"
+              value={transform[axis] || 0}
+              onChange={(e) => handleChange(axis, e.target.value)}
+              className="w-1/3 border p-1 text-sm"
+            />
+          ))}
         </div>
-      ))}
+      </div>
 
+      {/* Rotation */}
+      <div className="mb-2">
+        <label className="block font-medium">Rotation</label>
+        <div className="flex gap-2">
+          {['rx', 'ry', 'rz'].map((axis) => (
+            <input
+              key={axis}
+              type="number"
+              value={transform[axis] || 0}
+              onChange={(e) => handleChange(axis, e.target.value)}
+              className="w-1/3 border p-1 text-sm"
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Scale */}
+      <div className="mb-4">
+        <label className="block font-medium">Scale</label>
+        <div className="flex gap-2">
+          {['sx', 'sy', 'sz'].map((axis) => (
+            <input
+              key={axis}
+              type="number"
+              value={transform[axis] || 1}
+              onChange={(e) => handleChange(axis, e.target.value)}
+              className="w-1/3 border p-1 text-sm"
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Text Fields */}
       {model.type === 'text' && (
         <>
-          <hr className="my-4 border-t border-gray-300" />
-          <div className="mb-4">
-            <h3 className="font-semibold mb-2">Text Properties</h3>
-
-            <label className="text-sm block mb-1">Content</label>
+          <hr className="my-4" />
+          <div className="mb-2">
+            <label className="block font-medium">Text</label>
             <input
               type="text"
-              value={model.content}
-              onChange={(e) => updateTextProperty(model.id, { content: e.target.value })}
-              className="border rounded px-2 py-1 w-full mb-3"
+              value={model.content || ''}
+              onChange={(e) => handleTextPropertyChange('content', e.target.value)}
+              className="w-full border p-1 text-sm"
             />
+          </div>
 
-            <label className="text-sm block mb-1">Font Size</label>
+          <div className="mb-2">
+            <label className="block font-medium">Font Size</label>
             <input
               type="number"
               value={model.fontSize || 1}
-              onChange={(e) => updateTextProperty(model.id, { fontSize: parseFloat(e.target.value) || 1 })}
-              className="border rounded px-2 py-1 w-full mb-3"
-              step="0.1"
+              onChange={(e) => handleTextPropertyChange('fontSize', e.target.value)}
+              className="w-full border p-1 text-sm"
             />
+          </div>
 
-            <label className="text-sm block mb-1">Color</label>
+          <div className="mb-2">
+            <label className="block font-medium">Color</label>
             <input
               type="color"
               value={model.color || '#ffffff'}
-              onChange={(e) => updateTextProperty(model.id, { color: e.target.value })}
-              className="w-16 h-8 p-0 border rounded"
+              onChange={(e) => handleTextPropertyChange('color', e.target.value)}
+              className="w-full border p-1 text-sm"
             />
+          </div>
+        </>
+      )}
+
+      {/* Animation Selector */}
+      {model.type === 'model' && model.animations && model.animations.length > 0 && (
+        <>
+          <hr className="my-4" />
+          <div className="mb-2">
+            <label className="block font-medium">Animations</label>
+            <select
+              value={model.selectedAnimationIndex || 0}
+              onChange={(e) => onAnimationChange?.(parseInt(e.target.value))}
+              className="w-full border p-1 text-sm"
+            >
+              {model.animations.map((name, index) => (
+                <option key={index} value={index}>{name}</option>
+              ))}
+            </select>
+
+            <button
+              onClick={() => {
+                console.log('▶️ Play button clicked for:', model.id);
+                onPlayAnimation?.(model.id);
+              }}
+              className="mt-2 bg-blue-500 text-white px-3 py-1 rounded text-sm"
+            >
+              Play
+            </button>
+
+
+
+
           </div>
         </>
       )}
