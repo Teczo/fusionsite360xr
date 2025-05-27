@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FcGoogle } from 'react-icons/fc';
+import { FaFacebookF, FaMicrosoft } from 'react-icons/fa';
+
 
 export default function SignInPage() {
     const navigate = useNavigate();
@@ -27,27 +30,80 @@ export default function SignInPage() {
 
             localStorage.setItem('token', data.token);
             navigate('/dashboard');
-
         } catch (err) {
             console.error(err);
             setError('Network error during sign in');
         }
     };
 
-
     return (
-        <div className="min-h-screen flex flex-col justify-center items-center bg-gray-100 p-4">
-            <div className="bg-white shadow-md p-6 rounded w-full max-w-sm">
-                <h2 className="text-xl font-bold mb-4">Sign In</h2>
-                {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
-                <form onSubmit={handleSubmit} className="space-y-3">
-                    <input name="email" value={form.email} onChange={handleChange} placeholder="Email" type="email" className="border w-full px-3 py-2 rounded" required />
-                    <input name="password" value={form.password} onChange={handleChange} placeholder="Password" type="password" className="border w-full px-3 py-2 rounded" required />
-                    <button className="w-full bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700" type="submit">Sign In</button>
-                </form>
-                <p className="text-sm mt-4 text-center">
-                    Don't have an account? <button className="text-blue-600 underline" onClick={() => navigate('/signup')}>Sign Up</button>
-                </p>
+        <div className="min-h-screen flex items-center justify-center bg-white">
+            <div className="flex w-full max-w-5xl rounded-3xl overflow-hidden shadow-lg">
+                {/* Left Illustration Panel */}
+                <div className="w-1/2 bg-[#efe9f9] p-8 hidden lg:flex items-center justify-center relative">
+                    <img src="/login-illustration.png" alt="background" className="max-w-md" />
+                </div>
+
+                {/* Right Login Form */}
+                <div className="w-full lg:w-1/2 bg-white p-10 flex flex-col justify-center">
+                    <h2 className="text-3xl font-bold mb-6">Log in</h2>
+
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        {error && <p className="text-red-500 text-sm">{error}</p>}
+
+                        <div>
+                            <label className="text-sm font-medium">Email address</label>
+                            <input
+                                name="email"
+                                value={form.email}
+                                onChange={handleChange}
+                                placeholder="Enter your email address"
+                                type="email"
+                                required
+                                className="w-full border px-4 py-2 rounded mt-1"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="text-sm font-medium">Password</label>
+                            <input
+                                name="password"
+                                value={form.password}
+                                onChange={handleChange}
+                                placeholder="Enter your password"
+                                type="password"
+                                required
+                                className="w-full border px-4 py-2 rounded mt-1"
+                            />
+                        </div>
+
+                        <div className="text-right text-sm text-gray-500">
+                            <button type="button" className="hover:underline">Forgot your password?</button>
+                        </div>
+
+                        <button type="submit" className="w-full bg-black text-white py-2 rounded-full font-semibold">
+                            Log in
+                        </button>
+                    </form>
+
+                    {/* Social login */}
+                    <div className="flex items-center my-6">
+                        <div className="flex-1 h-px bg-gray-300" />
+                        <span className="mx-4 text-sm text-gray-500">Or Log in with</span>
+                        <div className="flex-1 h-px bg-gray-300" />
+                    </div>
+
+                    <div className="flex justify-center gap-4 mb-4">
+                        <button className="p-2 rounded-full border hover:bg-gray-50"><FcGoogle size={20} /></button>
+                        <button className="p-2 rounded-full border hover:bg-gray-50 text-blue-600"><FaMicrosoft size={18} /></button>
+                        <button className="p-2 rounded-full border hover:bg-gray-50 text-blue-700"><FaFacebookF size={18} /></button>
+                    </div>
+
+                    <p className="text-sm text-center text-gray-600">
+                        Don't have an account yet?{' '}
+                        <button onClick={() => navigate('/signup')} className="text-blue-600 hover:underline">Sign up</button>
+                    </p>
+                </div>
             </div>
         </div>
     );
