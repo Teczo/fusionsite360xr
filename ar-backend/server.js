@@ -8,9 +8,8 @@ const cors = require('cors');
 const { BlobServiceClient } = require('@azure/storage-blob');
 const File = require('./models/File');
 const fileRoutes = require('./routes/file');
-const cors = require('cors');
-
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
@@ -83,12 +82,6 @@ app.use('/api', projectRoutes);
 app.use('/api', fileRoutes);
 
 const PORT = process.env.PORT || 4000;
-
-app.use(cors({
-  origin: 'https://holoxr.onrender.com', // ✅ allow your frontend origin
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
-}));
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
