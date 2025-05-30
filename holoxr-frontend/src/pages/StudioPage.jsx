@@ -77,6 +77,7 @@ export default function StudioPage() {
                 content: item.content || '',
                 animations,
                 selectedAnimationIndex: 0,
+                playAnimationKey: Date.now(), // ✅ Trigger play immediately
                 transform: {
                     x: 0, y: 0, z: 0,
                     rx: 0, ry: 0, rz: 0,
@@ -212,6 +213,7 @@ export default function StudioPage() {
                             model={selectedModel}
                             updateModelTransform={updateModelTransform}
                             updateTextProperty={updateTextProperty}
+                            onPlayAnimation={handlePlayAnimation}
                         />
                     </div>
                 )}

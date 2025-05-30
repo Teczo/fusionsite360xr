@@ -3,17 +3,24 @@ import { useLoader, useFrame } from '@react-three/fiber';
 import { TransformControls, useGLTF, Text } from '@react-three/drei';
 import * as THREE from 'three';
 
-function GLBModel({ url, name, id, transform, selectedModelId, setSelectedModelId, transformMode, updateModelTransform, handleFocusObject, selectedAnimationIndex, playAnimationKey }) {
+function GLBModel({
+    url,
+    name,
+    id,
+    transform,
+    selectedModelId,
+    setSelectedModelId,
+    transformMode,
+    updateModelTransform,
+    handleFocusObject,
+    selectedAnimationIndex,
+    playAnimationKey
+}) {
     const { scene, animations } = useGLTF(url);
     const ref = useRef();
     const mixerRef = useRef();
 
-    useEffect(() => {
-        scene.traverse((child) => {
-            child.name = name;
-        });
-    }, [scene, name]);
-
+    // Apply transform props
     useEffect(() => {
         if (ref.current) {
             const { x, y, z, rx, ry, rz, sx, sy, sz } = transform;
@@ -23,22 +30,27 @@ function GLBModel({ url, name, id, transform, selectedModelId, setSelectedModelI
         }
     }, [transform]);
 
+    // Play animation when component mounts or key changes
     useEffect(() => {
-        if (animations.length > 0) {
-            const mixer = new THREE.AnimationMixer(scene);
-            mixerRef.current = mixer;
-
-            const clip = animations[selectedAnimationIndex] || animations[0];
-            const action = mixer.clipAction(clip);
-            action.reset().play();
-            console.log('🎬 Playing animation:', animations[selectedAnimationIndex]?.name);
-
-
-            return () => {
-                mixer.stopAllAction();
-            };
+        if (!scene || !animations.length) {
+            console.warn(`⚠️ No animations found for: ${name}`);
+            return;
         }
-    }, [animations, selectedAnimationIndex, scene, playAnimationKey]);
+
+        const mixer = new THREE.AnimationMixer(scene);
+        mixerRef.current = mixer;
+
+        const clip = animations[selectedAnimationIndex] || animations[0];
+        const action = mixer.clipAction(clip);
+        action.reset().play();
+
+        console.log(`🎬 Playing animation "${clip.name}" for ${name}`);
+
+        return () => {
+            mixer.stopAllAction();
+            mixer.uncacheRoot(scene);
+        };
+    }, [scene, animations, selectedAnimationIndex, playAnimationKey]);
 
     useFrame((_, delta) => {
         mixerRef.current?.update(delta);
@@ -82,6 +94,7 @@ function GLBModel({ url, name, id, transform, selectedModelId, setSelectedModelI
         </>
     );
 }
+
 
 function ImagePlane({ url, id, name, transform, selectedModelId, setSelectedModelId, transformMode, updateModelTransform, handleFocusObject }) {
     const texture = useLoader(THREE.TextureLoader, url);

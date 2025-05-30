@@ -5,6 +5,7 @@ import DashboardPage from './pages/DashboardPage';
 import StudioPage from './pages/StudioPage';
 import ARViewer from './pages/ARViewer';
 import ARMarkerViewer from './pages/ARMarkerViewer';
+import AnimationTest from './pages/AnimationTest';
 
 const RequireAuth = ({ children }) => {
   const token = localStorage.getItem('token');
