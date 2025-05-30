@@ -104,7 +104,7 @@ export default function PropertyPanel({ model, updateModelTransform, updateTextP
         </>
       )}
 
-      {/* Animation Selector */}
+      {/* Animation Section */}
       {model.type === 'model' && model.animations && model.animations.length > 0 && (
         <>
           <hr className="my-4" />
@@ -112,7 +112,7 @@ export default function PropertyPanel({ model, updateModelTransform, updateTextP
             <label className="block font-medium">Animations</label>
             <select
               value={model.selectedAnimationIndex || 0}
-              onChange={(e) => onAnimationChange?.(parseInt(e.target.value))}
+              onChange={(e) => updateModelTransform(model.id, { selectedAnimationIndex: parseInt(e.target.value) })}
               className="w-full border p-1 text-sm"
             >
               {model.animations.map((name, index) => (
@@ -121,18 +121,20 @@ export default function PropertyPanel({ model, updateModelTransform, updateTextP
             </select>
 
             <button
-              onClick={() => {
-                console.log('▶️ Play button clicked for:', model.id);
-                onPlayAnimation?.(model.id);
-              }}
+              onClick={() => onPlayAnimation?.(model.id)}
               className="mt-2 bg-blue-500 text-white px-3 py-1 rounded text-sm"
             >
-              Play
+              ▶ Play
             </button>
 
-
-
-
+            <div className="flex items-center gap-2 mt-2">
+              <input
+                type="checkbox"
+                checked={model.autoplay || false}
+                onChange={(e) => updateModelTransform(model.id, { autoplay: e.target.checked })}
+              />
+              <label className="text-sm">Autoplay on Publish</label>
+            </div>
           </div>
         </>
       )}

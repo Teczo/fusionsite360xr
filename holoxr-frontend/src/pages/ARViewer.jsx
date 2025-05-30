@@ -1,13 +1,14 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Text, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { ARButton } from 'three/examples/jsm/webxr/ARButton';
 
-function ModelItem({ url, transform }) {
-    const { scene } = useGLTF(url);
+function ModelItem({ url, transform, selectedAnimationIndex = 0, autoplay = false }) {
+    const { scene, animations } = useGLTF(url);
     const ref = useRef();
+    const mixerRef = useRef();
 
     useEffect(() => {
         if (ref.current) {
@@ -17,6 +18,28 @@ function ModelItem({ url, transform }) {
             ref.current.scale.set(sx, sy, sz);
         }
     }, [transform]);
+
+    useEffect(() => {
+        if (!autoplay || animations.length === 0) return;
+
+        const mixer = new THREE.AnimationMixer(scene);
+        mixerRef.current = mixer;
+
+        const clip = animations[selectedAnimationIndex] || animations[0];
+        const action = mixer.clipAction(clip);
+        action.reset().play();
+
+        console.log(`🚀 Autoplaying animation: "${clip.name}"`);
+
+        return () => {
+            mixer.stopAllAction();
+            mixer.uncacheRoot(scene);
+        };
+    }, [scene, animations, selectedAnimationIndex, autoplay]);
+
+    useFrame((_, delta) => {
+        mixerRef.current?.update(delta);
+    });
 
     return <primitive ref={ref} object={scene} />;
 }
@@ -70,7 +93,7 @@ export default function ARViewer() {
             try {
                 const res = await fetch(`${import.meta.env.VITE_API_URL}/api/published/${id}`);
                 const data = await res.json();
-                console.log("🎯 AR Scene Data:", data); // ✅ Add this line
+                console.log("📦 AR Scene Data:", data);
                 if (res.ok && data.publishedScene) {
                     setSceneData(data.publishedScene);
                 }
@@ -96,7 +119,7 @@ export default function ARViewer() {
                 <directionalLight position={[5, 5, 5]} intensity={1} />
                 <OrbitControls />
 
-                {/* Optional Ground */}
+                {/* Optional Ground Plane */}
                 <mesh rotation-x={-Math.PI / 2} position={[0, 0, 0]}>
                     <planeGeometry args={[100, 100]} />
                     <meshStandardMaterial color="#dddddd" />
@@ -104,7 +127,15 @@ export default function ARViewer() {
 
                 {sceneData.map((item) => {
                     if (item.type === 'model') {
-                        return <ModelItem key={item.id} url={item.url} transform={item.transform} />;
+                        return (
+                            <ModelItem
+                                key={item.id}
+                                url={item.url}
+                                transform={item.transform}
+                                selectedAnimationIndex={item.selectedAnimationIndex}
+                                autoplay={item.autoplay}
+                            />
+                        );
                     } else if (item.type === 'image') {
                         return <ImageItem key={item.id} url={item.url} transform={item.transform} />;
                     } else if (item.type === 'text') {
