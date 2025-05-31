@@ -9,6 +9,7 @@ import QRCodeModal from '../components/QRCodeModal';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import LoadingScreen from '../components/LoadingScreen';
 
 
 export default function StudioPage() {
@@ -23,6 +24,8 @@ export default function StudioPage() {
     const [isPreviewing, setIsPreviewing] = useState(false);
     const [projectName, setProjectName] = useState('');
     const [showQRModal, setShowQRModal] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+
 
 
 
@@ -36,11 +39,13 @@ export default function StudioPage() {
                         ...(model.type === 'text' && newData.content ? { content: newData.content } : {}),
                         ...(typeof newData.selectedAnimationIndex !== 'undefined' && { selectedAnimationIndex: newData.selectedAnimationIndex }),
                         ...(typeof newData.playAnimationKey !== 'undefined' && { playAnimationKey: newData.playAnimationKey }),
+                        ...(typeof newData.autoplay !== 'undefined' && { autoplay: newData.autoplay }), // ✅ add this line
                     }
                     : model
             )
         );
     };
+
 
 
     const updateTextProperty = (id, updates) => {
@@ -159,6 +164,8 @@ export default function StudioPage() {
         if (!projectId || !token) return;
 
         const loadProject = async () => {
+            setIsLoading(true); // ← Start loading
+
             try {
                 const res = await fetch(`${import.meta.env.VITE_API_URL}/api/projects/${projectId}`, {
                     headers: { Authorization: `Bearer ${token}` },
@@ -167,17 +174,21 @@ export default function StudioPage() {
                 const data = await res.json();
                 if (res.ok) {
                     setSceneModels(data.scene || []);
-                    setProjectName(data.name || 'Untitled Project'); // ✅ Set the project name
+                    setProjectName(data.name || 'Untitled Project');
                 }
             } catch (err) {
                 console.error('Failed to load project', err);
+            } finally {
+                setIsLoading(false); // ← Stop loading
             }
         };
 
         loadProject();
     }, [projectId]);
 
-
+    if (isLoading) {
+        return <LoadingScreen message="Loading your project..." />;
+    }
     return (
 
         <div className="h-screen flex flex-col">

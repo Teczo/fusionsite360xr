@@ -107,17 +107,29 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
                 style={{ display: 'none' }}
                 onChange={(e) => handleFileChange(e, 'model')}
               />
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-4">
                 {items.filter(i => i.type === 'model').map((item, index) => (
                   <button
                     key={index}
                     onClick={() => handleItemSelect(item)}
-                    className="block text-left border p-2 rounded hover:bg-gray-100"
+                    className="border rounded overflow-hidden hover:shadow-lg transition"
                   >
-                    {item.name}
+                    <div className="w-full h-32 bg-gray-100 flex items-center justify-center">
+                      {item.thumbnail ? (
+                        <img
+                          src={item.thumbnail}
+                          alt={item.name}
+                          className="object-cover w-full h-full"
+                        />
+                      ) : (
+                        <span className="text-xs text-gray-400">No Thumbnail</span>
+                      )}
+                    </div>
+                    <div className="p-2 text-sm truncate">{item.name}</div>
                   </button>
                 ))}
               </div>
+
             </div>
           )}
 
