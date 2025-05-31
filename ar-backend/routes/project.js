@@ -1,6 +1,8 @@
-const express = require('express');
-const Project = require('../models/Project');
-const auth = require('../middleware/authMiddleware');
+// routes/project.js (ESM version)
+import express from 'express';
+import Project from '../models/Project.js';
+import auth from '../middleware/authMiddleware.js';
+
 const router = express.Router();
 
 // Create project
@@ -74,7 +76,7 @@ router.put('/projects/:id/publish', auth, async (req, res) => {
 
         project.published = true;
         project.publishedAt = new Date();
-        project.publishedScene = scene; // save current snapshot
+        project.publishedScene = scene;
         await project.save();
 
         res.json({ message: 'Published', shareUrl: `/ar/${project._id}` });
@@ -118,4 +120,4 @@ router.get('/published-model/:id', async (req, res) => {
     }
 });
 
-module.exports = router;
+export default router;

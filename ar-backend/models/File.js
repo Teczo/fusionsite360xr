@@ -1,10 +1,10 @@
-// models/File.js
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const fileSchema = new mongoose.Schema({
   name: String,
   type: String, // "model" or "image"
   url: String,
+  thumbnail: { type: String }, // ✅ added thumbnail support
   uploadedAt: { type: Date, default: Date.now },
   position: {
     x: { type: Number, default: 0 },
@@ -23,4 +23,4 @@ const fileSchema = new mongoose.Schema({
   },
 });
 
-module.exports = mongoose.model('File', fileSchema);
+export default mongoose.model('File', fileSchema);

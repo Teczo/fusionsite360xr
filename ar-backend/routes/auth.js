@@ -1,7 +1,9 @@
-const express = require('express');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+// routes/auth.js (ESM format)
+import express from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
+import authMiddleware from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -45,9 +47,9 @@ router.post('/signin', async (req, res) => {
 });
 
 // Protected route
-router.get('/me', require('../middleware/authMiddleware'), async (req, res) => {
+router.get('/me', authMiddleware, async (req, res) => {
     const user = await User.findById(req.userId).select('-passwordHash');
     res.json(user);
 });
 
-module.exports = router;
+export default router;

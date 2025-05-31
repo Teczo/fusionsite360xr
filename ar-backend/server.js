@@ -1,29 +1,48 @@
-require('dotenv').config();
-const authRoutes = require('./routes/auth');
-const express = require('express');
-const projectRoutes = require('./routes/project');
-const mongoose = require('mongoose');
-const multer = require('multer');
-const cors = require('cors');
-const { BlobServiceClient } = require('@azure/storage-blob');
-const File = require('./models/File');
-const fileRoutes = require('./routes/file');
-const app = express();
+// server.js
+import dotenv from 'dotenv';
+dotenv.config();
 
+import express from 'express';
+import cors from 'cors';
+import multer from 'multer';
+import mongoose from 'mongoose';
+import { BlobServiceClient } from '@azure/storage-blob';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+import authRoutes from './routes/auth.js';
+import projectRoutes from './routes/project.js';
+import fileRoutes from './routes/file.js';
+import File from './models/File.js';
+
+// Define __dirname manually for ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const app = express();
+const PORT = process.env.PORT || 4000;
+
+// Middleware
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// DB Connection
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log("✅ MongoDB connected"))
   .catch((err) => console.error(err));
 
+// Azure Blob Setup
 const AZURE_STORAGE_CONNECTION_STRING = process.env.AZURE_STORAGE_CONNECTION_STRING;
 const blobServiceClient = BlobServiceClient.fromConnectionString(AZURE_STORAGE_CONNECTION_STRING);
 const containerClient = blobServiceClient.getContainerClient("uploads");
 
+// Multer in-memory upload
 const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+const upload = multer({ storage });
 
+// Upload route (uses Azure blob)
 app.post('/upload', upload.single('file'), async (req, res) => {
   try {
     const { type } = req.body;
@@ -52,11 +71,13 @@ app.post('/upload', upload.single('file'), async (req, res) => {
   }
 });
 
+// Files route
 app.get('/files', async (req, res) => {
   const files = await File.find().sort({ uploadedAt: -1 });
   res.json(files);
 });
 
+// List Azure blobs
 app.get('/blobs', async (req, res) => {
   try {
     let blobs = [];
@@ -75,16 +96,12 @@ app.get('/blobs', async (req, res) => {
   }
 });
 
+// Additional routes
 app.use('/api', authRoutes);
-
 app.use('/api', projectRoutes);
-
 app.use('/api', fileRoutes);
 
-const PORT = process.env.PORT || 4000;
-
+// Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
 });
-
-
