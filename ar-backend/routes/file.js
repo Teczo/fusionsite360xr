@@ -29,8 +29,6 @@ router.get('/files', async (req, res) => {
 });
 
 // POST: upload with Azure + thumbnail
-import archiver from 'archiver'; // add to your dependencies
-
 router.post('/upload', upload.single('file'), async (req, res) => {
     const AZURE_STORAGE_CONNECTION_STRING = process.env.AZURE_STORAGE_CONNECTION_STRING;
 

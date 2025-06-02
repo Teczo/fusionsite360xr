@@ -13,6 +13,7 @@
   "type": "module",
   "dependencies": {
     "@azure/storage-blob": "^12.27.0",
+    "archiver": "^7.0.1",
     "bcryptjs": "^3.0.2",
     "canvas": "^3.1.0",
     "cors": "^2.8.5",
