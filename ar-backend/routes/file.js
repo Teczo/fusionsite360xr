@@ -5,8 +5,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { BlobServiceClient } from '@azure/storage-blob';
-import { generateThumbnail } from '../utils/generateThumbnail.mjs';
+import { generateThumbnail } from '../utils/generateThumbnailWithPuppeteer.js';
 import File from '../models/File.js';
+import archiver from 'archiver';
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -28,6 +29,8 @@ router.get('/files', async (req, res) => {
 });
 
 // POST: upload with Azure + thumbnail
+import archiver from 'archiver'; // add to your dependencies
+
 router.post('/upload', upload.single('file'), async (req, res) => {
     const AZURE_STORAGE_CONNECTION_STRING = process.env.AZURE_STORAGE_CONNECTION_STRING;
 
@@ -41,55 +44,70 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     const file = req.file;
     if (!file) return res.status(400).json({ error: 'No file uploaded' });
 
-    const blobName = `${Date.now()}-${file.originalname}`;
-    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+    const originalName = file.originalname.replace(/\s/g, '_');
+    const baseName = originalName.replace('.glb', '');
+    const timestamp = Date.now();
+    const tempDir = path.join(__dirname, '..', 'uploads');
+    const tempGlbPath = path.join(tempDir, `${timestamp}-${originalName}`);
+    const tempZipPath = path.join(tempDir, `${timestamp}-${baseName}.zip`);
+    const tempThumbnailPath = path.join(tempDir, `${timestamp}-${baseName}.png`);
+
+    const zipBlobName = `${timestamp}-${baseName}.zip`;
+    const thumbnailBlobName = `${timestamp}-${baseName}.png`;
 
     try {
-        // Upload GLB to Azure
-        await blockBlobClient.uploadData(file.buffer, {
-            blobHTTPHeaders: { blobContentType: file.mimetype }
+        // 1. Save .glb file locally
+        fs.writeFileSync(tempGlbPath, file.buffer);
+
+        // 2. Zip the .glb file
+        await new Promise((resolve, reject) => {
+            const output = fs.createWriteStream(tempZipPath);
+            const archive = archiver('zip');
+            output.on('close', resolve);
+            archive.on('error', reject);
+            archive.pipe(output);
+            archive.file(tempGlbPath, { name: originalName });
+            archive.finalize();
         });
-        const fileUrl = blockBlobClient.url;
 
-        // Save file locally to render thumbnail
-        const tempFilePath = path.join(__dirname, '..', 'uploads', blobName);
-        fs.writeFileSync(tempFilePath, file.buffer);
+        // 3. Upload .zip to Azure
+        const zipBuffer = fs.readFileSync(tempZipPath);
+        const zipBlobClient = containerClient.getBlockBlobClient(zipBlobName);
+        await zipBlobClient.uploadData(zipBuffer, {
+            blobHTTPHeaders: { blobContentType: 'application/zip' }
+        });
+        const zipUrl = zipBlobClient.url;
 
-        let thumbnailUrl = null;
+        // 4. Generate thumbnail from .glb
+        await generateThumbnail(`file://${tempGlbPath}`, tempThumbnailPath);
 
-        // Generate and upload thumbnail
-        if (file.mimetype === 'model/gltf-binary' || file.originalname.endsWith('.glb')) {
-            const thumbnailName = blobName.replace('.glb', '.png');
-            const thumbnailPath = path.join(__dirname, '..', 'uploads', thumbnailName);
+        const thumbnailBuffer = fs.readFileSync(tempThumbnailPath);
+        const thumbnailBlobClient = containerClient.getBlockBlobClient(thumbnailBlobName);
+        await thumbnailBlobClient.uploadData(thumbnailBuffer, {
+            blobHTTPHeaders: { blobContentType: 'image/png' }
+        });
+        const thumbnailUrl = thumbnailBlobClient.url;
 
-            await generateThumbnail(tempFilePath, thumbnailPath);
-
-            const thumbnailBlobClient = containerClient.getBlockBlobClient(thumbnailName);
-            const thumbnailBuffer = fs.readFileSync(thumbnailPath);
-
-            await thumbnailBlobClient.uploadData(thumbnailBuffer, {
-                blobHTTPHeaders: { blobContentType: 'image/png' }
-            });
-
-            thumbnailUrl = thumbnailBlobClient.url;
-
-            // Clean up temp files
-            fs.unlinkSync(tempFilePath);
-            fs.unlinkSync(thumbnailPath);
-        }
-
+        // 5. Save in MongoDB
         const newFile = await File.create({
-            name: file.originalname,
+            name: originalName,
             type: 'model',
-            url: fileUrl,
+            url: zipUrl,
             thumbnail: thumbnailUrl
         });
 
-        res.status(200).json({ message: "Uploaded successfully", file: newFile });
+        // 6. Clean up
+        fs.unlinkSync(tempGlbPath);
+        fs.unlinkSync(tempZipPath);
+        fs.unlinkSync(tempThumbnailPath);
+
+        res.status(200).json({ message: "Uploaded and zipped successfully", file: newFile });
+
     } catch (err) {
         console.error('❌ Upload or thumbnail failed:', err);
         res.status(500).json({ error: 'Upload or thumbnail failed' });
     }
 });
+
 
 export default router;
