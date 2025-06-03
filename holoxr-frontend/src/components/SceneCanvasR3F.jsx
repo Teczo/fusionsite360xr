@@ -1,6 +1,6 @@
 import SceneContent from './SceneContent';
 import { Canvas, useThree } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
+import { Grid, OrbitControls, Html } from '@react-three/drei';
 import { useRef, useState, useEffect } from 'react';
 import * as THREE from 'three';
 
@@ -84,7 +84,7 @@ export default function SceneCanvasR3F({ items,
     const cameraRef = useRef();
 
     const FloatingPanel = () => (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 bg-white bg-opacity-80 px-4 py-1 rounded shadow flex gap-2">
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 bg-white bg-opacity-80 px-4 py-1 rounded-xl shadow-[0_4px_12px_4px_rgba(1,1,1,0.3)]  flex gap-2">
             {['translate', 'rotate', 'scale', 'none'].map((mode) => (
                 <button
                     key={mode}
@@ -129,12 +129,27 @@ export default function SceneCanvasR3F({ items,
 
             <Canvas
                 camera={{ position: [0, 2, 10], fov: 60 }}
-                ref={cameraRef}
+                shadows
+                dpr={[1, 2]}
+                gl={{ preserveDrawingBuffer: true }}
+                style={{ background: '#ffffff' }}
             >
                 <ambientLight intensity={0.5} />
                 <directionalLight position={[5, 5, 5]} intensity={1} />
                 <OrbitControls makeDefault />
                 <CameraController resetSignal={resetSignal} />
+                <Grid
+                    args={[10, 10]}
+                    cellSize={0.5}
+                    cellThickness={0.5}
+                    sectionSize={5}
+                    sectionThickness={1.5}
+                    sectionColor={'#6f6f6f'}
+                    cellColor={'#444'}
+                    fadeDistance={30}
+                    fadeStrength={1}
+                    infiniteGrid={true}
+                />
 
                 <SceneContent
                     items={items}
@@ -143,9 +158,10 @@ export default function SceneCanvasR3F({ items,
                     transformMode={transformMode}
                     updateModelTransform={updateModelTransform}
                     handleFocusObject={handleFocusObject}
-                    onModelLoaded={handleModelLoaded}  //
+                    onModelLoaded={handleModelLoaded}
                 />
             </Canvas>
+
         </div>
     );
 }

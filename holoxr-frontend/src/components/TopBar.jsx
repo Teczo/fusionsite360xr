@@ -14,7 +14,7 @@ export default function TopBar({
 
 
   return (
-    <div className="w-full h-15 bg-gray-800 text-white flex justify-between items-center px-4">
+    <div className="w-full h-15 bg-[#091d31] text-white flex justify-between items-center px-4">
       <div className="flex items-center gap-4">
         <button
           onClick={onBack}

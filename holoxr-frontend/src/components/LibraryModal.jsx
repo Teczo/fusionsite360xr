@@ -43,7 +43,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
     formData.append('type', type);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -64,7 +64,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
       <div className="bg-white w-[800px] h-[500px] rounded-lg shadow-xl flex">
         {/* Left Sidebar */}
         <div className="w-40 border-r p-2 flex flex-col gap-2">

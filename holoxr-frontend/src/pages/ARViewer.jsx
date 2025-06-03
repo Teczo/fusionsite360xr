@@ -1,17 +1,50 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Text, useGLTF } from '@react-three/drei';
+import { OrbitControls, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { ARButton } from 'three/examples/jsm/webxr/ARButton';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { unzipSync } from 'fflate';
 
 function ModelItem({ url, transform, selectedAnimationIndex = 0, autoplay = false }) {
-    const { scene, animations } = useGLTF(url);
     const ref = useRef();
     const mixerRef = useRef();
+    const [scene, setScene] = useState(null);
+    const [animations, setAnimations] = useState([]);
 
     useEffect(() => {
-        if (ref.current) {
+        if (!url) return;
+
+        const loadModel = async () => {
+            let blobUrl = url;
+            if (url.endsWith('.zip')) {
+                const res = await fetch(url);
+                const arrayBuffer = await res.arrayBuffer();
+                const zip = unzipSync(new Uint8Array(arrayBuffer));
+                const glbName = Object.keys(zip).find(name => name.endsWith('.glb'));
+                if (!glbName) throw new Error('No .glb in zip');
+                const blob = new Blob([zip[glbName]], { type: 'model/gltf-binary' });
+                blobUrl = URL.createObjectURL(blob);
+            }
+
+            const loader = new GLTFLoader();
+            loader.load(
+                blobUrl,
+                (gltf) => {
+                    setScene(gltf.scene);
+                    setAnimations(gltf.animations);
+                },
+                undefined,
+                (err) => console.error('❌ GLB load error:', err)
+            );
+        };
+
+        loadModel();
+    }, [url]);
+
+    useEffect(() => {
+        if (ref.current && transform) {
             const { x, y, z, rx, ry, rz, sx, sy, sz } = transform;
             ref.current.position.set(x, y, z);
             ref.current.rotation.set(rx, ry, rz);
@@ -20,7 +53,7 @@ function ModelItem({ url, transform, selectedAnimationIndex = 0, autoplay = fals
     }, [transform]);
 
     useEffect(() => {
-        if (!autoplay || animations.length === 0) return;
+        if (!scene || !autoplay || animations.length === 0) return;
 
         const mixer = new THREE.AnimationMixer(scene);
         mixerRef.current = mixer;
@@ -28,8 +61,6 @@ function ModelItem({ url, transform, selectedAnimationIndex = 0, autoplay = fals
         const clip = animations[selectedAnimationIndex] || animations[0];
         const action = mixer.clipAction(clip);
         action.reset().play();
-
-        console.log(`🚀 Autoplaying animation: "${clip.name}"`);
 
         return () => {
             mixer.stopAllAction();
@@ -41,8 +72,11 @@ function ModelItem({ url, transform, selectedAnimationIndex = 0, autoplay = fals
         mixerRef.current?.update(delta);
     });
 
+    if (!scene) return null;
+
     return <primitive ref={ref} object={scene} />;
 }
+
 
 function ImageItem({ url, transform }) {
     const texture = new THREE.TextureLoader().load(url);

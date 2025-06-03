@@ -214,6 +214,7 @@ export default function StudioPage() {
                 isOpen={showQRModal}
                 onClose={() => setShowQRModal(false)}
                 url={`https://holoxr.onrender.com/ar/${projectId}`}
+                projectTitle={projectName}
             />
 
 

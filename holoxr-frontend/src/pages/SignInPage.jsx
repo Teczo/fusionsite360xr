@@ -40,7 +40,7 @@ export default function SignInPage() {
         <div className="min-h-screen flex items-center justify-center bg-white">
             <div className="flex w-full max-w-5xl rounded-3xl overflow-hidden shadow-lg">
                 {/* Left Illustration Panel */}
-                <div className="w-1/2 bg-[#efe9f9] p-8 hidden lg:flex items-center justify-center relative">
+                <div className=" bg-[#efe9f9] hidden lg:flex items-center justify-center relative">
                     <img src="/login-illustration.png" alt="background" className="max-w-md" />
                 </div>
 

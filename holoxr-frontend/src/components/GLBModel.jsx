@@ -1,7 +1,9 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { TransformControls, useGLTF } from '@react-three/drei';
+import { TransformControls } from '@react-three/drei';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import * as THREE from 'three';
+import { unzipSync } from 'fflate';
 
 export default function GLBModel({
     url,
@@ -17,23 +19,79 @@ export default function GLBModel({
     playAnimationKey,
     onLoaded
 }) {
-    const { scene, animations } = useGLTF(url);
     const ref = useRef();
     const mixerRef = useRef();
+    const [blobUrl, setBlobUrl] = useState(null);
+    const [scene, setScene] = useState(null);
+    const [animations, setAnimations] = useState([]);
 
+    // 🔄 Unzip if needed and generate blob URL
     useEffect(() => {
-        const delay = Math.random() * 300 + 100; // random 100-400ms delay
-        const timeout = setTimeout(() => {
-            if (onLoaded) onLoaded();
-        }, delay);
+        if (!url) return;
 
-        return () => clearTimeout(timeout);
-    }, []);
+        if (!url.endsWith('.zip')) {
+            setBlobUrl(url);
+            return;
+        }
 
+        fetch(url)
+            .then(res => res.arrayBuffer())
+            .then(buf => {
+                const zip = unzipSync(new Uint8Array(buf));
+                const glbName = Object.keys(zip).find(name => name.endsWith('.glb'));
+                if (!glbName) throw new Error('No .glb found in .zip');
+                const blob = new Blob([zip[glbName]], { type: 'model/gltf-binary' });
+                const objectUrl = URL.createObjectURL(blob);
+                setBlobUrl(objectUrl);
+            })
+            .catch(err => {
+                console.error('❌ Failed to unzip and prepare GLB:', err);
+            });
+    }, [url]);
 
-
+    // ⏳ Load model once blobUrl is ready
     useEffect(() => {
-        if (ref.current) {
+        if (!blobUrl) return;
+
+        const loader = new GLTFLoader();
+        loader.load(
+            blobUrl,
+            (gltf) => {
+                setScene(gltf.scene);
+                setAnimations(gltf.animations);
+                if (onLoaded) onLoaded();
+            },
+            undefined,
+            (err) => {
+                console.error('❌ Failed to load model:', err);
+            }
+        );
+    }, [blobUrl]);
+
+    // 🎮 Animation setup
+    useEffect(() => {
+        if (!scene || !animations.length) return;
+        const mixer = new THREE.AnimationMixer(scene);
+        mixerRef.current = mixer;
+
+        const clip = animations[selectedAnimationIndex] || animations[0];
+        const action = mixer.clipAction(clip);
+        action.reset().play();
+
+        return () => {
+            mixer.stopAllAction();
+            mixer.uncacheRoot(scene);
+        };
+    }, [scene, animations, selectedAnimationIndex, playAnimationKey]);
+
+    // 🔁 Animation update loop
+    useFrame((_, delta) => {
+        mixerRef.current?.update(delta);
+    });
+
+    // 📦 Apply transform
+    useEffect(() => {
+        if (ref.current && transform) {
             const { x, y, z, rx, ry, rz, sx, sy, sz } = transform;
             ref.current.position.set(x, y, z);
             ref.current.rotation.set(rx, ry, rz);
@@ -41,22 +99,8 @@ export default function GLBModel({
         }
     }, [transform]);
 
-    useEffect(() => {
-        if (!animations.length) return;
-        const mixer = new THREE.AnimationMixer(scene);
-        mixerRef.current = mixer;
-        const clip = animations[selectedAnimationIndex] || animations[0];
-        const action = mixer.clipAction(clip);
-        action.reset().play();
-        return () => {
-            mixer.stopAllAction();
-            mixer.uncacheRoot(scene);
-        };
-    }, [scene, animations, selectedAnimationIndex, playAnimationKey]);
-
-    useFrame((_, delta) => {
-        mixerRef.current?.update(delta);
-    });
+    // 🛑 Don't render until ready
+    if (!scene) return null;
 
     return (
         <>
@@ -71,7 +115,6 @@ export default function GLBModel({
                     e.stopPropagation();
                     handleFocusObject(ref);
                 }}
-                scale={1}
             />
             {selectedModelId === id && transformMode !== 'none' && ref.current && (
                 <TransformControls
