@@ -16,6 +16,7 @@
     "axios": "^1.9.0",
     "fflate": "^0.8.2",
     "jszip": "^3.10.1",
+    "keen-slider": "^6.8.6",
     "lucide-react": "^0.507.0",
     "qrcode.react": "^4.2.0",
     "react": "^19.0.0",

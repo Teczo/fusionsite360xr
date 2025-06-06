@@ -118,7 +118,7 @@ export default function DashboardPage() {
                             ))}
                         </div>
 
-                        <div className="px-4 py-2 flex justify-center">
+                        <div className="px-4 py-2 flex justify-center mb-5">
                             <input
                                 type="text"
                                 placeholder="Search or prompt MeshAI..."
@@ -126,7 +126,7 @@ export default function DashboardPage() {
                             />
                         </div>
 
-                        <div className="flex justify-center gap-4 mb-6">
+                        <div className="flex justify-center gap-4 mb-15">
                             {[
                                 { icon: BookOpen, label: 'Biology' },
                                 { icon: FlaskConical, label: 'Chemistry' },
@@ -150,7 +150,7 @@ export default function DashboardPage() {
                                 return (
                                     <div key={label} className="flex flex-col items-center text-sm cursor-pointer">
                                         <div
-                                            className={`flex items-center justify-center w-16 h-16 rounded-full ${randomColor} text-white hover:scale-110 transition-transform duration-200`}
+                                            className={`flex items-center justify-center w-12 h-12 rounded-full ${randomColor} text-white hover:scale-110 transition-transform duration-200`}
                                         >
                                             <Icon className="w-6 h-6 text-white" />
                                         </div>
@@ -167,7 +167,7 @@ export default function DashboardPage() {
                             <div
                                 key={proj._id}
                                 onClick={() => navigate(`/studio?id=${proj._id}`)}
-                                className="bg-[#2c2e3a] rounded-lg shadow hover:shadow-[0_0_20px_8px_rgba(1,1,1,1)] cursor-pointer overflow-hidden h-64" // Adjusted height for rectangular shape
+                                className="bg-[#2c2e3a] rounded-lg shadow hover:shadow-[0_10px_20px_8px_rgba(1,1,1,1)] cursor-pointer overflow-hidden h-64" // Adjusted height for rectangular shape
                             >
                                 <div className="h-36 bg-gray-200">
                                     <img

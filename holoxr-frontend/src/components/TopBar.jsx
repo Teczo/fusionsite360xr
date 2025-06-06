@@ -1,4 +1,5 @@
 import React from 'react';
+import { BookOpen, Eye, Save, Upload } from 'lucide-react';
 
 export default function TopBar({
   onLibraryOpen,
@@ -14,29 +15,52 @@ export default function TopBar({
 
 
   return (
-    <div className="w-full h-15 bg-[#091d31] text-white flex justify-between items-center px-4">
+    <div className="absolute top-4 left-4 right-4 z-20 bg-[#18191e] text-white flex justify-between items-center px-4 py-2 rounded-3xl shadow-lg">
       <div className="flex items-center gap-4">
         <button
           onClick={onBack}
-          className="bg-gray-600 hover:bg-gray-500 px-3 py-1 rounded text-white text-sm"
+          className="w-9 h-9 flex items-center justify-center rounded-full bg-transparent hover:bg-gray-300 transition"
         >
-          ← Back
+          <img src="/holo-icon.png" alt="Back" className="w-5 h-5" />
         </button>
+
         <h2 className="text-lg font-semibold">{projectName || 'Untitled Project'}</h2>
       </div>
 
       <div className="flex gap-4">
-        <button onClick={onLibraryOpen} className="bg-blue-500 px-3 py-1 rounded text-white">Library</button>
-        <button onClick={onTogglePreview} className="bg-yellow-500 px-3 py-1 rounded text-white">Preview</button>
-        <button onClick={onSaveProject} className="bg-indigo-600 px-3 py-1 rounded text-white">Save</button>
         <button
-          className="bg-green-600 px-3 py-1 rounded text-white"
+          onClick={onLibraryOpen}
+          className="w-9 h-9 flex items-center justify-center rounded-full bg-transparent hover:bg-gray-300 transition"
+          title="Library"
+        >
+          <BookOpen size={16} className="text-white" />
+        </button>
+
+        <button
+          onClick={onTogglePreview}
+          className="w-9 h-9 flex items-center justify-center rounded-full bg-transparent hover:bg-gray-300 transition"
+          title="Preview"
+        >
+          <Eye size={16} className="text-white" />
+        </button>
+
+        <button
+          onClick={onSaveProject}
+          className="w-9 h-9 flex items-center justify-center rounded-full bg-transparent hover:bg-gray-300 transition"
+          title="Save"
+        >
+          <Save size={16} className="text-white" />
+        </button>
+
+        <button
           onClick={() => {
             onPublishProject?.();
-            onShowQRCode?.(); // ✅ also trigger QR
+            onShowQRCode?.();
           }}
+          className="w-9 h-9 flex items-center justify-center rounded-full bg-transparent hover:bg-gray-300 transition"
+          title="Publish"
         >
-          Publish
+          <Upload size={16} className="text-white" />
         </button>
 
 

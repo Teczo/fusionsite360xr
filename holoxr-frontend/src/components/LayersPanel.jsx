@@ -12,8 +12,8 @@ export default function LayersPanel({ models, selectedModelId, setSelectedModelI
 
 
   return (
-    <div className="p-4 bg-gray-100 h-full border-l relative">
-      <h2 className="font-bold mb-2">Layers</h2>
+    <div className="absolute top-20 bottom-4 left-4 w-60 bg-[#18191e] rounded-3xl shadow-[0_4px_12px_4px_rgba(1,1,1,0.3)] p-4 z-10 overflow-y-auto">
+      <h2 className="font-bold mb-2 text-white">Layers</h2>
       <ul className="space-y-1">
         {models.map((model) => (
           <li

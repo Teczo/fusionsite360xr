@@ -3,6 +3,8 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { Grid, OrbitControls, Html } from '@react-three/drei';
 import { useRef, useState, useEffect } from 'react';
 import * as THREE from 'three';
+import FloatingPanel from './FloatingPanel';
+
 
 export default function SceneCanvasR3F({ items,
     selectedModelId,
@@ -83,31 +85,7 @@ export default function SceneCanvasR3F({ items,
 
     const cameraRef = useRef();
 
-    const FloatingPanel = () => (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 bg-white bg-opacity-80 px-4 py-1 rounded-xl shadow-[0_4px_12px_4px_rgba(1,1,1,0.3)]  flex gap-2">
-            {['translate', 'rotate', 'scale', 'none'].map((mode) => (
-                <button
-                    key={mode}
-                    onClick={() => setTransformMode(mode)}
-                    className={`text-sm px-2 py-1 rounded ${transformMode === mode
-                        ? 'bg-gray-50 text-gray-800 hover:bg-gray-100'
-                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                        }`}
-                >
-                    {mode === 'translate' && 'Move'}
-                    {mode === 'rotate' && 'Rotate'}
-                    {mode === 'scale' && 'Scale'}
-                    {mode === 'none' && 'Hide'}
-                </button>
-            ))}
-            <button
-                onClick={handleResetView}
-                className="text-sm px-2 py-1 rounded bg-gray-200 text-gray-800 hover:bg-gray-300"
-            >
-                Reset View
-            </button>
-        </div>
-    );
+
 
     return (
         <div className="w-full h-full relative">
@@ -125,14 +103,19 @@ export default function SceneCanvasR3F({ items,
                     </div>
                 </div>
             )}
-            <FloatingPanel />
+            <FloatingPanel
+                transformMode={transformMode}
+                setTransformMode={setTransformMode}
+                onResetView={handleResetView}
+            />
+
 
             <Canvas
                 camera={{ position: [0, 2, 10], fov: 60 }}
                 shadows
                 dpr={[1, 2]}
                 gl={{ preserveDrawingBuffer: true }}
-                style={{ background: '#ffffff' }}
+                style={{ background: '#0a0c0d' }}
             >
                 <ambientLight intensity={0.5} />
                 <directionalLight position={[5, 5, 5]} intensity={1} />
