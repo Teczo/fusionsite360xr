@@ -26,7 +26,9 @@ export default function SceneContent({
                             handleFocusObject={handleFocusObject}
                             selectedAnimationIndex={item.selectedAnimationIndex || 0}
                             playAnimationKey={item.playAnimationKey || 0}
-                            onLoaded={onModelLoaded}
+                            // ✅ pass model id to GLBModel and wrap onLoaded
+                            onLoaded={(data) => onModelLoaded?.(item.id, data)}
+                            isPaused={item.isPaused || false}
                         />
                     );
                 }

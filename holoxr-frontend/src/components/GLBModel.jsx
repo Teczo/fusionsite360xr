@@ -6,9 +6,10 @@ import * as THREE from 'three';
 import { unzipSync } from 'fflate';
 
 export default function GLBModel({
-    url,
-    name,
     id,
+    url,
+    scene: providedScene, // ✅ Sketchfab may pass this
+    name,
     transform,
     selectedModelId,
     setSelectedModelId,
@@ -17,17 +18,18 @@ export default function GLBModel({
     handleFocusObject,
     selectedAnimationIndex,
     playAnimationKey,
+    isPaused,
     onLoaded
 }) {
     const ref = useRef();
     const mixerRef = useRef();
     const [blobUrl, setBlobUrl] = useState(null);
-    const [scene, setScene] = useState(null);
+    const [scene, setScene] = useState(providedScene || null); // ✅ Default to provided scene
     const [animations, setAnimations] = useState([]);
 
     // 🔄 Unzip if needed and generate blob URL
     useEffect(() => {
-        if (!url) return;
+        if (!url || providedScene) return; // ✅ Skip loading if we already have a scene
 
         if (!url.endsWith('.zip')) {
             setBlobUrl(url);
@@ -40,37 +42,43 @@ export default function GLBModel({
                 const zip = unzipSync(new Uint8Array(buf));
                 const glbName = Object.keys(zip).find(name => name.endsWith('.glb'));
                 if (!glbName) throw new Error('No .glb found in .zip');
+
                 const blob = new Blob([zip[glbName]], { type: 'model/gltf-binary' });
                 const objectUrl = URL.createObjectURL(blob);
                 setBlobUrl(objectUrl);
             })
             .catch(err => {
                 console.error('❌ Failed to unzip and prepare GLB:', err);
+                setBlobUrl(null);
             });
-    }, [url]);
+    }, [url, providedScene]);
 
-    // ⏳ Load model once blobUrl is ready
+    // ⏳ Load model from blob if needed
     useEffect(() => {
-        if (!blobUrl) return;
+        if (providedScene || !blobUrl || !blobUrl.startsWith('blob:')) return;
 
         const loader = new GLTFLoader();
         loader.load(
             blobUrl,
             (gltf) => {
                 setScene(gltf.scene);
-                setAnimations(gltf.animations);
-                if (onLoaded) onLoaded();
+                setAnimations(gltf.animations || []);
+                if (onLoaded) {
+                    const animationNames = (gltf.animations || []).map(a => a.name);
+                    onLoaded({ animations: animationNames });
+                }
             },
             undefined,
             (err) => {
-                console.error('❌ Failed to load model:', err);
+                console.error('❌ Failed to load GLB model:', err);
             }
         );
-    }, [blobUrl]);
+    }, [blobUrl, providedScene]);
 
     // 🎮 Animation setup
     useEffect(() => {
         if (!scene || !animations.length) return;
+
         const mixer = new THREE.AnimationMixer(scene);
         mixerRef.current = mixer;
 
@@ -86,7 +94,9 @@ export default function GLBModel({
 
     // 🔁 Animation update loop
     useFrame((_, delta) => {
-        mixerRef.current?.update(delta);
+        if (!isPaused) {
+            mixerRef.current?.update(delta);
+        }
     });
 
     // 📦 Apply transform
@@ -97,9 +107,8 @@ export default function GLBModel({
             ref.current.rotation.set(rx, ry, rz);
             ref.current.scale.set(sx, sy, sz);
         }
-    }, [transform]);
+    }, [transform, scene]);
 
-    // 🛑 Don't render until ready
     if (!scene) return null;
 
     return (
@@ -138,4 +147,4 @@ export default function GLBModel({
             )}
         </>
     );
-}
+} 

@@ -22,6 +22,8 @@ export default function StudioPage() {
     const [showQRModal, setShowQRModal] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
+
+
     const updateModelTransform = (id, newData) => {
         setSceneModels((prev) =>
             prev.map((model) =>
@@ -33,6 +35,8 @@ export default function StudioPage() {
                         ...(typeof newData.selectedAnimationIndex !== 'undefined' && { selectedAnimationIndex: newData.selectedAnimationIndex }),
                         ...(typeof newData.playAnimationKey !== 'undefined' && { playAnimationKey: newData.playAnimationKey }),
                         ...(typeof newData.autoplay !== 'undefined' && { autoplay: newData.autoplay }),
+                        ...(typeof newData.isPaused !== 'undefined' && { isPaused: newData.isPaused }),
+
                     }
                     : model
             )
@@ -47,18 +51,8 @@ export default function StudioPage() {
         );
     };
 
-    const handleLibraryItemSelect = async (item) => {
-        const id = Date.now().toString();
-        let animations = [];
-
-        if (item.type === 'model') {
-            try {
-                const gltf = await new GLTFLoader().loadAsync(item.url);
-                animations = gltf.animations.map((clip) => clip.name);
-            } catch (err) {
-                console.error('Failed to load animations for model:', err);
-            }
-        }
+    const handleLibraryItemSelect = (item) => {
+        const id = item.id || Date.now().toString();
 
         setSceneModels((prev) => [
             ...prev,
@@ -68,19 +62,39 @@ export default function StudioPage() {
                 type: item.type,
                 url: item.url || null,
                 content: item.content || '',
-                animations,
-                selectedAnimationIndex: 0,
+                animations: item.animations || [],
+                selectedAnimationIndex: item.selectedAnimationIndex || 0,
                 playAnimationKey: Date.now(),
-                transform: {
+                transform: item.transform || {
                     x: 0, y: 0, z: 0,
                     rx: 0, ry: 0, rz: 0,
                     sx: 1, sy: 1, sz: 1,
                 },
+                scene: item.scene || null, // ✅ Preserve the actual 3D object
             },
         ]);
 
         setIsLibraryOpen(false);
     };
+
+
+    const handleModelLoaded = (id, data) => {
+        console.log('Model Loaded:', id, data.animations);
+
+        if (!data?.animations?.length) return;
+
+        setSceneModels((prev) =>
+            prev.map((model) =>
+                model.id === id
+                    ? {
+                        ...model,
+                        animations: data.animations // <- already names
+                    }
+                    : model
+            )
+        );
+    };
+
 
     const handleSaveProject = async () => {
         if (!projectId || !sceneModels.length) return;
@@ -141,6 +155,7 @@ export default function StudioPage() {
     const handlePlayAnimation = (id) => {
         updateModelTransform(id, { playAnimationKey: Date.now() });
     };
+
 
     useEffect(() => {
         const token = localStorage.getItem('token');
@@ -224,6 +239,7 @@ export default function StudioPage() {
                     setSelectedModelId={setSelectedModelId}
                     updateModelTransform={updateModelTransform}
                     onPlayAnimation={handlePlayAnimation}
+                    onModelLoaded={handleModelLoaded}
                 />
             </div>
 

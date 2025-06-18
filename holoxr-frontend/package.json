@@ -14,6 +14,7 @@
     "@react-three/fiber": "^9.1.2",
     "@tailwindcss/vite": "^4.1.5",
     "axios": "^1.9.0",
+    "date-fns": "^4.1.0",
     "fflate": "^0.8.2",
     "jszip": "^3.10.1",
     "keen-slider": "^6.8.6",

@@ -1,7 +1,11 @@
 import React from 'react';
 
 export default function PropertyPanel({ model, updateModelTransform, updateTextProperty, onPlayAnimation }) {
-  if (!model) return <div className="p-4 text-white">No item selected</div>;
+  if (!model) return (
+    <div className="absolute top-20 bottom-4 right-4 w-72 bg-[#18191e] rounded-3xl shadow-xl p-5 z-10 overflow-y-auto text-white space-y-4">
+      <h2 className="text-lg font-semibold">Properties</h2>
+    </div>
+  );
 
   const handleChange = (field, value) => {
     const parsed = parseFloat(value);
@@ -20,7 +24,7 @@ export default function PropertyPanel({ model, updateModelTransform, updateTextP
     <div className="absolute top-20 bottom-4 right-4 w-72 bg-[#18191e] rounded-3xl shadow-xl p-5 z-10 overflow-y-auto text-white space-y-4">
       <h2 className="text-lg font-semibold">Properties</h2>
 
-      {/* Section Template */}
+      {/* Transform Section */}
       {[
         { label: 'Position', keys: ['x', 'y', 'z'], default: 0 },
         { label: 'Rotation', keys: ['rx', 'ry', 'rz'], default: 0 },
@@ -42,7 +46,7 @@ export default function PropertyPanel({ model, updateModelTransform, updateTextP
         </div>
       ))}
 
-      {/* Text Section */}
+      {/* Text Properties */}
       {model.type === 'text' && (
         <div className="space-y-3 pt-2 border-t border-gray-700">
           <div>
@@ -77,8 +81,8 @@ export default function PropertyPanel({ model, updateModelTransform, updateTextP
         </div>
       )}
 
-      {/* Animation Section */}
-      {model.type === 'model' && model.animations?.length > 0 && (
+      {/* Animation Controls */}
+      {model.type === 'model' && (
         <div className="space-y-2 pt-2 border-t border-gray-700">
           <div>
             <label className="block text-sm font-medium mb-1">Animations</label>
@@ -87,6 +91,7 @@ export default function PropertyPanel({ model, updateModelTransform, updateTextP
               onChange={(e) =>
                 updateModelTransform(model.id, {
                   selectedAnimationIndex: parseInt(e.target.value),
+                  playAnimationKey: Date.now(), // autoplay when selection changes
                 })
               }
               className="w-full rounded-md bg-[#2a2b2f] text-white p-1 text-sm border border-gray-600"
@@ -97,16 +102,38 @@ export default function PropertyPanel({ model, updateModelTransform, updateTextP
                 </option>
               ))}
             </select>
+            <p className="text-xs text-gray-400 italic mt-1">
+              🎞 Current Animation: {model.animations[model.selectedAnimationIndex] || 'None'}
+            </p>
           </div>
 
-          <button
-            onClick={() => onPlayAnimation?.(model.id)}
-            className="w-full bg-blue-500 hover:bg-blue-600 text-white py-1 rounded text-sm"
-          >
-            ▶ Play
-          </button>
+          {/* Media Player-style Controls */}
+          <div className="flex justify-center gap-2 pt-1">
+            <button
+              onClick={() => updateModelTransform(model.id, { isPaused: true })}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm"
+              title="Pause"
+            >
+              ⏸
+            </button>
+            <button
+              onClick={() => updateModelTransform(model.id, { isPaused: false })}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm"
+              title="Resume"
+            >
+              ▶
+            </button>
+            <button
+              onClick={() => onPlayAnimation?.(model.id)}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm"
+              title="Restart"
+            >
+              ⏮
+            </button>
+          </div>
 
-          <label className="flex items-center gap-2 text-sm">
+          {/* Autoplay Checkbox */}
+          <label className="flex items-center gap-2 text-sm pt-1">
             <input
               type="checkbox"
               checked={model.autoplay || false}

@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
-import { FilePlus, ImagePlus, TextQuote, QrCode, Box } from 'lucide-react';
-import SketchfabModal from './SketchfabModal';
+import { FilePlus, ImagePlus, TextQuote, QrCode, Box, Trash2 } from 'lucide-react';
+import SketchfabPanel from './SketchfabPanel';
+import { formatDistanceToNow } from 'date-fns';
+
 
 const sidebarItems = [
   { label: '3D shapes', icon: <FilePlus size={16} /> },
@@ -8,7 +10,34 @@ const sidebarItems = [
   { label: 'Text', icon: <TextQuote size={16} /> },
   { label: 'QR Code', icon: <QrCode size={16} /> },
   { label: 'Sketchfab', icon: <Box size={16} /> },
+  { label: 'Trash', icon: <Trash2 size={16} /> }
 ];
+
+
+const handleMoveToTrash = async (fileId) => {
+  const confirmDelete = window.confirm("Are you sure you want to move this file to trash?");
+  if (!confirmDelete) return;
+
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/files/${fileId}`, {
+      method: 'DELETE',
+    });
+
+    if (res.ok) {
+      alert("✅ File moved to trash.");
+      fetchItems(); // Refresh list
+      setOpenMenu(null);
+    } else {
+      const data = await res.json();
+      console.error("❌ Delete failed:", data.error);
+      alert("Failed to delete file.");
+    }
+  } catch (err) {
+    console.error("❌ Delete request failed:", err);
+    alert("Error deleting file.");
+  }
+};
+
 
 export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
   const modelInputRef = useRef(null);
@@ -16,6 +45,9 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
   const [activeTab, setActiveTab] = useState('3D shapes');
   const [items, setItems] = useState([]);
   const [isSketchfabOpen, setIsSketchfabOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState(null);
+  const [trashedItems, setTrashedItems] = useState([]);
+
 
   const fetchItems = async () => {
     try {
@@ -28,8 +60,25 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
   };
 
   useEffect(() => {
-    if (isOpen) fetchItems();
-  }, [isOpen]);
+    if (isOpen) {
+      fetchItems();
+
+      if (activeTab === 'Trash') {
+        fetchTrashedItems();
+      }
+    }
+  }, [isOpen, activeTab]);
+
+  const fetchTrashedItems = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/files/trashed`);
+      const data = await res.json();
+      setTrashedItems(data);
+    } catch (err) {
+      console.error("Failed to fetch trashed items:", err);
+    }
+  };
+
 
   const handleModelClick = () => modelInputRef.current.click();
   const handleImageClick = () => imageInputRef.current.click();
@@ -61,6 +110,36 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
     onClose();
   };
 
+  const handleRestore = async (fileId) => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/files/${fileId}/restore`, {
+        method: 'PATCH',
+      });
+      if (res.ok) {
+        alert("✅ File restored");
+        fetchTrashedItems();
+        fetchItems();
+      }
+    } catch (err) {
+      console.error("Restore failed:", err);
+    }
+  };
+
+  const handlePermanentDelete = async (fileId) => {
+    const confirmDelete = window.confirm("This will permanently delete the file. Continue?");
+    if (!confirmDelete) return;
+
+    try {
+      await fetch(`${import.meta.env.VITE_API_URL}/api/files/${fileId}/permanent`, {
+        method: 'DELETE',
+      });
+      fetchTrashedItems();
+    } catch (err) {
+      console.error("Permanent delete failed:", err);
+    }
+  };
+
+
   if (!isOpen) return null;
 
   return (
@@ -71,17 +150,16 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
           {sidebarItems.map((item) => (
             <button
               key={item.label}
-              onClick={() => {
-                if (item.label === 'Sketchfab') setIsSketchfabOpen(true);
-                else setActiveTab(item.label);
-              }}
-              className={`flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 w-full text-left ${item.label === activeTab ? 'bg-gray-100 font-semibold' : ''}`}
+              onClick={() => setActiveTab(item.label)}
+              className={`flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 w-full text-left ${item.label === activeTab ? 'bg-gray-100 font-semibold' : ''
+                }`}
             >
               {item.icon}
               {item.label}
             </button>
           ))}
         </div>
+
 
         {/* Right Content */}
         <div className="flex-1 p-4 relative overflow-y-auto">
@@ -109,12 +187,21 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
               />
               <div className="grid grid-cols-3 gap-4">
                 {items.filter(i => i.type === 'model').map((item, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleItemSelect(item)}
-                    className="border rounded overflow-hidden hover:shadow-lg transition"
-                  >
-                    <div className="w-full h-32 bg-gray-100 flex items-center justify-center">
+                  <div key={index} className="relative border rounded hover:shadow-lg transition group">
+
+                    {/* Three Dot Button */}
+                    <button
+                      onClick={() => setOpenMenu(openMenu === item._id ? null : item._id)}
+                      className="absolute top-2 left-2 z-20 bg-white rounded-full p-1 hover:bg-gray-200"
+                    >
+                      ⋮
+                    </button>
+
+                    {/* Thumbnail */}
+                    <button
+                      onClick={() => handleItemSelect(item)}
+                      className="w-full h-32 bg-gray-100 flex items-center justify-center"
+                    >
                       {item.thumbnail ? (
                         <img
                           src={item.thumbnail}
@@ -124,10 +211,46 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
                       ) : (
                         <span className="text-xs text-gray-400">No Thumbnail</span>
                       )}
-                    </div>
+                    </button>
+
+                    {/* File name */}
                     <div className="p-2 text-sm truncate">{item.name}</div>
-                  </button>
+
+                    {/* Menu Panel */}
+                    {openMenu === item._id && (
+                      <div className="absolute top-10 left-2 w-64 bg-neutral-900 text-white rounded-xl shadow-xl z-30 text-sm">
+                        {/* Top Section */}
+                        <div className="p-3 border-b border-white/10">
+                          <div className="truncate font-medium">{item.name}</div>
+                          <div className="text-white/70 text-xs mt-1">
+                            Uploaded by {item.uploader || 'Unknown'}<br />
+                            {formatDistanceToNow(new Date(item.uploadedAt || item.createdAt))} ago
+                          </div>
+                        </div>
+
+                        {/* Bottom Actions */}
+                        <div className="p-2 space-y-1">
+                          <button className="w-full text-left px-3 py-1 hover:bg-white/10 rounded flex items-center gap-2">
+                            📁 Move to folder
+                          </button>
+                          <button className="w-full text-left px-3 py-1 hover:bg-white/10 rounded flex items-center gap-2">
+                            ⬇️ Download
+                          </button>
+                          <button className="w-full text-left px-3 py-1 hover:bg-white/10 rounded flex items-center gap-2">
+                            ✅ Select items
+                          </button>
+                          <button
+                            className="w-full text-left px-3 py-1 hover:bg-red-500/20 text-red-400 rounded flex items-center gap-2"
+                            onClick={() => handleMoveToTrash(item._id)}
+                          >
+                            🗑 Move to Trash
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ))}
+
               </div>
 
             </div>
@@ -175,18 +298,48 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
               </button>
             </div>
           )}
+          {activeTab === 'Trash' && (
+            <div className="grid grid-cols-3 gap-4">
+              {trashedItems.map((item, index) => (
+                <div key={index} className="border rounded p-3 bg-white shadow-md relative">
+                  <div className="w-full h-32 bg-gray-100 mb-2 flex items-center justify-center">
+                    {item.thumbnail ? (
+                      <img src={item.thumbnail} alt={item.name} className="object-cover w-full h-full" />
+                    ) : (
+                      <span className="text-xs text-gray-400">No Thumbnail</span>
+                    )}
+                  </div>
+                  <div className="text-sm font-semibold truncate">{item.name}</div>
+                  <div className="text-xs text-gray-500 mb-2">
+                    {formatDistanceToNow(new Date(item.uploadedAt))} ago
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleRestore(item._id)}
+                      className="text-xs text-green-600 hover:underline"
+                    >
+                      ♻️ Restore
+                    </button>
+                    <button
+                      onClick={() => handlePermanentDelete(item._id)}
+                      className="text-xs text-red-500 hover:underline"
+                    >
+                      🗑 Delete Permanently
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {activeTab === 'Sketchfab' && (
+            <SketchfabPanel onImport={(model) => {
+              onSelectItem(model);
+              onClose(); // optional
+            }} />
+          )}
+
         </div>
       </div>
-
-      <SketchfabModal
-        isOpen={isSketchfabOpen}
-        onClose={() => setIsSketchfabOpen(false)}
-        onImport={(model) => {
-          onSelectItem(model); // ✅ This adds the model to sceneModels[]
-          setIsSketchfabOpen(false);
-        }}
-      />
-
     </div>
   );
 }
