@@ -8,6 +8,7 @@ const projectSchema = new mongoose.Schema({
     published: { type: Boolean, default: false },
     publishedAt: { type: Date },
     publishedScene: { type: Object }, // final copy of the scene
+    trashed: { type: Boolean, default: false },
 }, { timestamps: true });
 
 export default mongoose.model('Project', projectSchema);

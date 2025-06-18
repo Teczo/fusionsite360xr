@@ -42,34 +42,7 @@ const containerClient = blobServiceClient.getContainerClient("uploads");
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// Upload route (uses Azure blob)
-app.post('/upload', upload.single('file'), async (req, res) => {
-  try {
-    const { type } = req.body;
-    const file = req.file;
-    const blobName = Date.now() + '-' + file.originalname;
-    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
-    await blockBlobClient.uploadData(file.buffer, {
-      blobHTTPHeaders: { blobContentType: file.mimetype }
-    });
-
-    const blobUrl = blockBlobClient.url;
-
-    const newFile = new File({
-      name: file.originalname,
-      type,
-      url: blobUrl
-    });
-
-    await newFile.save();
-
-    res.status(200).json({ message: "Uploaded successfully", file: newFile });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Upload failed" });
-  }
-});
 
 // Files route
 app.get('/files', async (req, res) => {

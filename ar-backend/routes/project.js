@@ -1,4 +1,4 @@
-// routes/project.js (ESM version)
+// routes/project.js
 import express from 'express';
 import Project from '../models/Project.js';
 import auth from '../middleware/authMiddleware.js';
@@ -24,7 +24,41 @@ router.post('/projects', auth, async (req, res) => {
     }
 });
 
-// Update scene in project
+// Get trashed projects (MUST come before /:id route)
+router.get('/projects/trashed', auth, async (req, res) => {
+    try {
+        const projects = await Project.find({ userId: req.userId, trashed: true }).sort({ updatedAt: -1 });
+        res.json(projects);
+    } catch (err) {
+        console.error('❌ Failed to fetch trashed projects:', err);
+        res.status(500).json({ error: 'Failed to load trashed projects' });
+    }
+});
+
+// Get all non-trashed projects
+router.get('/projects', auth, async (req, res) => {
+    try {
+        const projects = await Project.find({ userId: req.userId, trashed: false }).sort({ updatedAt: -1 });
+        res.json(projects);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to load projects' });
+    }
+});
+
+// Get one project
+router.get('/projects/:id', auth, async (req, res) => {
+    try {
+        const project = await Project.findOne({ _id: req.params.id, userId: req.userId });
+        if (!project) return res.status(404).json({ error: 'Project not found' });
+        res.json(project);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to fetch project' });
+    }
+});
+
+// Update project scene
 router.put('/projects/:id', auth, async (req, res) => {
     try {
         const { id } = req.params;
@@ -40,28 +74,6 @@ router.put('/projects/:id', auth, async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Failed to update project' });
-    }
-});
-
-// Get all projects for the logged-in user
-router.get('/projects', auth, async (req, res) => {
-    try {
-        const projects = await Project.find({ userId: req.userId }).sort({ updatedAt: -1 });
-        res.json(projects);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Failed to load projects' });
-    }
-});
-
-router.get('/projects/:id', auth, async (req, res) => {
-    try {
-        const project = await Project.findOne({ _id: req.params.id, userId: req.userId });
-        if (!project) return res.status(404).json({ error: 'Project not found' });
-        res.json(project);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Failed to fetch project' });
     }
 });
 
@@ -86,7 +98,7 @@ router.put('/projects/:id/publish', auth, async (req, res) => {
     }
 });
 
-// Public route: get published scene
+// Public route: Get published scene
 router.get('/published/:id', async (req, res) => {
     try {
         const project = await Project.findOne({ _id: req.params.id, published: true });
@@ -98,7 +110,7 @@ router.get('/published/:id', async (req, res) => {
     }
 });
 
-// Return the first model from a published project
+// Return first model from published project
 router.get('/published-model/:id', async (req, res) => {
     try {
         const project = await Project.findOne({ _id: req.params.id, published: true });
@@ -117,6 +129,53 @@ router.get('/published-model/:id', async (req, res) => {
     } catch (err) {
         console.error('Failed to load published model', err);
         res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Soft delete (move to trash)
+router.delete('/projects/:id', auth, async (req, res) => {
+    try {
+        const project = await Project.findOne({ _id: req.params.id, userId: req.userId });
+        if (!project) return res.status(404).json({ error: 'Project not found' });
+
+        project.trashed = true;
+        await project.save();
+
+        res.json({ message: 'Project moved to trash' });
+    } catch (err) {
+        console.error('❌ Failed to move to trash:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Restore from trash
+router.patch('/projects/:id/restore', auth, async (req, res) => {
+    try {
+        const project = await Project.findOne({ _id: req.params.id, userId: req.userId });
+        if (!project) return res.status(404).json({ error: 'Project not found' });
+
+        project.trashed = false;
+        await project.save();
+
+        res.json({ message: 'Project restored successfully' });
+    } catch (err) {
+        console.error('❌ Failed to restore project:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Permanent delete
+router.delete('/projects/:id/permanent', auth, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const deleted = await Project.findOneAndDelete({ _id: id, userId: req.userId });
+        if (!deleted) return res.status(404).json({ error: 'Project not found or not yours' });
+
+        res.status(200).json({ message: 'Project permanently deleted' });
+    } catch (err) {
+        console.error('❌ Failed to permanently delete project:', err);
+        res.status(500).json({ error: 'Server error during delete' });
     }
 });
 
