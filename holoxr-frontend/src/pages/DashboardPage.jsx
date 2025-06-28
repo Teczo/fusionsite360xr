@@ -93,6 +93,42 @@ export default function DashboardPage() {
                     />
                 </div>
             </div>
+            {showModal && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 backdrop-blur-sm">
+                    <div className="bg-[#2c2e3a] border border-white/20 p-6 rounded-lg w-full max-w-md shadow-2xl text-white">
+                        <h2 className="text-xl font-bold mb-4">Create New Project</h2>
+                        <input
+                            name="name"
+                            value={form.name}
+                            onChange={handleChange}
+                            placeholder="Project Name"
+                            className="w-full bg-[#18191e] border border-white/20 px-3 py-2 rounded mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <textarea
+                            name="description"
+                            value={form.description}
+                            onChange={handleChange}
+                            placeholder="Give your project a short description"
+                            className="w-full bg-[#18191e] border border-white/20 px-3 py-2 rounded mb-4 h-24 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setShowModal(false)}
+                                className="px-4 py-2 bg-gray-600/50 hover:bg-gray-500/50 rounded-lg transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleCreate}
+                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+                            >
+                                Create
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 }

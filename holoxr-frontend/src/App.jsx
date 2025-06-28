@@ -5,7 +5,7 @@ import DashboardPage from './pages/DashboardPage';
 import StudioPage from './pages/StudioPage';
 import ARViewer from './pages/ARViewer';
 import ARMarkerViewer from './pages/ARMarkerViewer';
-import AnimationTest from './pages/AnimationTest';
+import TestingGround from './pages/TestingGround';
 
 const RequireAuth = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -23,7 +23,8 @@ export default function App() {
 
       {/* Auth-protected routes */}
       <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />
-      <Route path="/studio" element={<RequireAuth><StudioPage /></RequireAuth>} />
+      {/*<Route path="/studio" element={<RequireAuth><StudioPage /></RequireAuth>} />*/}
+      <Route path="/studio/:projectId" element={<TestingGround />} />
 
       {/* Catch-all must come last */}
       <Route path="*" element={<Navigate to="/signin" />} />

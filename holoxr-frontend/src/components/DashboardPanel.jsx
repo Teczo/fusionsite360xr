@@ -78,7 +78,8 @@ export default function DashboardPanel({
                                 >
                                     <MoreHorizontal className="w-4 h-4" />
                                 </button>
-                                <div onClick={() => navigate(`/studio?id=${proj._id}`)} className="cursor-pointer">
+                                // TEMP: Redirect to TestingGround instead of StudioPage
+                                <div onClick={() => navigate(`/studio/${proj._id}`)} className="cursor-pointer">
                                     <div className="h-36 bg-gray-500">
                                         <img src={proj.thumbnail || '/placeholder.png'} alt="thumb" className="w-full h-full object-cover" />
                                     </div>

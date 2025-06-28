@@ -88,12 +88,15 @@ export default function StudioPage() {
                 model.id === id
                     ? {
                         ...model,
-                        animations: data.animations // <- already names
+                        animations: data.animations, // <- full AnimationClip objects now
+                        selectedAnimationIndex: 0,
+                        playAnimationKey: Date.now(), // Optional: play immediately on load
                     }
                     : model
             )
         );
     };
+
 
 
     const handleSaveProject = async () => {

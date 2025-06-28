@@ -8,7 +8,7 @@ import { unzipSync } from 'fflate';
 export default function GLBModel({
     id,
     url,
-    scene: providedScene, // ✅ Sketchfab may pass this
+    scene: providedScene,
     name,
     transform,
     selectedModelId,
@@ -24,12 +24,11 @@ export default function GLBModel({
     const ref = useRef();
     const mixerRef = useRef();
     const [blobUrl, setBlobUrl] = useState(null);
-    const [scene, setScene] = useState(providedScene || null); // ✅ Default to provided scene
+    const [scene, setScene] = useState(providedScene || null);
     const [animations, setAnimations] = useState([]);
 
-    // 🔄 Unzip if needed and generate blob URL
     useEffect(() => {
-        if (!url || providedScene) return; // ✅ Skip loading if we already have a scene
+        if (!url || providedScene) return;
 
         if (!url.endsWith('.zip')) {
             setBlobUrl(url);
@@ -53,7 +52,6 @@ export default function GLBModel({
             });
     }, [url, providedScene]);
 
-    // ⏳ Load model from blob if needed
     useEffect(() => {
         if (providedScene || !blobUrl || !blobUrl.startsWith('blob:')) return;
 
@@ -63,9 +61,9 @@ export default function GLBModel({
             (gltf) => {
                 setScene(gltf.scene);
                 setAnimations(gltf.animations || []);
+
                 if (onLoaded) {
-                    const animationNames = (gltf.animations || []).map(a => a.name);
-                    onLoaded({ animations: animationNames });
+                    onLoaded({ animations: gltf.animations || [] }); // ✅ Pass full AnimationClip objects
                 }
             },
             undefined,
@@ -75,7 +73,6 @@ export default function GLBModel({
         );
     }, [blobUrl, providedScene]);
 
-    // 🎮 Animation setup
     useEffect(() => {
         if (!scene || !animations.length) return;
 
@@ -92,14 +89,12 @@ export default function GLBModel({
         };
     }, [scene, animations, selectedAnimationIndex, playAnimationKey]);
 
-    // 🔁 Animation update loop
     useFrame((_, delta) => {
         if (!isPaused) {
             mixerRef.current?.update(delta);
         }
     });
 
-    // 📦 Apply transform
     useEffect(() => {
         if (ref.current && transform) {
             const { x, y, z, rx, ry, rz, sx, sy, sz } = transform;
@@ -147,4 +142,4 @@ export default function GLBModel({
             )}
         </>
     );
-} 
+}

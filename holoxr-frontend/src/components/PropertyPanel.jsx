@@ -82,7 +82,7 @@ export default function PropertyPanel({ model, updateModelTransform, updateTextP
       )}
 
       {/* Animation Controls */}
-      {model.type === 'model' && (
+      {model.type === 'model' && model.animations?.length > 0 && (
         <div className="space-y-2 pt-2 border-t border-gray-700">
           <div>
             <label className="block text-sm font-medium mb-1">Animations</label>
@@ -96,18 +96,17 @@ export default function PropertyPanel({ model, updateModelTransform, updateTextP
               }
               className="w-full rounded-md bg-[#2a2b2f] text-white p-1 text-sm border border-gray-600"
             >
-              {model.animations.map((name, index) => (
+              {model.animations.map((clip, index) => (
                 <option key={index} value={index}>
-                  {name}
+                  {clip.name || `Animation ${index + 1}`}
                 </option>
               ))}
             </select>
             <p className="text-xs text-gray-400 italic mt-1">
-              🎞 Current Animation: {model.animations[model.selectedAnimationIndex] || 'None'}
+              🎞 Current Animation: {model.animations[model.selectedAnimationIndex]?.name || 'None'}
             </p>
           </div>
 
-          {/* Media Player-style Controls */}
           <div className="flex justify-center gap-2 pt-1">
             <button
               onClick={() => updateModelTransform(model.id, { isPaused: true })}
@@ -132,7 +131,6 @@ export default function PropertyPanel({ model, updateModelTransform, updateTextP
             </button>
           </div>
 
-          {/* Autoplay Checkbox */}
           <label className="flex items-center gap-2 text-sm pt-1">
             <input
               type="checkbox"
