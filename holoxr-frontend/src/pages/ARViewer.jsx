@@ -8,7 +8,6 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { unzipSync } from 'fflate';
 
 function ModelItem({ url, transform, selectedAnimationIndex = 0, autoplay = false }) {
-    const ref = useRef();
     const mixerRef = useRef();
     const [scene, setScene] = useState(null);
     const [animations, setAnimations] = useState([]);
@@ -44,15 +43,6 @@ function ModelItem({ url, transform, selectedAnimationIndex = 0, autoplay = fals
     }, [url]);
 
     useEffect(() => {
-        if (ref.current && transform) {
-            const { x, y, z, rx, ry, rz, sx, sy, sz } = transform;
-            ref.current.position.set(x, y, z);
-            ref.current.rotation.set(rx, ry, rz);
-            ref.current.scale.set(sx, sy, sz);
-        }
-    }, [transform]);
-
-    useEffect(() => {
         if (!scene || !autoplay || animations.length === 0) return;
 
         const mixer = new THREE.AnimationMixer(scene);
@@ -74,9 +64,16 @@ function ModelItem({ url, transform, selectedAnimationIndex = 0, autoplay = fals
 
     if (!scene) return null;
 
-    return <primitive ref={ref} object={scene} />;
+    return (
+        <group
+            position={[transform?.x || 0, transform?.y || 0, transform?.z || 0]}
+            rotation={[transform?.rx || 0, transform?.ry || 0, transform?.rz || 0]}
+            scale={[transform?.sx || 1, transform?.sy || 1, transform?.sz || 1]}
+        >
+            <primitive object={scene} />
+        </group>
+    );
 }
-
 
 function ImageItem({ url, transform }) {
     const texture = new THREE.TextureLoader().load(url);
@@ -153,7 +150,6 @@ export default function ARViewer() {
                 <directionalLight position={[5, 5, 5]} intensity={1} />
                 <OrbitControls />
 
-                {/* Optional Ground Plane */}
                 <mesh rotation-x={-Math.PI / 2} position={[0, 0, 0]}>
                     <planeGeometry args={[100, 100]} />
                     <meshStandardMaterial color="#dddddd" />
