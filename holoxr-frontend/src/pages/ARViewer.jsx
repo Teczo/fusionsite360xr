@@ -115,9 +115,72 @@ function TextItem({ content, fontSize, color, transform }) {
     );
 }
 
+function ButtonItem({ item, onPress }) {
+    const ref = useRef();
+    const { transform = {}, appearance = {} } = item;
+
+    useEffect(() => {
+        if (!ref.current) return;
+        const { x = 0, y = 1, z = 0, rx = 0, ry = 0, rz = 0, sx = 0.4, sy = 0.2, sz = 0.1 } = transform;
+        ref.current.position.set(x, y, z);
+        ref.current.rotation.set(rx, ry, rz);
+        ref.current.scale.set(sx, sy, sz);
+    }, [transform]);
+
+    return (
+        <group
+            ref={ref}
+            onClick={(e) => { e.stopPropagation(); onPress?.(item); }}
+        >
+            <mesh>
+                <boxGeometry args={[1, 0.4, 0.1]} />
+                <meshStandardMaterial color="#2a6df1" />
+            </mesh>
+            <Text position={[0, 0, 0.06]} fontSize={0.15} color="white" anchorX="center" anchorY="middle">
+                {appearance.label || 'Button'}
+            </Text>
+        </group>
+    );
+}
+
+function runActions(actions, setSceneData, navigateToProject) {
+    (actions || []).forEach((act) => {
+        if (act.type === 'toggleVisibility' && act.targetId) {
+            setSceneData(prev => prev.map(o => o.id === act.targetId ? { ...o, visible: o.visible === false ? true : false } : o));
+        }
+        if (act.type === 'playPauseAnimation' && act.targetId) {
+            setSceneData(prev => prev.map(o => {
+                if (o.id !== act.targetId) return o;
+                const nextPaused = act.mode === 'pause' ? true : act.mode === 'play' ? false : !o.isPaused;
+                return { ...o, isPaused: nextPaused };
+            }));
+        }
+        if (act.type === 'changeProject' && act.projectId) {
+            // In AR viewer we actually navigate
+            navigateToProject(act.projectId);
+        }
+        if (act.type === 'openClosePanel' && act.targetId) {
+            // treat like toggle/show/hide on a target (image or future 'panel' type)
+            const mode = act.mode || 'toggle';
+            setSceneData(prev => prev.map(o => {
+                if (o.id !== act.targetId) return o;
+                if (mode === 'show') return { ...o, visible: true };
+                if (mode === 'hide') return { ...o, visible: false };
+                return { ...o, visible: o.visible === false ? true : false };
+            }));
+        }
+    });
+}
+
+
 export default function ARViewer() {
     const { id } = useParams();
     const [sceneData, setSceneData] = useState([]);
+
+    const navigateToProject = (projectId) => {
+        // Load another published scene
+        window.location.href = `/ar/${projectId}`;
+    };
 
     useEffect(() => {
         const fetchScene = async () => {
@@ -153,6 +216,7 @@ export default function ARViewer() {
 
 
                 {sceneData.map((item) => {
+                    if (item.visible === false) return null;
                     if (item.type === 'model') {
                         return (
                             <ModelItem
@@ -173,6 +237,14 @@ export default function ARViewer() {
                                 fontSize={item.fontSize}
                                 color={item.color}
                                 transform={item.transform}
+                            />
+                        );
+                    } else if (item.type === 'button') {
+                        return (
+                            <ButtonItem
+                                key={item.id}
+                                item={item}
+                                onPress={(btn) => runActions(btn.interactions, setSceneData, navigateToProject)}
                             />
                         );
                     }
