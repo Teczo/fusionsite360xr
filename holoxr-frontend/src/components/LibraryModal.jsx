@@ -8,6 +8,7 @@ const sidebarItems = [
   { label: '3D shapes', icon: <FilePlus size={16} /> },
   { label: 'Images', icon: <ImagePlus size={16} /> },
   { label: 'Text', icon: <TextQuote size={16} /> },
+  { label: 'UI', icon: <Box size={16} /> },
   { label: 'QR Code', icon: <QrCode size={16} /> },
   { label: 'Sketchfab', icon: <Box size={16} /> },
   { label: 'Trash', icon: <Trash2 size={16} /> }
@@ -144,14 +145,14 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-      <div className="bg-white w-[800px] h-[500px] rounded-lg shadow-xl flex">
+      <div className="bg-[#18191e] w-[800px] h-[500px] rounded-lg shadow-xl flex">
         {/* Left Sidebar */}
         <div className="w-40 border-r p-2 flex flex-col gap-2">
           {sidebarItems.map((item) => (
             <button
               key={item.label}
               onClick={() => setActiveTab(item.label)}
-              className={`flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100 w-full text-left ${item.label === activeTab ? 'bg-gray-100 font-semibold' : ''
+              className={`flex items-center gap-2 px-3 py-2 rounded hover:bg-[#30323c] w-full text-left ${item.label === activeTab ? 'bg-[#30323c] font-semibold' : ''
                 }`}
             >
               {item.icon}
@@ -253,6 +254,29 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
 
               </div>
 
+            </div>
+          )}
+
+          {activeTab === 'UI' && (
+            <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  onClick={() => {
+                    onSelectItem({
+                      type: 'button',
+                      name: 'Button',
+                      uiKind: 'world',
+                      appearance: { label: 'Tap', radius: 0.2 },
+                      interactions: [], // empty for now; we’ll edit in Properties
+                      transform: { x: 0, y: 1, z: 0, rx: 0, ry: 0, rz: 0, sx: 0.4, sy: 0.2, sz: 0.1 }
+                    });
+                    onClose();
+                  }}
+                  className="border rounded p-3 hover:bg-[#30323c] text-left"
+                >
+                  ➕ Button (world)
+                </button>
+              </div>
             </div>
           )}
 

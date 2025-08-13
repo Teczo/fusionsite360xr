@@ -1,17 +1,24 @@
-// StudioPage.jsx (with OrbitControls lock when using TransformControls)
+// StudioPage.jsx — updated to render Images & Text and include their properties on Save/Publish
 import { useEffect, useState, useRef } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { Grid, OrbitControls, TransformControls } from "@react-three/drei";
 import * as THREE from "three";
 import { unzipSync } from "fflate";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+
 import PropertyPanel from "../components/PropertyPanel";
 import FloatingPanel from "../components/FloatingPanel";
 import TopBar from "../components/TopBar";
 import LibraryModal from "../components/LibraryModal";
-import QRCodeModal from '../components/QRCodeModal';
+import QRCodeModal from "../components/QRCodeModal";
 import LayersPanel from "../components/LayersPanel";
-import { MeshBasicMaterial, BoxHelper } from "three";
+import UIButton3D from "../components/UIButton3D";
+
+// NEW: renderers for non-GLTF items
+import ImagePlane from "../components/ImagePlane";
+import TextItem from "../components/TextItem";
+
+import { BoxHelper } from "three";
 import { useLocation } from "react-router-dom";
 
 export default function StudioPage() {
@@ -23,9 +30,12 @@ export default function StudioPage() {
     const location = useLocation();
     const projectId = new URLSearchParams(location.search).get("id");
     const orbitRef = useRef();
-    const [projectName, setProjectName] = useState('');
+    const [projectName, setProjectName] = useState("");
     const [showQRModal, setShowQRModal] = useState(false);
+    const [isPreviewing, setIsPreviewing] = useState(false);
 
+    // capture camera for focus-on-double-click for Image/Text
+    const cameraRef = useRef(null);
 
     useEffect(() => {
         const token = localStorage.getItem("token");
@@ -39,7 +49,7 @@ export default function StudioPage() {
                 const data = await res.json();
                 if (res.ok && data.scene) {
                     setSceneModels(data.scene);
-                    setProjectName(data.name || 'Untitled Project');
+                    setProjectName(data.name || "Untitled Project");
                 }
             } catch (err) {
                 console.error("Failed to load project scene:", err);
@@ -49,8 +59,10 @@ export default function StudioPage() {
         loadProject();
     }, [projectId]);
 
+    // Load GLB/ZIP for model items (images/text skip this)
     useEffect(() => {
         sceneModels.forEach((model) => {
+            if (model.type !== "model") return; // only models need scene loading
             if (!model.scene && model.url) {
                 if (model.url.endsWith(".zip")) {
                     fetch(model.url)
@@ -125,6 +137,37 @@ export default function StudioPage() {
         );
     };
 
+    const updateModelProps = (id, updates) => {
+        setSceneModels(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
+    };
+
+    // inside StudioPage
+    const runButtonActions = (buttonItem) => {
+        // MVP: support [{ type: 'toggleVisibility', targetId: '...' }, ...]
+        const actions = buttonItem.interactions || [];
+        actions.forEach((act) => {
+            if (act.type === 'toggleVisibility' && act.targetId) {
+                setSceneModels(prev => prev.map(obj => (
+                    obj.id === act.targetId ? { ...obj, visible: obj.visible === false ? true : false } : obj
+                )));
+            }
+            if (act.type === 'playPauseAnimation' && act.targetId) {
+                setSceneModels(prev => prev.map(obj => {
+                    if (obj.id !== act.targetId) return obj;
+                    const nextPaused = act.mode === 'pause' ? true :
+                        act.mode === 'play' ? false :
+                            !obj.isPaused;
+                    return { ...obj, isPaused: nextPaused };
+                }));
+            }
+            if (act.type === 'changeProject' && act.projectId) {
+                // In Studio preview, prevent navigation; show a hint.
+                alert(`(Preview) Would load project: ${act.projectId}`);
+            }
+        });
+    };
+
+
     const updateTextProperty = (id, updates) => {
         setSceneModels((prev) =>
             prev.map((model) => (model.id === id && model.type === "text" ? { ...model, ...updates } : model))
@@ -137,12 +180,30 @@ export default function StudioPage() {
 
         const cleanScene = sceneModels.map((model) => {
             const {
-                id, name, type, url, transform,
-                autoplay, isPaused, selectedAnimationIndex,
+                id,
+                name,
+                type,
+                url,
+                transform,
+                autoplay,
+                isPaused,
+                selectedAnimationIndex,
+                content, fontSize, color, visible, uiKind, appearance, interactions
             } = model;
 
             return {
-                id, name, type, url, transform, autoplay, isPaused, selectedAnimationIndex
+                id,
+                name,
+                type,
+                url,
+                transform,
+                autoplay,
+                isPaused,
+                selectedAnimationIndex,
+                content,
+                fontSize,
+                color,
+                visible, uiKind, appearance, interactions
             };
         });
 
@@ -162,13 +223,12 @@ export default function StudioPage() {
                 return;
             }
 
-            setShowQRModal(true); // ✅ show the QR code modal
+            setShowQRModal(true); // show QR code modal
         } catch (err) {
             console.error(err);
             alert("Network error while publishing");
         }
     };
-
 
     const handleLibraryItemSelect = (item) => {
         const id = Date.now().toString();
@@ -184,39 +244,58 @@ export default function StudioPage() {
             isPaused: false,
             autoplay: false,
             transform: item.transform || {
-                x: 0, y: 0, z: 0,
-                rx: 0, ry: 0, rz: 0,
-                sx: 1, sy: 1, sz: 1,
+                x: 0,
+                y: 0,
+                z: 0,
+                rx: 0,
+                ry: 0,
+                rz: 0,
+                sx: 1,
+                sy: 1,
+                sz: 1,
             },
         };
 
-        if (item.url?.endsWith(".zip")) {
-            fetch(item.url)
-                .then((res) => res.arrayBuffer())
-                .then((buffer) => {
-                    const zip = unzipSync(new Uint8Array(buffer));
-                    const glbName = Object.keys(zip).find((n) => n.endsWith(".glb"));
-                    if (!glbName) return;
+        // default props for text
+        if (item.type === "text") {
+            newModel.content = item.content ?? "Hello World";
+            newModel.fontSize = item.fontSize ?? 1;
+            newModel.color = item.color ?? "#ffffff";
+        }
 
-                    const blob = new Blob([zip[glbName]], { type: "model/gltf-binary" });
-                    const blobUrl = URL.createObjectURL(blob);
+        if (item.type === "model") {
+            if (item.url?.endsWith(".zip")) {
+                fetch(item.url)
+                    .then((res) => res.arrayBuffer())
+                    .then((buffer) => {
+                        const zip = unzipSync(new Uint8Array(buffer));
+                        const glbName = Object.keys(zip).find((n) => n.endsWith(".glb"));
+                        if (!glbName) return;
 
-                    const loader = new GLTFLoader();
-                    loader.load(blobUrl, (gltf) => {
-                        newModel.scene = gltf.scene;
-                        newModel.animations = gltf.animations || [];
-                        setSceneModels((prev) => [...prev, newModel]);
-                        setSelectedModelId(id);
+                        const blob = new Blob([zip[glbName]], { type: "model/gltf-binary" });
+                        const blobUrl = URL.createObjectURL(blob);
+
+                        const loader = new GLTFLoader();
+                        loader.load(blobUrl, (gltf) => {
+                            newModel.scene = gltf.scene;
+                            newModel.animations = gltf.animations || [];
+                            setSceneModels((prev) => [...prev, newModel]);
+                            setSelectedModelId(id);
+                        });
                     });
+            } else {
+                const loader = new GLTFLoader();
+                loader.load(item.url, (gltf) => {
+                    newModel.scene = gltf.scene;
+                    newModel.animations = gltf.animations || [];
+                    setSceneModels((prev) => [...prev, newModel]);
+                    setSelectedModelId(id);
                 });
+            }
         } else {
-            const loader = new GLTFLoader();
-            loader.load(item.url, (gltf) => {
-                newModel.scene = gltf.scene;
-                newModel.animations = gltf.animations || [];
-                setSceneModels((prev) => [...prev, newModel]);
-                setSelectedModelId(id);
-            });
+            // image/text: nothing to load here
+            setSceneModels((prev) => [...prev, newModel]);
+            setSelectedModelId(id);
         }
     };
 
@@ -226,8 +305,17 @@ export default function StudioPage() {
 
         const cleanScene = sceneModels.map((model) => {
             const {
-                id, name, type, url, transform,
-                autoplay, isPaused, selectedAnimationIndex,
+                id,
+                name,
+                type,
+                url,
+                transform,
+                autoplay,
+                isPaused,
+                selectedAnimationIndex,
+                content,
+                fontSize,
+                color,
             } = model;
 
             return {
@@ -239,6 +327,9 @@ export default function StudioPage() {
                 autoplay,
                 isPaused,
                 selectedAnimationIndex,
+                content,
+                fontSize,
+                color,
             };
         });
 
@@ -277,8 +368,8 @@ export default function StudioPage() {
 
             <TopBar
                 onLibraryOpen={() => setIsLibraryOpen(true)}
-                onTogglePreview={() => { }}
-                isPreviewing={false}
+                onTogglePreview={() => setIsPreviewing(v => !v)}
+                isPreviewing={isPreviewing}
                 onSaveProject={handleSaveProject}
                 onPublishProject={handlePublishProject}
                 onShowQRCode={() => setShowQRModal(true)}
@@ -292,7 +383,6 @@ export default function StudioPage() {
                 url={`https://holoxr.onrender.com/ar/${projectId}`}
                 projectTitle={projectName || "Untitled Project"}
             />
-
 
             <LayersPanel
                 models={sceneModels}
@@ -309,63 +399,125 @@ export default function StudioPage() {
                 shadows
                 dpr={[1, 2]}
                 gl={{ preserveDrawingBuffer: true }}
-                style={{ background: '#0a0c0d' }}
+                style={{ background: "#0a0c0d" }}
             >
                 <ambientLight intensity={0.5} />
                 <directionalLight position={[5, 5, 5]} intensity={1} />
-                <OrbitControls makeDefault />
+                {/* Attach ref so TransformControls can disable/enable */}
+                <OrbitControls ref={orbitRef} makeDefault />
                 <CameraController resetSignal={resetSignal} />
+                <CaptureCamera cameraRef={cameraRef} />
                 <Grid
                     args={[10, 10]}
                     cellSize={0.5}
                     cellThickness={0.5}
                     sectionSize={5}
                     sectionThickness={1.5}
-                    sectionColor={'#6f6f6f'}
-                    cellColor={'#444'}
+                    sectionColor={"#6f6f6f"}
+                    cellColor={"#444"}
                     fadeDistance={30}
                     fadeStrength={1}
                     infiniteGrid={true}
                 />
 
-                {sceneModels.map((model) =>
-                    model.scene ? (
-                        <ModelWithAnimation
-                            key={model.id}
-                            scene={model.scene}
-                            animations={model.animations}
-                            selectedAnimationIndex={model.selectedAnimationIndex}
-                            playAnimationKey={model.playAnimationKey}
-                            isPaused={model.isPaused}
-                            transformMode={transformMode}
-                            isSelected={model.id === selectedModelId}
-                            transform={model.transform}
-                            orbitRef={orbitRef}
-                            onTransformEnd={(obj) => {
-                                updateModelTransform(model.id, {
-                                    x: obj.position.x,
-                                    y: obj.position.y,
-                                    z: obj.position.z,
-                                    rx: obj.rotation.x,
-                                    ry: obj.rotation.y,
-                                    rz: obj.rotation.z,
-                                    sx: obj.scale.x,
-                                    sy: obj.scale.y,
-                                    sz: obj.scale.z,
-                                });
-                            }}
-                        />
-                    ) : null
-                )}
+                {/* Render models, images, and text */}
+                {sceneModels.map((item) => {
+                    if (item.visible === false) return null;
+                    if (item.type === "model" && item.scene) {
+                        return (
+                            <ModelWithAnimation
+                                key={item.id}
+                                scene={item.scene}
+                                animations={item.animations}
+                                selectedAnimationIndex={item.selectedAnimationIndex}
+                                playAnimationKey={item.playAnimationKey}
+                                isPaused={item.isPaused}
+                                transformMode={transformMode}
+                                isSelected={item.id === selectedModelId}
+                                transform={item.transform}
+                                orbitRef={orbitRef}
+                                onTransformEnd={(obj) => {
+                                    updateModelTransform(item.id, {
+                                        x: obj.position.x,
+                                        y: obj.position.y,
+                                        z: obj.position.z,
+                                        rx: obj.rotation.x,
+                                        ry: obj.rotation.y,
+                                        rz: obj.rotation.z,
+                                        sx: obj.scale.x,
+                                        sy: obj.scale.y,
+                                        sz: obj.scale.z,
+                                    });
+                                }}
+                            />
+                        );
+                    }
+
+                    if (item.type === "image") {
+                        return (
+                            <ImagePlane
+                                key={item.id}
+                                id={item.id}
+                                name={item.name}
+                                url={item.url}
+                                transform={item.transform}
+                                selectedModelId={selectedModelId}
+                                setSelectedModelId={setSelectedModelId}
+                                transformMode={transformMode}
+                                updateModelTransform={updateModelTransform}
+                                handleFocusObject={handleFocusOnObject(cameraRef)}
+                            />
+                        );
+                    }
+
+                    if (item.type === "text") {
+                        return (
+                            <TextItem
+                                key={item.id}
+                                id={item.id}
+                                name={item.name}
+                                content={item.content}
+                                fontSize={item.fontSize}
+                                color={item.color}
+                                transform={item.transform}
+                                selectedModelId={selectedModelId}
+                                setSelectedModelId={setSelectedModelId}
+                                transformMode={transformMode}
+                                updateModelTransform={updateModelTransform}
+                                handleFocusObject={handleFocusOnObject(cameraRef)}
+                            />
+                        );
+                    }
+
+                    if (item.type === "button") {
+                        return (
+                            <UIButton3D
+                                key={item.id}
+                                id={item.id}
+                                name={item.name}
+                                appearance={item.appearance}
+                                transform={item.transform}
+                                selectedModelId={selectedModelId}
+                                setSelectedModelId={setSelectedModelId}
+                                transformMode={transformMode}
+                                updateModelTransform={updateModelTransform}
+                                isPreviewing={isPreviewing}
+                                onPress={() => runButtonActions(item)}
+                            />
+                        );
+                    }
+
+                    return null;
+                })}
             </Canvas>
 
             <PropertyPanel
                 model={selectedModel}
+                models={sceneModels}
                 updateModelTransform={updateModelTransform}
                 updateTextProperty={updateTextProperty}
-                onPlayAnimation={(id) =>
-                    updateModelTransform(id, { playAnimationKey: Date.now() })
-                }
+                onPlayAnimation={(id) => updateModelTransform(id, { playAnimationKey: Date.now() })}
+                updateModelProps={updateModelProps}
             />
 
             <LibraryModal
@@ -390,6 +542,37 @@ function CameraController({ resetSignal }) {
     }, [resetSignal]);
 
     return null;
+}
+
+// Capture the active R3F camera for focusing utilities
+function CaptureCamera({ cameraRef }) {
+    const { camera } = useThree();
+    useEffect(() => {
+        cameraRef.current = camera;
+    }, [camera]);
+    return null;
+}
+
+// Returns a focus handler bound to a cameraRef
+function handleFocusOnObject(cameraRef) {
+    return (ref) => {
+        if (!ref?.current || !cameraRef.current) return;
+        const object = ref.current;
+
+        const bbox = new THREE.Box3().setFromObject(object);
+        const center = new THREE.Vector3();
+        bbox.getCenter(center);
+
+        const size = new THREE.Vector3();
+        bbox.getSize(size);
+        const offset = Math.max(size.x, size.y, size.z) * 2;
+
+        const direction = new THREE.Vector3(0, 0, 1);
+        const newPosition = center.clone().add(direction.multiplyScalar(offset));
+
+        cameraRef.current.position.copy(newPosition);
+        cameraRef.current.lookAt(center);
+    };
 }
 
 function ModelWithAnimation({

@@ -19,6 +19,8 @@ export default function DashboardPage() {
 
     const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
+    const [user] = useState({ name: "Alex Johnson" }); // Replace with real user data later
+
     const fetchProjects = async () => {
         try {
             const res = await fetch(`${import.meta.env.VITE_API_URL}/api/projects`, {
@@ -79,6 +81,16 @@ export default function DashboardPage() {
 
             <div className={`flex-1 transition-all duration-300 ${isCollapsed ? 'pl-29' : 'pl-72'} pt-25 pr-4 pb-4`}>
                 <div className="flex flex-col h-full">
+                    <div className="absolute top-6 right-6">
+                        <button
+                            onClick={() => navigate('/profile')}
+                            className="w-10 h-10 rounded-full bg-indigo-600 hover:bg-indigo-700 flex items-center justify-center text-white font-bold text-sm"
+                            title="Profile Settings"
+                        >
+                            {user.name.charAt(0).toUpperCase()}
+                        </button>
+                    </div>
+
                     <DashboardHeader />
                     <DashboardPanel
                         activeView={activeView}

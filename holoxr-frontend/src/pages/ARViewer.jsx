@@ -150,10 +150,7 @@ export default function ARViewer() {
                 <directionalLight position={[5, 5, 5]} intensity={1} />
                 <OrbitControls />
 
-                <mesh rotation-x={-Math.PI / 2} position={[0, 0, 0]}>
-                    <planeGeometry args={[100, 100]} />
-                    <meshStandardMaterial color="#dddddd" />
-                </mesh>
+
 
                 {sceneData.map((item) => {
                     if (item.type === 'model') {

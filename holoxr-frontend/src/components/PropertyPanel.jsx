@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function PropertyPanel({ model, updateModelTransform, updateTextProperty, onPlayAnimation }) {
+export default function PropertyPanel({ model, models, updateModelTransform, updateTextProperty, onPlayAnimation, updateModelProps }) {
   if (!model) return (
     <div className="absolute top-20 bottom-4 right-4 w-72 bg-[#18191e] rounded-3xl shadow-xl p-5 z-10 overflow-y-auto text-white space-y-4">
       <h2 className="text-lg font-semibold">Properties</h2>
@@ -77,6 +77,53 @@ export default function PropertyPanel({ model, updateModelTransform, updateTextP
               onChange={(e) => handleTextPropertyChange('color', e.target.value)}
               className="w-full rounded-md h-8 p-1 border border-gray-600"
             />
+          </div>
+        </div>
+      )}
+
+      {model.type === 'button' && (
+        <div className="space-y-3 pt-2 border-t border-gray-700">
+          <div>
+            <label className="block text-sm font-medium mb-1">Label</label>
+            <input
+              type="text"
+              value={model.appearance?.label || 'Tap'}
+              onChange={(e) => updateModelProps(model.id, { appearance: { ...(model.appearance || {}), label: e.target.value } })}
+              className="w-full rounded-md bg-[#2a2b2f] text-white p-1 text-sm border border-gray-600"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">On Tap → Action</label>
+            <select
+              value={model.interactions?.[0]?.type || 'toggleVisibility'}
+              onChange={(e) => {
+                const current = model.interactions?.[0] || {};
+                updateModelProps(model.id, { interactions: [{ ...current, type: e.target.value }] });
+              }}
+              className="w-full rounded-md bg-[#2a2b2f] text-white p-1 text-sm border border-gray-600"
+            >
+              <option value="toggleVisibility">Toggle Visibility</option>
+              <option value="playPauseAnimation">Play/Pause Animation</option>
+              <option value="changeProject">Change Project</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Target</label>
+            <select
+              value={model.interactions?.[0]?.targetId || ''}
+              onChange={(e) => {
+                const current = model.interactions?.[0] || {};
+                updateModelProps(model.id, { interactions: [{ ...current, targetId: e.target.value }] });
+              }}
+              className="w-full rounded-md bg-[#2a2b2f] text-white p-1 text-sm border border-gray-600"
+            >
+              <option value="">— Select object —</option>
+              {models?.filter(m => m.id !== model.id && m.type !== 'button').map(m => (
+                <option key={m.id} value={m.id}>{m.name || m.id}</option>
+              ))}
+            </select>
           </div>
         </div>
       )}

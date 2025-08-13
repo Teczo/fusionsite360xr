@@ -71,70 +71,33 @@ export default function SignInPage() {
 
     return (
         <div className="flex min-h-screen bg-white">
-            {/* Left Carousel Panel */}
-            <div className="hidden lg:flex lg:w-1/2 bg-[#18191e] flex-col items-center justify-center p-6">
-                <div ref={sliderRef} className="keen-slider w-full max-w-2xl">
-                    {slides.map((item, idx) => (
-                        <div
-                            key={idx}
-                            className="keen-slider__slide flex flex-col items-center justify-center text-center text-white px-6"
-                        >
-                            <img
-                                src={item.image}
-                                alt={item.title}
-                                className="w-full max-w-md h-120 object-cover rounded-xl shadow-[0_15px_20px_8px_rgba(0,0,0,0.7)] mb-6"
-                            />
-                            <h3 className="text-lg sm:text-xl font-bold mb-2">{item.title}</h3>
-                            <p className="text-sm sm:text-base max-w-md text-gray-400">{item.description}</p>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Arrows */}
-                <div className="flex justify-between items-center w-full max-w-md mt-4 px-4">
-                    <button
-                        onClick={() => instanceRef.current?.prev()}
-                        aria-label="Previous slide"
-                        className="text-white text-2xl hover:text-gray-400 focus:outline-none focus:ring-2 focus:ring-white"
-                    >
-                        ←
-                    </button>
-                    <button
-                        onClick={() => instanceRef.current?.next()}
-                        aria-label="Next slide"
-                        className="text-white text-2xl hover:text-gray-400 focus:outline-none focus:ring-2 focus:ring-white"
-                    >
-                        →
-                    </button>
-                </div>
-
-                {/* Pagination Dots */}
-                <div className="flex justify-center mt-4 gap-2">
-                    {slides.map((_, idx) => (
-                        <button
-                            key={idx}
-                            onClick={() => instanceRef.current?.moveToIdx(idx)}
-                            aria-label={`Go to slide ${idx + 1}`}
-                            className={`w-3 h-3 rounded-full ${currentSlide === idx ? 'bg-white' : 'bg-gray-500'
-                                } focus:outline-none focus:ring-2 focus:ring-white`}
-                        />
-                    ))}
-                </div>
-            </div>
-
             {/* Right Login Form */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-6 md:p-8">
+            <div
+                className="flex items-center justify-center p-4 sm:p-6 md:p-8"
+                style={{ width: `var(--right-panel-width, 50%)` }}
+            >
                 <div className="w-full max-w-md">
-                    <div className="flex justify-center mb-6">
+                    <div className="flex justify-start mb-6">
                         <img src="/holo-icon.png" alt="Holo Icon" className="h-16 sm:h-20 w-auto" />
                     </div>
-                    <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-center">Log in</h2>
+                    <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-left">Sign in to your account</h2>
+
+                    <p className="text-sm text-left text-gray-600 mb-12">
+                        Don't have an account yet?{' '}
+                        <button
+                            type="button"
+                            onClick={() => navigate('/signup')}
+                            className="text-[#2c95d2] hover:text-[#5eaedc] font-bold focus:outline-none focus:ring-2 focus:ring-[#4FC3F7]"
+                        >
+                            Sign up
+                        </button>
+                    </p>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         {error && <p className="text-red-500 text-sm text-center">{error}</p>}
 
                         <div>
-                            <label htmlFor="email" className="text-sm font-medium">
+                            <label htmlFor="email" className="text-sm font-bold">
                                 Email address
                             </label>
                             <input
@@ -145,12 +108,12 @@ export default function SignInPage() {
                                 placeholder="Enter your email address"
                                 type="email"
                                 required
-                                className="w-full border px-4 py-2 rounded mt-1 focus:ring-2 focus:ring-blue-500"
+                                className="w-full border border-gray-300 px-4 py-2 rounded mt-1 focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
 
                         <div>
-                            <label htmlFor="password" className="text-sm font-medium">
+                            <label htmlFor="password" className="text-sm font-bold">
                                 Password
                             </label>
                             <input
@@ -161,11 +124,11 @@ export default function SignInPage() {
                                 placeholder="Enter your password"
                                 type="password"
                                 required
-                                className="w-full border px-4 py-2 rounded mt-1 focus:ring-2 focus:ring-blue-500"
+                                className="w-full border border-gray-300 px-4 py-2 rounded mt-1 focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
 
-                        <div className="text-right text-sm text-gray-500">
+                        <div className="text-right text-sm font-bold">
                             <button
                                 type="button"
                                 className="hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -176,7 +139,7 @@ export default function SignInPage() {
 
                         <button
                             type="submit"
-                            className="w-full bg-black text-white py-2 rounded-full font-semibold hover:bg-gray-800 focus:ring-2 focus:ring-blue-500"
+                            className="w-full bg-[#2c95d2] text-white py-2 rounded-full font-semibold hover:bg-[#4FC3F7] focus:ring-2 focus:ring-blue-500  mb-6"
                         >
                             Log in
                         </button>
@@ -184,7 +147,7 @@ export default function SignInPage() {
 
                     <div className="flex items-center my-6">
                         <div className="flex-1 h-px bg-gray-300" />
-                        <span className="mx-4 text-sm text-gray-500">Or Log in with</span>
+                        <span className="mx-4 text-sm font-bold">Or Log in with</span>
                         <div className="flex-1 h-px bg-gray-300" />
                     </div>
 
@@ -209,16 +172,71 @@ export default function SignInPage() {
                         </button>
                     </div>
 
-                    <p className="text-sm text-center text-gray-600">
-                        Don't have an account yet?{' '}
-                        <button
-                            type="button"
-                            onClick={() => navigate('/signup')}
-                            className="text-blue-600 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500"
+
+                </div>
+            </div>
+            {/* Left Carousel Panel */}
+            <div
+                className="hidden lg:flex flex-col items-center justify-center p-6 relative"
+                style={{
+                    width: `var(--left-panel-width, 62%)`,
+                    backgroundImage: `url(${slides[currentSlide].image})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat',
+                }}
+            >
+                {/* Overlay for black tint and blur */}
+                <div
+                    className="absolute inset-0 backdrop-blur-md"
+                    style={{ backgroundColor: 'rgba(0, 0, 0, 0.4)' }} // Adjust the opacity (0.4) for desired tint
+                ></div>
+                <div ref={sliderRef} className="keen-slider w-full max-w-2xl relative z-10">
+                    {slides.map((item, idx) => (
+                        <div
+                            key={idx}
+                            className="keen-slider__slide flex flex-col items-center justify-center text-center text-white px-6"
                         >
-                            Sign up
-                        </button>
-                    </p>
+                            <img
+                                src={item.image}
+                                alt={item.title}
+                                className="w-full max-w-md h-120 object-cover rounded-xl shadow-[0_15px_20px_8px_rgba(0,0,0,0.7)] mb-6"
+                            />
+                            <h3 className="text-lg sm:text-xl font-bold mb-2">{item.title}</h3>
+                            <p className="text-sm sm:text-base max-w-md text-gray-400">{item.description}</p>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Arrows */}
+                <div className="flex justify-between items-center w-full max-w-md mt-4 px-4 relative z-10">
+                    <button
+                        onClick={() => instanceRef.current?.prev()}
+                        aria-label="Previous slide"
+                        className="text-white text-2xl hover:text-gray-400 focus:outline-none focus:ring-2 focus:ring-white"
+                    >
+                        ←
+                    </button>
+                    <button
+                        onClick={() => instanceRef.current?.next()}
+                        aria-label="Next slide"
+                        className="text-white text-2xl hover:text-gray-400 focus:outline-none focus:ring-2 focus:ring-white"
+                    >
+                        →
+                    </button>
+                </div>
+
+                {/* Pagination Dots */}
+                <div className="flex justify-center mt-4 gap-2 relative z-10">
+                    {slides.map((_, idx) => (
+                        <button
+                            key={idx}
+                            onClick={() => instanceRef.current?.moveToIdx(idx)}
+                            aria-label={`Go to slide ${idx + 1}`}
+                            className={`w-3 h-3 rounded-full ${currentSlide === idx ? 'bg-white' : 'bg-gray-500'
+                                } focus:outline-none focus:ring-2 focus:ring-white`}
+                        />
+                    ))}
                 </div>
             </div>
         </div>

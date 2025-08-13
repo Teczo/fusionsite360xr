@@ -17,6 +17,10 @@
 }
 
 :root {
+
+  --left-panel-width: 62%;
+  --right-panel-width: 38%;
+
   font-family: 'Lato', system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
