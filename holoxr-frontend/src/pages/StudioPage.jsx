@@ -137,9 +137,21 @@ export default function StudioPage() {
         );
     };
 
-    const updateModelProps = (id, updates) => {
-        setSceneModels(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
+    const updateModelProps = (id, updatesOrFn) => {
+        setSceneModels(prev => prev.map(m => {
+            if (m.id !== id) return m;
+            const updates = typeof updatesOrFn === 'function' ? updatesOrFn(m) : updatesOrFn;
+            const merged = { ...m, ...updates };
+            if (updates.appearance) {
+                merged.appearance = { ...(m.appearance || {}), ...updates.appearance };
+            }
+            if (updates.interactions !== undefined) {
+                merged.interactions = updates.interactions;
+            }
+            return merged;
+        }));
     };
+
 
     // inside StudioPage
     const runButtonActions = (buttonItem) => {
@@ -313,9 +325,8 @@ export default function StudioPage() {
                 autoplay,
                 isPaused,
                 selectedAnimationIndex,
-                content,
-                fontSize,
-                color,
+                content, fontSize, color,
+                visible, uiKind, appearance, interactions,
             } = model;
 
             return {
@@ -327,9 +338,8 @@ export default function StudioPage() {
                 autoplay,
                 isPaused,
                 selectedAnimationIndex,
-                content,
-                fontSize,
-                color,
+                content, fontSize, color,
+                visible, uiKind, appearance, interactions,
             };
         });
 
