@@ -28,81 +28,110 @@ router.get('/files', async (req, res) => {
     }
 });
 
-// POST: upload with Azure + thumbnail
+// POST: upload with Azure + (zip models only)
 router.post('/upload', upload.single('file'), async (req, res) => {
     const AZURE_STORAGE_CONNECTION_STRING = process.env.AZURE_STORAGE_CONNECTION_STRING;
-
     if (!AZURE_STORAGE_CONNECTION_STRING) {
-        console.error("❌ Azure connection string is missing");
         return res.status(500).json({ error: "Azure config missing" });
     }
 
     const blobServiceClient = BlobServiceClient.fromConnectionString(AZURE_STORAGE_CONNECTION_STRING);
     const containerClient = blobServiceClient.getContainerClient("uploads");
+
     const file = req.file;
+    const declaredType = (req.body.type || '').toLowerCase(); // 'model' | 'image'
     if (!file) return res.status(400).json({ error: 'No file uploaded' });
 
+    // Normalize names
     const originalName = file.originalname.replace(/\s/g, '_');
-    const baseName = originalName.replace('.glb', '');
+    const ext = path.extname(originalName).toLowerCase(); // .glb, .gltf, .png, .jpg, .webp
+    const baseName = path.basename(originalName, ext);
     const timestamp = Date.now();
-    const tempDir = path.join(__dirname, '..', 'uploads');
-    const tempGlbPath = path.join(tempDir, `${timestamp}-${originalName}`);
-    const tempZipPath = path.join(tempDir, `${timestamp}-${baseName}.zip`);
-    //const tempThumbnailPath = path.join(tempDir, `${timestamp}-${baseName}.png`);
 
-    const zipBlobName = `${timestamp}-${baseName}.zip`;
-    //const thumbnailBlobName = `${timestamp}-${baseName}.png`;
+    // Heuristic for type if not declared
+    const isImage = declaredType === 'image' || /^image\//.test(file.mimetype) || ['.png', '.jpg', '.jpeg', '.webp'].includes(ext);
+    const isModel = declaredType === 'model' || ['.glb', '.gltf'].includes(ext);
 
     try {
-        // 1. Save .glb file locally
-        fs.writeFileSync(tempGlbPath, file.buffer);
+        if (isImage) {
+            // ---- IMAGES: upload as-is, NO ZIP
+            const blobName = `${timestamp}-${originalName}`;
+            const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+            await blockBlobClient.uploadData(file.buffer, {
+                blobHTTPHeaders: { blobContentType: file.mimetype || guessImageMime(ext) },
+            });
+            const url = blockBlobClient.url;
 
-        // 2. Zip the .glb file
-        await new Promise((resolve, reject) => {
-            const output = fs.createWriteStream(tempZipPath);
-            const archive = archiver('zip');
-            output.on('close', resolve);
-            archive.on('error', reject);
-            archive.pipe(output);
-            archive.file(tempGlbPath, { name: originalName });
-            archive.finalize();
-            // 2. Zip the .glb file
-            console.log("📦 Zipping:", tempGlbPath);
+            const newFile = await File.create({
+                name: originalName,
+                type: 'image',
+                url,
+                // thumbnail: (optional) generate & save later if you want
+            });
 
-        });
+            return res.status(200).json({ message: "Image uploaded", file: newFile });
+        }
 
-        // 3. Upload .zip to Azure
-        const zipBuffer = fs.readFileSync(tempZipPath);
-        const zipBlobClient = containerClient.getBlockBlobClient(zipBlobName);
-        await zipBlobClient.uploadData(zipBuffer, {
-            blobHTTPHeaders: { blobContentType: 'application/zip' }
-        });
-        const zipUrl = zipBlobClient.url;
+        if (isModel) {
+            // ---- MODELS: save buffer, zip, then upload ZIP (your current flow)
+            const tempDir = path.join(__dirname, '..', 'uploads');
+            fs.mkdirSync(tempDir, { recursive: true });
 
+            const tempModelPath = path.join(tempDir, `${timestamp}-${originalName}`);
+            const tempZipPath = path.join(tempDir, `${timestamp}-${baseName}.zip`);
+            const zipBlobName = `${timestamp}-${baseName}.zip`;
 
+            // Save model buffer to disk
+            fs.writeFileSync(tempModelPath, file.buffer);
 
-        // 5. Save in MongoDB
-        const newFile = await File.create({
-            name: originalName,
-            type: 'model',
-            url: zipUrl,
-            //thumbnail: thumbnailUrl
-        });
+            // Zip the model file
+            await new Promise((resolve, reject) => {
+                const output = fs.createWriteStream(tempZipPath);
+                const archive = archiver('zip');
+                output.on('close', resolve);
+                archive.on('error', reject);
+                archive.pipe(output);
+                archive.file(tempModelPath, { name: originalName });
+                archive.finalize();
+            });
 
-        // 6. Clean up
-        fs.unlinkSync(tempGlbPath);
-        fs.unlinkSync(tempZipPath);
-        //fs.unlinkSync(tempThumbnailPath);
+            // Upload zip to Azure
+            const zipBuffer = fs.readFileSync(tempZipPath);
+            const zipBlobClient = containerClient.getBlockBlobClient(zipBlobName);
+            await zipBlobClient.uploadData(zipBuffer, {
+                blobHTTPHeaders: { blobContentType: 'application/zip' },
+            });
+            const zipUrl = zipBlobClient.url;
 
-        res.status(200).json({ message: "Uploaded and zipped successfully", file: newFile });
+            const newFile = await File.create({
+                name: originalName,
+                type: 'model',
+                url: zipUrl,
+            });
+
+            // Clean up
+            fs.unlinkSync(tempModelPath);
+            fs.unlinkSync(tempZipPath);
+
+            return res.status(200).json({ message: "Model uploaded and zipped", file: newFile });
+        }
+
+        // Unknown type
+        return res.status(400).json({ error: 'Unsupported file type. Use .glb/.gltf for models or image formats for images.' });
 
     } catch (err) {
-        console.error('❌ Upload or thumbnail failed:', err.message);
-        console.error(err.stack); // for full stack trace
-        res.status(500).json({ error: err.message });
+        console.error('❌ Upload failed:', err);
+        return res.status(500).json({ error: err.message });
     }
-
 });
+
+function guessImageMime(ext) {
+    if (ext === '.png') return 'image/png';
+    if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
+    if (ext === '.webp') return 'image/webp';
+    return 'application/octet-stream';
+}
+
 
 // Soft delete (move to trash)
 router.delete('/files/:id', async (req, res) => {
