@@ -64,24 +64,25 @@ function ModelItem({ url, transform, selectedAnimationIndex = 0, autoplay = fals
 
     if (!scene) return null;
 
+    const t = transform || {};
     return (
         <group
-            position={[transform?.x || 0, transform?.y || 0, transform?.z || 0]}
-            rotation={[transform?.rx || 0, transform?.ry || 0, transform?.rz || 0]}
-            scale={[transform?.sx || 1, transform?.sy || 1, transform?.sz || 1]}
+            position={[t.x || 0, t.y || 0, t.z || 0]}
+            rotation={[t.rx || 0, t.ry || 0, t.rz || 0]}
+            scale={[t.sx || 1, t.sy || 1, t.sz || 1]}
         >
             <primitive object={scene} />
         </group>
     );
 }
 
-function ImageItem({ url, transform }) {
+function ImageItem({ url, transform = {} }) {
     const texture = new THREE.TextureLoader().load(url);
     const ref = useRef();
 
     useEffect(() => {
         if (ref.current) {
-            const { x, y, z, rx, ry, rz, sx, sy, sz } = transform;
+            const { x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1 } = transform;
             ref.current.position.set(x, y, z);
             ref.current.rotation.set(rx, ry, rz);
             ref.current.scale.set(sx, sy, sz);
@@ -96,12 +97,12 @@ function ImageItem({ url, transform }) {
     );
 }
 
-function TextItem({ content, fontSize, color, transform }) {
+function TextItem({ content, fontSize, color, transform = {} }) {
     const ref = useRef();
 
     useEffect(() => {
         if (ref.current) {
-            const { x, y, z, rx, ry, rz, sx, sy, sz } = transform;
+            const { x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1 } = transform;
             ref.current.position.set(x, y, z);
             ref.current.rotation.set(rx, ry, rz);
             ref.current.scale.set(sx, sy, sz);
@@ -130,7 +131,11 @@ function ButtonItem({ item, onPress }) {
     return (
         <group
             ref={ref}
-            onClick={(e) => { e.stopPropagation(); onPress?.(item); }}
+            // Pointer events are more reliable in AR than 'onClick'
+            onPointerDown={(e) => {
+                e.stopPropagation();
+                onPress?.(item);
+            }}
         >
             <mesh>
                 <boxGeometry args={[1, 0.4, 0.1]} />
@@ -146,7 +151,9 @@ function ButtonItem({ item, onPress }) {
 function runActions(actions, setSceneData, navigateToProject) {
     (actions || []).forEach((act) => {
         if (act.type === 'toggleVisibility' && act.targetId) {
-            setSceneData(prev => prev.map(o => o.id === act.targetId ? { ...o, visible: o.visible === false ? true : false } : o));
+            setSceneData(prev =>
+                prev.map(o => o.id === act.targetId ? { ...o, visible: o.visible === false ? true : false } : o)
+            );
         }
         if (act.type === 'playPauseAnimation' && act.targetId) {
             setSceneData(prev => prev.map(o => {
@@ -156,11 +163,9 @@ function runActions(actions, setSceneData, navigateToProject) {
             }));
         }
         if (act.type === 'changeProject' && act.projectId) {
-            // In AR viewer we actually navigate
             navigateToProject(act.projectId);
         }
         if (act.type === 'openClosePanel' && act.targetId) {
-            // treat like toggle/show/hide on a target (image or future 'panel' type)
             const mode = act.mode || 'toggle';
             setSceneData(prev => prev.map(o => {
                 if (o.id !== act.targetId) return o;
@@ -172,13 +177,12 @@ function runActions(actions, setSceneData, navigateToProject) {
     });
 }
 
-
 export default function ARViewer() {
     const { id } = useParams();
     const [sceneData, setSceneData] = useState([]);
+    const [isAR, setIsAR] = useState(false);
 
     const navigateToProject = (projectId) => {
-        // Load another published scene
         window.location.href = `/ar/${projectId}`;
     };
 
@@ -187,7 +191,7 @@ export default function ARViewer() {
             try {
                 const res = await fetch(`${import.meta.env.VITE_API_URL}/api/published/${id}`);
                 const data = await res.json();
-                console.log("📦 AR Scene Data:", data);
+                console.log('📦 AR Scene Data:', data);
                 if (res.ok && data.publishedScene) {
                     setSceneData(data.publishedScene);
                 }
@@ -205,15 +209,25 @@ export default function ARViewer() {
                 camera={{ position: [0, 1.6, 3], fov: 70 }}
                 onCreated={({ gl }) => {
                     gl.xr.enabled = true;
-                    const button = ARButton.createButton(gl, { requiredFeatures: ['hit-test'] });
+                    // Track AR session to control controls & UX
+                    gl.xr.addEventListener('sessionstart', () => setIsAR(true));
+                    gl.xr.addEventListener('sessionend', () => setIsAR(false));
+
+                    // Add AR button
+                    const button = ARButton.createButton(gl, {
+                        requiredFeatures: ['hit-test'],
+                        // optionalFeatures can help with touch routing on some browsers
+                        optionalFeatures: ['dom-overlay'],
+                        domOverlay: { root: document.body }
+                    });
                     document.body.appendChild(button);
                 }}
             >
                 <ambientLight intensity={0.5} />
                 <directionalLight position={[5, 5, 5]} intensity={1} />
-                <OrbitControls />
 
-
+                {/* Disable OrbitControls while in AR (prevents touch from being eaten) */}
+                {!isAR && <OrbitControls />}
 
                 {sceneData.map((item) => {
                     if (item.visible === false) return null;

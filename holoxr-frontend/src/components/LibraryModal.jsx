@@ -1,91 +1,123 @@
 import { useEffect, useState, useRef } from 'react';
-import { FilePlus, ImagePlus, TextQuote, QrCode, Box, Trash2 } from 'lucide-react';
+import {
+  Box,
+  FolderPlus,
+  MoreVertical,
+  Plus,
+  QrCode,
+  Search,
+  Settings2,
+  Trash2,
+  Upload,
+  ImagePlus,
+  FilePlus,
+  TextQuote
+} from 'lucide-react';
 import SketchfabPanel from './SketchfabPanel';
 import { formatDistanceToNow } from 'date-fns';
+import toast from 'react-hot-toast';
 
+// Utility: classnames
+const cx = (...args) => args.filter(Boolean).join(' ');
 
+// Sidebar categories (future-proof: add taxonomy tags later)
 const sidebarItems = [
-  { label: '3D shapes', icon: <FilePlus size={16} /> },
-  { label: 'Images', icon: <ImagePlus size={16} /> },
-  { label: 'Text', icon: <TextQuote size={16} /> },
-  { label: 'UI', icon: <Box size={16} /> },
-  { label: 'QR Code', icon: <QrCode size={16} /> },
-  { label: 'Sketchfab', icon: <Box size={16} /> },
-  { label: 'Trash', icon: <Trash2 size={16} /> }
+  { key: 'all', label: 'All assets', icon: <Box size={16} /> },
+  { key: 'model', label: '3D models', icon: <FilePlus size={16} /> },
+  { key: 'image', label: 'Images', icon: <ImagePlus size={16} /> },
+  { key: 'text', label: 'Text', icon: <TextQuote size={16} /> },
+  { key: 'ui', label: 'UI', icon: <Box size={16} /> },
+  { key: 'qrcode', label: 'QR Code', icon: <QrCode size={16} /> },
+  { key: 'sketchfab', label: 'Sketchfab', icon: <Box size={16} /> },
+  { key: 'trash', label: 'Trash', icon: <Trash2 size={16} /> },
 ];
 
-
-const handleMoveToTrash = async (fileId) => {
-  const confirmDelete = window.confirm("Are you sure you want to move this file to trash?");
-  if (!confirmDelete) return;
-
-  try {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/files/${fileId}`, {
-      method: 'DELETE',
-    });
-
-    if (res.ok) {
-      alert("✅ File moved to trash.");
-      fetchItems(); // Refresh list
-      setOpenMenu(null);
-    } else {
-      const data = await res.json();
-      console.error("❌ Delete failed:", data.error);
-      alert("Failed to delete file.");
-    }
-  } catch (err) {
-    console.error("❌ Delete request failed:", err);
-    alert("Error deleting file.");
-  }
-};
-
+// Simple dark confirm dialog
+function ConfirmDialog({ open, title, description, confirmText = 'Confirm', confirmTone = 'red', onCancel, onConfirm }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-[1px] flex items-center justify-center">
+      <div className="bg-[#18191e] text-white w-[420px] rounded-2xl border border-gray-700 shadow-2xl p-5">
+        <h3 className="text-lg font-semibold mb-2">{title}</h3>
+        {description && <p className="text-sm text-gray-300 mb-5">{description}</p>}
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            className="px-3 py-1.5 text-sm rounded-md bg-gray-600 hover:bg-gray-700"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className={cx(
+              'px-3 py-1.5 text-sm rounded-md',
+              confirmTone === 'red' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
+            )}
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
   const modelInputRef = useRef(null);
   const imageInputRef = useRef(null);
-  const [activeTab, setActiveTab] = useState('3D shapes');
+
+  const [activeTab, setActiveTab] = useState('all'); // keys from sidebarItems
   const [items, setItems] = useState([]);
-  const [isSketchfabOpen, setIsSketchfabOpen] = useState(false);
-  const [openMenu, setOpenMenu] = useState(null);
   const [trashedItems, setTrashedItems] = useState([]);
+  const [openMenu, setOpenMenu] = useState(null);
+  const [isSketchfabOpen, setIsSketchfabOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [selectedItem, setSelectedItem] = useState(null);
 
+  // Confirmation modal state
+  const [confirm, setConfirm] = useState({
+    open: false,
+    type: null, // 'trash' | 'permadelete'
+    item: null,
+  });
 
+  // Fetchers
   const fetchItems = async () => {
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/files`);
       const data = await res.json();
-      setItems(data);
+      setItems(data || []);
     } catch (err) {
-      console.error("Failed to fetch items:", err);
+      console.error('Failed to fetch items:', err);
     }
   };
-
-  useEffect(() => {
-    if (isOpen) {
-      fetchItems();
-
-      if (activeTab === 'Trash') {
-        fetchTrashedItems();
-      }
-    }
-  }, [isOpen, activeTab]);
 
   const fetchTrashedItems = async () => {
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/files/trashed`);
       const data = await res.json();
-      setTrashedItems(data);
+      setTrashedItems(data || []);
     } catch (err) {
-      console.error("Failed to fetch trashed items:", err);
+      console.error('Failed to fetch trashed items:', err);
     }
   };
 
+  useEffect(() => {
+    if (!isOpen) return;
+    fetchItems();
+  }, [isOpen]);
 
-  const handleModelClick = () => modelInputRef.current.click();
-  const handleImageClick = () => imageInputRef.current.click();
+  useEffect(() => {
+    if (!isOpen) return;
+    if (activeTab === 'trash') fetchTrashedItems();
+  }, [isOpen, activeTab]);
+
+  // Upload handlers
+  const handleModelClick = () => modelInputRef.current?.click();
+  const handleImageClick = () => imageInputRef.current?.click();
 
   const handleFileChange = async (e, type) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
 
     const formData = new FormData();
@@ -98,17 +130,42 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
         body: formData,
       });
       const result = await response.json();
-      console.log('✅ Uploaded:', result);
-      fetchItems();
+      if (response.ok) {
+        toast.success('✅ Uploaded');
+        fetchItems();
+      } else {
+        toast.error(result?.error || 'Upload failed');
+      }
     } catch (err) {
       console.error('❌ Upload failed:', err);
+      toast.error('Upload failed');
+    } finally {
+      // reset input to allow re-upload same file name
+      e.target.value = '';
     }
   };
 
-  const handleItemSelect = (item) => {
-    console.log("Library selected item:", item);
-    onSelectItem(item);
-    onClose();
+  // Actions
+  const handleMoveToTrash = async (fileId) => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/files/${fileId}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        toast.success('✅ File moved to trash.');
+        fetchItems();
+        setOpenMenu(null);
+        if (selectedItem?._id === fileId) setSelectedItem(null);
+      } else {
+        const data = await res.json();
+        console.error('❌ Delete failed:', data.error);
+        toast.error('Failed to delete file.');
+      }
+    } catch (err) {
+      console.error('❌ Delete request failed:', err);
+      toast.error('Error deleting file.');
+    }
   };
 
   const handleRestore = async (fileId) => {
@@ -117,253 +174,453 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
         method: 'PATCH',
       });
       if (res.ok) {
-        alert("✅ File restored");
+        toast.success('✅ File restored');
         fetchTrashedItems();
         fetchItems();
+      } else {
+        toast.error('Failed to restore');
       }
     } catch (err) {
-      console.error("Restore failed:", err);
+      console.error('Restore failed:', err);
+      toast.error('Error restoring file.');
     }
   };
 
   const handlePermanentDelete = async (fileId) => {
-    const confirmDelete = window.confirm("This will permanently delete the file. Continue?");
-    if (!confirmDelete) return;
-
     try {
-      await fetch(`${import.meta.env.VITE_API_URL}/api/files/${fileId}/permanent`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/files/${fileId}/permanent`, {
         method: 'DELETE',
       });
-      fetchTrashedItems();
+      if (res.ok) {
+        toast.success('✅ File deleted permanently');
+        fetchTrashedItems();
+        if (selectedItem?._id === fileId) setSelectedItem(null);
+      } else {
+        toast.error('Failed to delete permanently');
+      }
     } catch (err) {
-      console.error("Permanent delete failed:", err);
+      console.error('Permanent delete failed:', err);
+      toast.error('Error deleting file.');
     }
   };
 
+  // Filtering
+  const filtered = items.filter((i) => {
+    const matchType =
+      activeTab === 'all' ? true :
+        activeTab === 'ui' ? i.type === 'ui' :
+          activeTab === 'text' ? i.type === 'text' :
+            activeTab === 'qrcode' ? i.type === 'qrcode' :
+              activeTab === 'model' ? i.type === 'model' :
+                activeTab === 'image' ? i.type === 'image' :
+                  activeTab === 'sketchfab' ? false : // Sketchfab handled separately
+                    activeTab === 'trash' ? false : // separate list
+                      true;
+
+    const matchSearch =
+      !search?.trim() ||
+      i.name?.toLowerCase().includes(search.toLowerCase()) ||
+      i.uploader?.toLowerCase().includes(search.toLowerCase());
+
+    return matchType && matchSearch;
+  });
+
+  // Card component
+  const AssetCard = ({ item }) => {
+    const isMenuOpen = openMenu === item._id;
+
+    return (
+      <div
+        className="relative rounded-xl overflow-hidden border border-gray-700 bg-[#1f2025] hover:bg-[#24252b] transition-colors"
+      >
+        {/* Kebab */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpenMenu(isMenuOpen ? null : item._id);
+          }}
+          className="absolute top-2 right-2 z-20 p-1 rounded-md bg-[#2a2b2f] hover:bg-[#353741]"
+          title="More actions"
+        >
+          <MoreVertical size={16} />
+        </button>
+
+        {/* Thumb */}
+        <button
+          onClick={() => setSelectedItem(item)}
+          className="w-full h-36 bg-[#2a2b2f] flex items-center justify-center"
+          title="Preview"
+        >
+          {item.thumbnail ? (
+            <img src={item.thumbnail} alt={item.name} className="object-cover w-full h-full" />
+          ) : (
+            <span className="text-xs text-gray-400">No Thumbnail</span>
+          )}
+        </button>
+
+        {/* Body */}
+        <div className="p-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="truncate text-sm text-white">{item.name}</div>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#33353d] text-gray-300 uppercase">
+              {item.type}
+            </span>
+          </div>
+          <div className="text-[11px] text-gray-400 mt-1">
+            {item.uploadedAt || item.createdAt
+              ? `${formatDistanceToNow(new Date(item.uploadedAt || item.createdAt))} ago`
+              : '—'}
+          </div>
+
+          {/* Hover import */}
+          <div className="mt-3">
+            <button
+              onClick={() => {
+                onSelectItem(item);
+                onClose();
+              }}
+              className="w-full text-sm bg-blue-600 hover:bg-blue-700 text-white py-1.5 rounded-md"
+            >
+              Import
+            </button>
+          </div>
+        </div>
+
+        {/* Popover Menu */}
+        {isMenuOpen && (
+          <div
+            className="absolute right-2 top-9 z-80 w-60 rounded-xl border border-gray-700 bg-[#1c1d22] shadow-2xl overflow-hidden"
+            onMouseLeave={() => setOpenMenu(null)}
+          >
+            <div className="px-3 py-2 border-b border-gray-700">
+              <div className="truncate text-sm text-white">{item.name}</div>
+              <div className="text-xs text-gray-400">
+                Uploaded by {item.uploader || 'Unknown'}
+              </div>
+            </div>
+            <div className="py-1">
+              <button className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2b2f]">📁 Move to folder</button>
+              <button className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2b2f]">🏷️ Add tags</button>
+              <button className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2b2f]">🧪 Check compatibility</button>
+              <button className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2b2f]">⬇️ Download</button>
+              <button
+                className="w-full text-left px-3 py-2 text-sm hover:bg-red-500/15 text-red-400"
+                onClick={() => {
+                  setConfirm({ open: true, type: 'trash', item });
+                  setOpenMenu(null);
+                }}
+              >
+                🗑 Move to Trash
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   if (!isOpen) return null;
 
+  const onConfirm = async () => {
+    if (!confirm.open || !confirm.item) return;
+    const id = confirm.item._id;
+    const t = confirm.type;
+
+    setConfirm({ open: false, type: null, item: null });
+    if (t === 'trash') await handleMoveToTrash(id);
+    if (t === 'permadelete') await handlePermanentDelete(id);
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-      <div className="bg-[#18191e] w-[800px] h-[500px] rounded-lg shadow-xl flex">
-        {/* Left Sidebar */}
-        <div className="w-40 border-r p-2 flex flex-col gap-2">
-          {sidebarItems.map((item) => (
-            <button
-              key={item.label}
-              onClick={() => setActiveTab(item.label)}
-              className={`flex items-center gap-2 px-3 py-2 rounded hover:bg-[#30323c] w-full text-left ${item.label === activeTab ? 'bg-[#30323c] font-semibold' : ''
-                }`}
-            >
-              {item.icon}
-              {item.label}
-            </button>
-          ))}
-        </div>
-
-
-        {/* Right Content */}
-        <div className="flex-1 p-4 relative overflow-y-auto">
+      <div className="bg-[#18191e] w-[1100px] h-[640px] rounded-2xl shadow-2xl border border-gray-700 flex flex-col overflow-hidden">
+        {/* Modal header */}
+        <div className="h-12 flex items-center justify-between px-4 border-b border-gray-700">
+          <h2 className="text-sm font-semibold text-white">Asset Library</h2>
           <button
             onClick={onClose}
-            className="absolute top-2 right-4 text-gray-400 hover:text-red-500 text-xl"
+            className="text-gray-400 hover:text-white rounded-md px-2 py-1"
+            aria-label="Close"
+            title="Close"
           >
             ×
           </button>
-
-          {activeTab === '3D shapes' && (
-            <div className="flex flex-col gap-4">
+        </div>
+        <div className="flex flex-1 min-h-0">
+          {/* Sidebar */}
+          <aside className="w-56 h-full border-r border-gray-700 p-3 space-y-1">
+            {sidebarItems.map((item) => (
               <button
-                onClick={handleModelClick}
-                className="bg-blue-600 text-white px-4 py-2 rounded w-48"
+                key={item.key}
+                onClick={() => {
+                  setActiveTab(item.key);
+                  setSelectedItem(null);
+                }}
+                className={cx(
+                  'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm',
+                  activeTab === item.key ? 'bg-[#2a2b2f] font-semibold' : 'hover:bg-[#222329]'
+                )}
               >
-                Upload 3D Model
+                {item.icon}
+                {item.label}
               </button>
+            ))}
+          </aside>
+
+          {/* Main */}
+          <section className="flex-1 h-full flex flex-col">
+            {/* Header / Toolbar */}
+            <div className="px-4 py-3 border-b border-gray-700 flex items-center gap-2 relative z-[60] overflow-visible">
+
+              <h2 className="text-lg font-semibold">
+                {activeTab === 'trash' ? 'Trash' :
+                  activeTab === 'sketchfab' ? 'Sketchfab' : 'Library'}
+              </h2>
+
+              {/* Search */}
+              {activeTab !== 'sketchfab' && (
+                <div className="ml-auto relative w-72">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2" size={16} />
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search assets…"
+                    className="w-full pl-8 pr-3 py-2 text-sm rounded-lg bg-[#2a2b2f] border border-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              )}
+
+              {/* Upload dropdown */}
+              {activeTab !== 'trash' && activeTab !== 'sketchfab' && (
+                <div className="relative">
+                  <button
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-lg text-sm"
+                    onClick={(e) => {
+                      // simple toggled inline menu: use title to avoid state bloat
+                      const el = e.currentTarget.nextElementSibling;
+                      if (el) el.classList.toggle('hidden');
+                    }}
+                  >
+                    <Upload size={16} />
+                    Upload
+                  </button>
+                  <div className="absolute right-0 mt-2 w-44 rounded-lg border border-gray-700 bg-[#1c1d22] shadow-xl py-1 hidden z-[70]">
+                    <button
+                      onClick={handleModelClick}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2b2f]"
+                    >
+                      3D Model (.glb/.gltf)
+                    </button>
+                    <button
+                      onClick={handleImageClick}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2b2f]"
+                    >
+                      Image
+                    </button>
+                    <button
+                      onClick={() => {
+                        // Quick add text asset placeholder
+                        onSelectItem({ type: 'text', name: 'New Text', content: 'Hello World' });
+                        onClose();
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2b2f]"
+                    >
+                      Text
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* New Folder (stub) */}
+              {activeTab !== 'trash' && activeTab !== 'sketchfab' && (
+                <button
+                  className="flex items-center gap-2 bg-[#2a2b2f] hover:bg-[#2f3139] px-3 py-2 rounded-lg text-sm border border-gray-700"
+                  title="Coming soon"
+                >
+                  <FolderPlus size={16} />
+                  New Folder
+                </button>
+              )}
+
+              {/* Filters (stub) */}
+              {activeTab !== 'trash' && activeTab !== 'sketchfab' && (
+                <button
+                  className="flex items-center gap-2 bg-[#2a2b2f] hover:bg-[#2f3139] px-3 py-2 rounded-lg text-sm border border-gray-700"
+                  title="Filter by category, tags, device, polycount… (coming soon)"
+                >
+                  <Settings2 size={16} />
+                  Filters
+                </button>
+              )}
+
+              {/* hidden inputs */}
               <input
                 type="file"
                 accept=".glb,.gltf"
                 ref={modelInputRef}
-                style={{ display: 'none' }}
+                className="hidden"
                 onChange={(e) => handleFileChange(e, 'model')}
               />
-              <div className="grid grid-cols-3 gap-4">
-                {items.filter(i => i.type === 'model').map((item, index) => (
-                  <div key={index} className="relative border rounded hover:shadow-lg transition group">
-
-                    {/* Three Dot Button */}
-                    <button
-                      onClick={() => setOpenMenu(openMenu === item._id ? null : item._id)}
-                      className="absolute top-2 left-2 z-20 bg-white rounded-full p-1 hover:bg-gray-200"
-                    >
-                      ⋮
-                    </button>
-
-                    {/* Thumbnail */}
-                    <button
-                      onClick={() => handleItemSelect(item)}
-                      className="w-full h-32 bg-gray-100 flex items-center justify-center"
-                    >
-                      {item.thumbnail ? (
-                        <img
-                          src={item.thumbnail}
-                          alt={item.name}
-                          className="object-cover w-full h-full"
-                        />
-                      ) : (
-                        <span className="text-xs text-gray-400">No Thumbnail</span>
-                      )}
-                    </button>
-
-                    {/* File name */}
-                    <div className="p-2 text-sm truncate">{item.name}</div>
-
-                    {/* Menu Panel */}
-                    {openMenu === item._id && (
-                      <div className="absolute top-10 left-2 w-64 bg-neutral-900 text-white rounded-xl shadow-xl z-30 text-sm">
-                        {/* Top Section */}
-                        <div className="p-3 border-b border-white/10">
-                          <div className="truncate font-medium">{item.name}</div>
-                          <div className="text-white/70 text-xs mt-1">
-                            Uploaded by {item.uploader || 'Unknown'}<br />
-                            {formatDistanceToNow(new Date(item.uploadedAt || item.createdAt))} ago
-                          </div>
-                        </div>
-
-                        {/* Bottom Actions */}
-                        <div className="p-2 space-y-1">
-                          <button className="w-full text-left px-3 py-1 hover:bg-white/10 rounded flex items-center gap-2">
-                            📁 Move to folder
-                          </button>
-                          <button className="w-full text-left px-3 py-1 hover:bg-white/10 rounded flex items-center gap-2">
-                            ⬇️ Download
-                          </button>
-                          <button className="w-full text-left px-3 py-1 hover:bg-white/10 rounded flex items-center gap-2">
-                            ✅ Select items
-                          </button>
-                          <button
-                            className="w-full text-left px-3 py-1 hover:bg-red-500/20 text-red-400 rounded flex items-center gap-2"
-                            onClick={() => handleMoveToTrash(item._id)}
-                          >
-                            🗑 Move to Trash
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-              </div>
-
-            </div>
-          )}
-
-          {activeTab === 'UI' && (
-            <div className="flex flex-col gap-3">
-              <div className="grid grid-cols-3 gap-3">
-                <button
-                  onClick={() => {
-                    onSelectItem({
-                      type: 'button',
-                      name: 'Button',
-                      uiKind: 'world',
-                      appearance: { label: 'Tap', radius: 0.2 },
-                      interactions: [], // empty for now; we’ll edit in Properties
-                      transform: { x: 0, y: 1, z: 0, rx: 0, ry: 0, rz: 0, sx: 0.4, sy: 0.2, sz: 0.1 }
-                    });
-                    onClose();
-                  }}
-                  className="border rounded p-3 hover:bg-[#30323c] text-left"
-                >
-                  ➕ Button (world)
-                </button>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'Images' && (
-            <div className="flex flex-col gap-4">
-              <button
-                onClick={handleImageClick}
-                className="bg-green-600 text-white px-4 py-2 rounded w-48"
-              >
-                Upload Image
-              </button>
               <input
                 type="file"
                 accept="image/*"
                 ref={imageInputRef}
-                style={{ display: 'none' }}
+                className="hidden"
                 onChange={(e) => handleFileChange(e, 'image')}
               />
-              <div className="grid grid-cols-3 gap-2">
-                {items.filter(i => i.type === 'image').map((item, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleItemSelect(item)}
-                    className="block text-left border p-2 rounded hover:bg-gray-100"
-                  >
-                    {item.name}
-                  </button>
-                ))}
-              </div>
             </div>
-          )}
 
-          {activeTab === 'Text' && (
-            <div className="flex flex-col gap-4">
-              <button
-                onClick={() => {
-                  onSelectItem({ type: 'text', name: 'New Text', content: 'Hello World' });
-                  onClose();
-                }}
-                className="bg-purple-600 text-white px-4 py-2 rounded w-48"
-              >
-                Add Text
-              </button>
-            </div>
-          )}
-          {activeTab === 'Trash' && (
-            <div className="grid grid-cols-3 gap-4">
-              {trashedItems.map((item, index) => (
-                <div key={index} className="border rounded p-3 bg-white shadow-md relative">
-                  <div className="w-full h-32 bg-gray-100 mb-2 flex items-center justify-center">
-                    {item.thumbnail ? (
-                      <img src={item.thumbnail} alt={item.name} className="object-cover w-full h-full" />
+            {/* Body */}
+            <div className="flex-1 overflow-hidden flex">
+              {/* Grid list */}
+              <div className="flex-1 overflow-auto p-4">
+                {/* Tabs content */}
+                {activeTab === 'sketchfab' ? (
+                  <div className="h-full">
+                    <SketchfabPanel
+                      onImport={(model) => {
+                        onSelectItem(model);
+                        onClose();
+                      }}
+                    />
+                  </div>
+                ) : activeTab === 'trash' ? (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {trashedItems.map((item) => (
+                      <div key={item._id} className="rounded-xl border border-gray-700 bg-[#1f2025] p-3">
+                        <div className="w-full h-32 bg-[#2a2b2f] mb-2 flex items-center justify-center rounded-lg overflow-hidden">
+                          {item.thumbnail ? (
+                            <img src={item.thumbnail} alt={item.name} className="object-cover w-full h-full" />
+                          ) : (
+                            <span className="text-xs text-gray-400">No Thumbnail</span>
+                          )}
+                        </div>
+                        <div className="text-sm truncate">{item.name}</div>
+                        <div className="text-[11px] text-gray-400 mb-3">
+                          {item.uploadedAt ? `${formatDistanceToNow(new Date(item.uploadedAt))} ago` : '—'}
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleRestore(item._id)}
+                            className="flex-1 text-xs bg-gray-600 hover:bg-gray-700 rounded-md py-1.5"
+                          >
+                            Restore
+                          </button>
+                          <button
+                            onClick={() => setConfirm({ open: true, type: 'permadelete', item })}
+                            className="flex-1 text-xs bg-red-600 hover:bg-red-700 rounded-md py-1.5"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {trashedItems.length === 0 && (
+                      <div className="text-sm text-gray-400">Trash is empty.</div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {filtered.map((item) => (
+                      <AssetCard key={item._id} item={item} />
+                    ))}
+                    {filtered.length === 0 && (
+                      <div className="text-sm text-gray-400">No assets found.</div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Preview drawer */}
+              {activeTab !== 'sketchfab' && selectedItem && (
+                <div className="w-[320px] border-l border-gray-700 p-4 overflow-auto bg-[#1a1b20]">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="text-base font-semibold">Preview</h3>
+                    <button
+                      className="text-gray-400 hover:text-white"
+                      onClick={() => setSelectedItem(null)}
+                      title="Close preview"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <div className="w-full h-40 bg-[#2a2b2f] rounded-lg flex items-center justify-center overflow-hidden mb-3">
+                    {selectedItem.thumbnail ? (
+                      <img src={selectedItem.thumbnail} alt={selectedItem.name} className="object-cover w-full h-full" />
                     ) : (
                       <span className="text-xs text-gray-400">No Thumbnail</span>
                     )}
                   </div>
-                  <div className="text-sm font-semibold truncate">{item.name}</div>
-                  <div className="text-xs text-gray-500 mb-2">
-                    {formatDistanceToNow(new Date(item.uploadedAt))} ago
+
+                  <div className="space-y-2 text-sm">
+                    <div className="font-medium">{selectedItem.name}</div>
+                    <div className="text-gray-400">Type: {selectedItem.type}</div>
+                    <div className="text-gray-400">
+                      Uploaded {selectedItem.uploadedAt ? formatDistanceToNow(new Date(selectedItem.uploadedAt)) : '—'} ago
+                    </div>
+
+                    {/* FUTURE: metadata */}
+                    <div className="pt-2 border-t border-gray-700">
+                      <div className="text-xs text-gray-400 mb-1">Metadata</div>
+                      <div className="text-xs text-gray-300">
+                        {/* placeholders for future tags like subject/chapter/device/polycount */}
+                        Tags: {selectedItem?.metadata?.tags?.join(', ') || '—'}
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
+
+                  <div className="mt-4 space-y-2">
                     <button
-                      onClick={() => handleRestore(item._id)}
-                      className="text-xs text-green-600 hover:underline"
+                      onClick={() => {
+                        onSelectItem(selectedItem);
+                        onClose();
+                      }}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md text-sm"
                     >
-                      ♻️ Restore
+                      Import to Scene
                     </button>
-                    <button
-                      onClick={() => handlePermanentDelete(item._id)}
-                      className="text-xs text-red-500 hover:underline"
-                    >
-                      🗑 Delete Permanently
-                    </button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button className="bg-[#2a2b2f] hover:bg-[#33353e] border border-gray-700 rounded-md py-1.5 text-sm">
+                        Versions
+                      </button>
+                      <button className="bg-[#2a2b2f] hover:bg-[#33353e] border border-gray-700 rounded-md py-1.5 text-sm">
+                        Tag
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button className="bg-[#2a2b2f] hover:bg-[#33353e] border border-gray-700 rounded-md py-1.5 text-sm">
+                        Move
+                      </button>
+                      <button
+                        className="bg-red-600 hover:bg-red-700 rounded-md py-1.5 text-sm"
+                        onClick={() => setConfirm({ open: true, type: 'trash', item: selectedItem })}
+                      >
+                        Trash
+                      </button>
+                    </div>
                   </div>
                 </div>
-              ))}
+              )}
             </div>
-          )}
-          {activeTab === 'Sketchfab' && (
-            <SketchfabPanel onImport={(model) => {
-              onSelectItem(model);
-              onClose(); // optional
-            }} />
-          )}
-
+          </section>
         </div>
       </div>
+
+      {/* Confirm dialog */}
+      <ConfirmDialog
+        open={confirm.open}
+        title={confirm.type === 'permadelete' ? 'Delete permanently?' : 'Move to Trash?'}
+        description={
+          confirm.type === 'permadelete'
+            ? 'This action cannot be undone.'
+            : 'You can restore this from Trash later.'
+        }
+        confirmText={confirm.type === 'permadelete' ? 'Delete' : 'Move to Trash'}
+        confirmTone={confirm.type === 'permadelete' ? 'red' : 'blue'}
+        onCancel={() => setConfirm({ open: false, type: null, item: null })}
+        onConfirm={onConfirm}
+      />
     </div>
   );
 }

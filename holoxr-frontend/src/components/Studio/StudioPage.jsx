@@ -6,20 +6,21 @@ import * as THREE from "three";
 import { unzipSync } from "fflate";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 
-import PropertyPanel from "../components/PropertyPanel";
-import FloatingPanel from "../components/FloatingPanel";
-import TopBar from "../components/TopBar";
-import LibraryModal from "../components/LibraryModal";
-import QRCodeModal from "../components/QRCodeModal";
-import LayersPanel from "../components/LayersPanel";
-import UIButton3D from "../components/UIButton3D";
+import PropertyPanel from "../panels/PropertyPanel";
+import FloatingPanel from "../panels/FloatingPanel";
+import TopBar from "../panels/TopBar";
+import LibraryModal from "../LibraryModal";
+import QRCodeModal from "../QRCodeModal";
+import LayersPanel from "../panels/LayersPanel";
+import UIButton3D from "../Items/UIButton3D";
 
 // NEW: renderers for non-GLTF items
-import ImagePlane from "../components/ImagePlane";
-import TextItem from "../components/TextItem";
+import ImagePlane from "../Items/ImagePlane";
+import TextItem from "../Items/TextItem";
 
 import { BoxHelper } from "three";
 import { useLocation } from "react-router-dom";
+import toast from 'react-hot-toast';
 
 export default function StudioPage() {
     const [sceneModels, setSceneModels] = useState([]);
@@ -174,7 +175,7 @@ export default function StudioPage() {
             }
             if (act.type === 'changeProject' && act.projectId) {
                 // In Studio preview, prevent navigation; show a hint.
-                alert(`(Preview) Would load project: ${act.projectId}`);
+                toast(`(Preview) Would load project: ${act.projectId}`);
             }
         });
     };
@@ -231,14 +232,14 @@ export default function StudioPage() {
 
             const data = await res.json();
             if (!res.ok) {
-                alert(data.error || "Failed to publish project");
+                toast.error(data.error || "Failed to publish project");
                 return;
             }
 
             setShowQRModal(true); // show QR code modal
         } catch (err) {
             console.error(err);
-            alert("Network error while publishing");
+            toast.error("Network error while publishing");
         }
     };
 
@@ -359,7 +360,8 @@ export default function StudioPage() {
                 return;
             }
 
-            alert("✅ Scene saved successfully!");
+            toast.success("Scene saved successfully!");
+
         } catch (err) {
             console.error(err);
             alert("Network error while saving");

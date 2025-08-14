@@ -1,9 +1,9 @@
 // Split components for DashboardPage
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Sidebar from '../components/Sidebar';
-import DashboardHeader from '../components/DashboardHeader';
-import DashboardPanel from '../components/DashboardPanel';
+import Sidebar from '../components/dashboard/Sidebar';
+import DashboardHeader from '../components/dashboard/DashboardHeader';
+import DashboardPanel from '../components/dashboard/DashboardPanel';
 
 export default function DashboardPage() {
     const [projects, setProjects] = useState([]);
