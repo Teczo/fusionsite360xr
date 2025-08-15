@@ -5,6 +5,7 @@ import DashboardPage from './pages/DashboardPage';
 import StudioPage from './components/Studio/StudioPage';
 import ARViewer from './pages/ARViewer';
 import ARMarkerViewer from './pages/ARMarkerViewer';
+import ProfilePage from './pages/ProfilePage'
 import { Toaster } from 'react-hot-toast';
 
 const RequireAuth = ({ children }) => {
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="/ar-marker/:id" element={<ARMarkerViewer />} />
 
         {/* Auth-protected */}
+        <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
         <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />
         <Route path="/studio" element={<RequireAuth><StudioPage /></RequireAuth>} />
 

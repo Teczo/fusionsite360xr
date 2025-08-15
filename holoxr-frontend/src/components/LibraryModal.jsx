@@ -16,6 +16,10 @@ import {
 import SketchfabPanel from './SketchfabPanel';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+// npm i fflate
+import { unzipSync } from 'fflate';
 
 // Utility: classnames
 const cx = (...args) => args.filter(Boolean).join(' ');
@@ -31,6 +35,120 @@ const sidebarItems = [
   { key: 'sketchfab', label: 'Sketchfab', icon: <Box size={16} /> },
   { key: 'trash', label: 'Trash', icon: <Trash2 size={16} /> },
 ];
+
+// Client-side thumbnail for images (JPEG/PNG/WebP/HEIC if browser decodes it)
+// Uses createImageBitmap to auto-fix EXIF orientation where supported.
+async function createImageThumbnailBlob(file, { size = 512, format = 'image/webp', quality = 0.9 } = {}) {
+  // Fast path: if it's already small, you can skip re-encode (optional)
+  // But re-encoding normalizes format & reduces size; I keep it on.
+  const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  // "cover" crop to a square
+  const srcW = bitmap.width;
+  const srcH = bitmap.height;
+  const srcAspect = srcW / srcH;
+
+  let drawW, drawH, sx, sy, sWidth, sHeight;
+  if (srcAspect > 1) {
+    // wider than tall → crop sides
+    sHeight = srcH;
+    sWidth = Math.round(srcH * 1); // square
+    sx = Math.round((srcW - sWidth) / 2);
+    sy = 0;
+  } else {
+    // taller than wide → crop top/bottom
+    sWidth = srcW;
+    sHeight = Math.round(srcW * 1);
+    sx = 0;
+    sy = Math.round((srcH - sHeight) / 2);
+  }
+
+  // draw cropped region to square canvas
+  ctx.drawImage(bitmap, sx, sy, sWidth, sHeight, 0, 0, size, size);
+
+  // export to WebP
+  const blob = await new Promise((resolve) =>
+    canvas.toBlob((b) => resolve(b), format, quality)
+  );
+
+  bitmap.close?.();
+  return blob;
+}
+
+
+async function createModelThumbnailBlob(file, { size = 512 } = {}) {
+  // 1) Resolve a GLB Blob (direct .glb OR first .glb inside .zip)
+  let glbBlob;
+  const lower = file.name.toLowerCase();
+  if (lower.endsWith('.zip')) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const entries = unzipSync(bytes); // { [filename]: Uint8Array }
+    const glbName = Object.keys(entries).find(n => n.toLowerCase().endsWith('.glb'));
+    if (!glbName) throw new Error('No .glb found in ZIP');
+    glbBlob = new Blob([entries[glbName]], { type: 'model/gltf-binary' });
+  } else {
+    glbBlob = file; // .glb (thin-slice: external .gltf not handled here)
+  }
+
+  const url = URL.createObjectURL(glbBlob);
+
+  // 2) Set up an offscreen Three.js render
+  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  renderer.setSize(size, size);
+  renderer.setPixelRatio(1);
+  renderer.setClearColor(0x0b0d10, 1);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 1000);
+
+  // simple neutral lighting
+  scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+  const dir = new THREE.DirectionalLight(0xffffff, 1);
+  dir.position.set(3, 5, 8);
+  scene.add(dir);
+
+  // 3) Load model
+  const loader = new GLTFLoader();
+  const gltf = await loader.loadAsync(url);
+  const model = gltf.scene || gltf.scenes?.[0];
+  scene.add(model);
+
+  // 4) Frame camera to the model
+  const box = new THREE.Box3().setFromObject(model);
+  const sizeV = new THREE.Vector3(); box.getSize(sizeV);
+  const center = new THREE.Vector3(); box.getCenter(center);
+  const maxDim = Math.max(sizeV.x, sizeV.y, sizeV.z);
+  const fov = camera.fov * (Math.PI / 180);
+  const dist = (maxDim / 2) / Math.tan(fov / 2);
+  camera.position.set(center.x + maxDim * 0.4, center.y + maxDim * 0.3, center.z + dist * 1.2);
+  camera.lookAt(center);
+  camera.updateProjectionMatrix();
+
+  // 5) Render → WebP blob
+  renderer.render(scene, camera);
+  const blob = await new Promise(resolve =>
+    renderer.domElement.toBlob(b => resolve(b), 'image/webp', 0.9)
+  );
+
+  // 6) Cleanup
+  URL.revokeObjectURL(url);
+  renderer.dispose();
+  scene.traverse(obj => {
+    if (obj.isMesh) {
+      obj.geometry?.dispose?.();
+      if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose?.());
+      else obj.material?.dispose?.();
+    }
+  });
+
+  return blob; // WebP thumbnail
+}
+
 
 // Simple dark confirm dialog
 function ConfirmDialog({ open, title, description, confirmText = 'Confirm', confirmTone = 'red', onCancel, onConfirm }) {
@@ -201,6 +319,24 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
     formData.append('type', type);
 
     try {
+      if (type === 'image') {
+        try {
+          const thumb = await createImageThumbnailBlob(file, { size: 512 });
+          if (thumb) formData.append('thumbnail', thumb, 'thumb.webp');
+        } catch (err) {
+          console.warn('Image thumbnail generation failed; uploading without one:', err);
+        }
+      }
+
+      if (type === 'model') {
+        try {
+          const thumb = await createModelThumbnailBlob(file, { size: 512 });
+          if (thumb) formData.append('thumbnail', thumb, 'thumb.webp');
+        } catch (err) {
+          console.warn('Thumbnail generation failed; uploading without one:', err);
+        }
+      }
+
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/upload`, {
         method: 'POST',
         body: formData,
@@ -216,10 +352,10 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
       console.error('❌ Upload failed:', err);
       toast.error('Upload failed');
     } finally {
-      // reset input to allow re-upload same file name
-      e.target.value = '';
+      e.target.value = ''; // allow re-uploading same filename
     }
   };
+
 
   // Actions
   const handleMoveToTrash = async (fileId) => {
@@ -530,16 +666,11 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
               )}
 
               {/* hidden inputs */}
+              <input type="file" accept=".glb,.gltf,.zip" ref={modelInputRef} className="hidden" onChange={(e) => handleFileChange(e, 'model')} />
+
               <input
                 type="file"
-                accept=".glb,.gltf"
-                ref={modelInputRef}
-                className="hidden"
-                onChange={(e) => handleFileChange(e, 'model')}
-              />
-              <input
-                type="file"
-                accept="image/*"
+                accept=".png,.jpg,.jpeg,.webp"
                 ref={imageInputRef}
                 className="hidden"
                 onChange={(e) => handleFileChange(e, 'image')}

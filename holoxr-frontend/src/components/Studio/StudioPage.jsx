@@ -1,4 +1,7 @@
-// StudioPage.jsx — split: UI/orchestration here, logic moved to studioLogic.jsx
+// StudioPage.jsx — project thumbnails from canvas capture
+// - Captures current R3F canvas as WebP on Save/Publish
+// - Uploads to /api/projects/:id/thumbnail (PATCH, multipart, field: "thumbnail")
+
 import { useEffect, useState, useRef } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Grid, OrbitControls } from "@react-three/drei";
@@ -32,6 +35,34 @@ import {
     handlePublishProject as publishProject,
 } from "./studioLogic.jsx";
 
+// Helper: upload a project thumbnail (WebP) to backend
+async function uploadProjectThumbnail(projectId, token, canvasEl) {
+    if (!projectId || !token || !canvasEl) return false;
+
+    // Ensure most recent frame has rendered
+    await new Promise((r) => requestAnimationFrame(r));
+
+    const blob = await new Promise((resolve) => canvasEl.toBlob(resolve, "image/webp", 0.9));
+    if (!blob) throw new Error("Canvas capture failed");
+
+    const fd = new FormData();
+    fd.append("thumbnail", blob, "thumb.webp");
+
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/projects/${projectId}/thumbnail`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+    });
+
+    if (!res.ok) {
+        // Non-fatal for Save/Publish flows; log and continue
+        console.warn("Thumbnail upload failed", await res.text());
+        return false;
+    }
+
+    return true;
+}
+
 export default function StudioPage() {
     const [sceneModels, setSceneModels] = useState([]);
     const [selectedModelId, setSelectedModelId] = useState(null);
@@ -48,6 +79,9 @@ export default function StudioPage() {
 
     // capture camera for focus-on-double-click for Image/Text
     const cameraRef = useRef(null);
+
+    // Keep a ref to the actual canvas element for thumbnail capture
+    const canvasRef = useRef(null);
 
     // Load project on mount
     useEffect(() => {
@@ -68,11 +102,33 @@ export default function StudioPage() {
 
     const onPublish = async () => {
         const ok = await publishProject(projectId, sceneModels);
-        if (ok) setShowQRModal(true);
+        if (ok) {
+            // Try to capture & upload project thumbnail
+            try {
+                const token = localStorage.getItem("token");
+                if (canvasRef.current) {
+                    await uploadProjectThumbnail(projectId, token, canvasRef.current);
+                }
+            } catch (err) {
+                console.warn("Project thumbnail capture (publish) failed:", err);
+            }
+            setShowQRModal(true);
+        }
     };
 
     const onSave = async () => {
-        await saveProject(projectId, sceneModels);
+        const ok = await saveProject(projectId, sceneModels);
+        if (ok) {
+            // Opportunistic thumbnail refresh on Save
+            try {
+                const token = localStorage.getItem("token");
+                if (canvasRef.current) {
+                    await uploadProjectThumbnail(projectId, token, canvasRef.current);
+                }
+            } catch (err) {
+                console.warn("Project thumbnail capture (save) failed:", err);
+            }
+        }
     };
 
     const onSelectLibraryItem = (item) => addFromLibrary(item, setSceneModels, setSelectedModelId);
@@ -121,6 +177,10 @@ export default function StudioPage() {
                 dpr={[1, 2]}
                 gl={{ preserveDrawingBuffer: true }}
                 style={{ background: "#0a0c0d" }}
+                // Capture the underlying canvas element for thumbnails
+                onCreated={({ gl }) => {
+                    canvasRef.current = gl.domElement;
+                }}
             >
                 <ambientLight intensity={0.5} />
                 <directionalLight position={[5, 5, 5]} intensity={1} />
@@ -133,7 +193,7 @@ export default function StudioPage() {
                     cellThickness={0.5}
                     sectionSize={5}
                     sectionThickness={1.5}
-                    sectionColor={"#6f6f6f"}
+                    sectionColor={"#ffffffff"}
                     cellColor={"#444"}
                     fadeDistance={30}
                     fadeStrength={1}
@@ -280,7 +340,6 @@ export default function StudioPage() {
                 )}
             </Canvas>
 
-
             <PropertyPanel
                 model={selectedModel}
                 models={sceneModels}
@@ -299,5 +358,3 @@ export default function StudioPage() {
         </div>
     );
 }
-
-
