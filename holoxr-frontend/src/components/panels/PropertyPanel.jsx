@@ -134,7 +134,13 @@ export default function PropertyPanel({ model, models, updateModelTransform, upd
               value={model.interactions?.[0]?.targetId || ''}
               onChange={(e) => {
                 const current = model.interactions?.[0] || {};
-                updateModelProps(model.id, { interactions: [{ ...current, targetId: e.target.value }] });
+                updateModelProps(model.id, {
+                  interactions: [{
+                    ...current,
+                    type: current.type || 'toggleVisibility',
+                    targetId: e.target.value,
+                  }],
+                });
               }}
               className="w-full rounded-md bg-[#2a2b2f] text-white p-1 text-sm border border-gray-600"
             >

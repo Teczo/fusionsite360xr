@@ -2,7 +2,7 @@ import { useRef, useEffect } from 'react';
 import { TransformControls, Text } from '@react-three/drei';
 
 export default function UIButton3D({
-    id, name, appearance, transform,
+    id, appearance, transform,
     selectedModelId, setSelectedModelId,
     transformMode, updateModelTransform,
     isPreviewing, onPress
@@ -21,7 +21,7 @@ export default function UIButton3D({
         <>
             <group
                 ref={ref}
-                onClick={(e) => {
+                onPointerDown={(e) => {
                     e.stopPropagation();
                     if (isPreviewing) {
                         onPress?.(id);

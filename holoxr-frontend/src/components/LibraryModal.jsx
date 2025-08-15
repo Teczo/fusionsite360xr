@@ -96,7 +96,7 @@ function renderUiPresets({ onSelectItem, onClose }) {
         textColor: '#ffffff',
         cornerRadius: 0.08,
       },
-      interactions: [],            // add in PropertyPanel later
+      interactions: [{ type: 'toggleVisibility', targetId: null }],         // add in PropertyPanel later
       transform: commonTransform,
     });
     onClose();
