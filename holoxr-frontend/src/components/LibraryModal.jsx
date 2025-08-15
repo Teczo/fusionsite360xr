@@ -62,6 +62,82 @@ function ConfirmDialog({ open, title, description, confirmText = 'Confirm', conf
   );
 }
 
+// --- UI presets (inline creators for the UI tab) ---
+function UIPresetCard({ title, subtitle, onCreate }) {
+  return (
+    <button
+      onClick={onCreate}
+      className="group relative rounded-xl overflow-hidden border border-gray-700 bg-[#1f2025] hover:bg-[#24252b] transition-colors p-4 text-left"
+    >
+      <div className="text-white font-semibold">{title}</div>
+      <div className="text-xs text-gray-400 mt-1">{subtitle}</div>
+      <div className="mt-3 inline-flex items-center gap-2 text-sm text-blue-300 group-hover:text-blue-200">
+        <span>Create</span>
+        <span>→</span>
+      </div>
+    </button>
+  );
+}
+
+function renderUiPresets({ onSelectItem, onClose }) {
+  const commonTransform = { x: 0, y: 1, z: 0, rx: 0, ry: 0, rz: 0, sx: 1, sy: 1, sz: 1 };
+
+  const createUIButton = () => {
+    onSelectItem({
+      type: 'button',
+      name: 'UIButton3D',
+      appearance: {
+        kind: 'primary',
+        text: 'Press me',
+        width: 1.2,
+        height: 0.4,
+        depth: 0.1,
+        color: '#3b82f6',         // Tailwind blue-600
+        textColor: '#ffffff',
+        cornerRadius: 0.08,
+      },
+      interactions: [],            // add in PropertyPanel later
+      transform: commonTransform,
+    });
+    onClose();
+  };
+
+  const createUILabel = () => {
+    onSelectItem({
+      type: 'label',
+      name: 'UILabel3D',
+      content: 'New Label',
+      fontSize: 0.35,
+      color: '#ffffff',
+      appearance: {
+        bg: '#111827',
+        padding: [0.3, 0.15],
+        borderRadius: 0.08,
+        lineWidth: 2,
+      },
+      targetId: null,              // pick in PropertyPanel
+      transform: commonTransform,
+    });
+    onClose();
+  };
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <UIPresetCard
+        title="3D Button"
+        subtitle="Clickable 3D UI button with actions"
+        onCreate={createUIButton}
+      />
+      <UIPresetCard
+        title="Label with Leader Line"
+        subtitle="Text label that points to an object"
+        onCreate={createUILabel}
+      />
+    </div>
+  );
+}
+
+
 export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
   const modelInputRef = useRef(null);
   const imageInputRef = useRef(null);
@@ -519,6 +595,22 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
                       <div className="text-sm text-gray-400">Trash is empty.</div>
                     )}
                   </div>
+                ) : activeTab === 'ui' ? (
+                  // Built-in UI creators (buttons/labels). You can also list saved UI assets below, if you store them.
+                  <>
+                    {renderUiPresets({ onSelectItem, onClose })}
+                    {/* If you later store UI assets (type:'ui') in your backend, you can also list them: */}
+                    {filtered.length > 0 && (
+                      <div className="mt-6">
+                        <div className="text-xs uppercase text-gray-400 mb-2">Saved UI Assets</div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                          {filtered.map((item) => (
+                            <AssetCard key={item._id} item={item} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {filtered.map((item) => (
@@ -528,7 +620,8 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
                       <div className="text-sm text-gray-400">No assets found.</div>
                     )}
                   </div>
-                )}
+                )
+                }
               </div>
 
               {/* Preview drawer */}

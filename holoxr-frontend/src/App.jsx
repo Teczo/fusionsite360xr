@@ -32,7 +32,7 @@ export default function App() {
 
       {/* Toaster must be outside <Routes> */}
       <Toaster
-        position="top-right"
+        position="bottom-right"
         toastOptions={{
           style: { background: '#18191e', color: 'white', borderRadius: '8px', fontSize: '14px' },
         }}

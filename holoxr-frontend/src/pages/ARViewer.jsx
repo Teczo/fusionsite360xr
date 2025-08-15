@@ -6,8 +6,9 @@ import * as THREE from 'three';
 import { ARButton } from 'three/examples/jsm/webxr/ARButton';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { unzipSync } from 'fflate';
+import UILabel3D from "../components/Items/UILabel3D";
 
-function ModelItem({ url, transform, selectedAnimationIndex = 0, autoplay = false }) {
+function ModelItem({ url, transform, selectedAnimationIndex = 0, autoplay = false, isPaused = false }) {
     const mixerRef = useRef();
     const [scene, setScene] = useState(null);
     const [animations, setAnimations] = useState([]);
@@ -59,7 +60,9 @@ function ModelItem({ url, transform, selectedAnimationIndex = 0, autoplay = fals
     }, [scene, animations, selectedAnimationIndex, autoplay]);
 
     useFrame((_, delta) => {
-        mixerRef.current?.update(delta);
+        if (!isPaused) {
+            mixerRef.current?.update(delta);
+        }
     });
 
     if (!scene) return null;
@@ -131,7 +134,6 @@ function ButtonItem({ item, onPress }) {
     return (
         <group
             ref={ref}
-            // Pointer events are more reliable in AR than 'onClick'
             onPointerDown={(e) => {
                 e.stopPropagation();
                 onPress?.(item);
@@ -209,14 +211,11 @@ export default function ARViewer() {
                 camera={{ position: [0, 1.6, 3], fov: 70 }}
                 onCreated={({ gl }) => {
                     gl.xr.enabled = true;
-                    // Track AR session to control controls & UX
                     gl.xr.addEventListener('sessionstart', () => setIsAR(true));
                     gl.xr.addEventListener('sessionend', () => setIsAR(false));
 
-                    // Add AR button
                     const button = ARButton.createButton(gl, {
                         requiredFeatures: ['hit-test'],
-                        // optionalFeatures can help with touch routing on some browsers
                         optionalFeatures: ['dom-overlay'],
                         domOverlay: { root: document.body }
                     });
@@ -226,11 +225,11 @@ export default function ARViewer() {
                 <ambientLight intensity={0.5} />
                 <directionalLight position={[5, 5, 5]} intensity={1} />
 
-                {/* Disable OrbitControls while in AR (prevents touch from being eaten) */}
                 {!isAR && <OrbitControls />}
 
                 {sceneData.map((item) => {
                     if (item.visible === false) return null;
+
                     if (item.type === 'model') {
                         return (
                             <ModelItem
@@ -239,6 +238,7 @@ export default function ARViewer() {
                                 transform={item.transform}
                                 selectedAnimationIndex={item.selectedAnimationIndex}
                                 autoplay={item.autoplay}
+                                isPaused={item.isPaused}
                             />
                         );
                     } else if (item.type === 'image') {
@@ -261,7 +261,28 @@ export default function ARViewer() {
                                 onPress={(btn) => runActions(btn.interactions, setSceneData, navigateToProject)}
                             />
                         );
+                    } else if (item.type === 'label') {
+                        return (
+                            <UILabel3D
+                                key={item.id}
+                                id={item.id}
+                                name={item.name}
+                                content={item.content}
+                                fontSize={item.fontSize}
+                                color={item.color}
+                                appearance={item.appearance}
+                                transform={item.transform}
+                                lineMode={item.lineMode || 'none'}
+                                targetId={item.targetId || null}
+                                anchorPoint={item.anchorPoint || null}
+                                models={sceneData}
+                                selectedModelId={null}
+                                transformMode="none"
+                                isPreviewing={true}
+                            />
+                        );
                     }
+
                     return null;
                 })}
             </Canvas>

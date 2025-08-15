@@ -1,6 +1,7 @@
 // DashboardPanel.jsx
 import { MoreHorizontal } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import toast from "react-hot-toast";
 
 export default function DashboardPanel({
     activeView,
@@ -24,7 +25,7 @@ export default function DashboardPanel({
                 headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
             });
             if (res.ok) {
-                alert("🗑 Project moved to trash");
+                toast("🗑 Project moved to trash");
                 setProjects(prev => prev.filter(p => p._id !== id));
                 setOpenMenuId(null);
             }
@@ -40,7 +41,7 @@ export default function DashboardPanel({
                 headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
             });
             if (res.ok) {
-                alert("✅ Project restored");
+                toast.success("Project restored");
                 setTrashedProjects(prev => prev.filter(p => p._id !== id));
             }
         } catch (err) {
@@ -57,7 +58,7 @@ export default function DashboardPanel({
                 headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
             });
             if (res.ok) {
-                alert("🗑 Project permanently deleted");
+                toast("🗑 Project permanently deleted");
                 setTrashedProjects(prev => prev.filter(p => p._id !== id));
             }
         } catch (err) {
