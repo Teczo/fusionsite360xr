@@ -15,6 +15,8 @@ import authRoutes from './routes/auth.js';
 import projectRoutes from './routes/project.js';
 import fileRoutes from './routes/file.js';
 import File from './models/File.js';
+import profileRouter from './routes/profile.js';
+
 
 // Define __dirname manually for ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -73,6 +75,7 @@ app.get('/blobs', async (req, res) => {
 app.use('/api', authRoutes);
 app.use('/api', projectRoutes);
 app.use('/api', fileRoutes);
+app.use('/api/profile', profileRouter);
 
 // Start server
 app.listen(PORT, () => {
