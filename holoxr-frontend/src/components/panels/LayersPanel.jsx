@@ -38,7 +38,7 @@ export default function LayersPanel({
   };
 
   return (
-    <div className="absolute top-20 bottom-4 left-4 w-60 bg-[#18191e] rounded-3xl shadow-xl p-5 z-10 overflow-y-auto text-white">
+    <div className="absolute top-20 bottom-4 left-4 w-60 bg-black/30 backdrop-blur-lg border border-white/10 shadow-xl rounded-3xl p-5 z-10 overflow-y-auto text-white">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-m font-semibold">Layers</h2>

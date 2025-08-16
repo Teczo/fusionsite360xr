@@ -2,6 +2,8 @@
 import { MoreHorizontal } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from "react-hot-toast";
+import ProfileEdit from '../../pages/ProfilePage';
+import ProfileView from '../../pages/ProfileView';
 
 export default function DashboardPanel({
     activeView,
@@ -12,7 +14,8 @@ export default function DashboardPanel({
     handleChange,
     handleCreate,
     setProjects,
-    setTrashedProjects
+    setTrashedProjects,
+    setActiveView
 }) {
     const navigate = useNavigate();
 
@@ -26,7 +29,12 @@ export default function DashboardPanel({
             });
             if (res.ok) {
                 toast("🗑 Project moved to trash");
-                setProjects(prev => prev.filter(p => p._id !== id));
+                setProjects(prev => {
+                    const removed = prev.find(p => p._id === id);
+                    // Add to trash immediately if we still have the object
+                    if (removed) setTrashedProjects(tp => [removed, ...tp]);
+                    return prev.filter(p => p._id !== id);
+                });
                 setOpenMenuId(null);
             }
         } catch (err) {
@@ -42,7 +50,14 @@ export default function DashboardPanel({
             });
             if (res.ok) {
                 toast.success("Project restored");
-                setTrashedProjects(prev => prev.filter(p => p._id !== id));
+                setTrashedProjects(prev => {
+                    const restored = prev.find(p => p._id === id);
+                    if (restored) {
+                        // Put it back into "projects"
+                        setProjects(ps => [restored, ...ps]);
+                    }
+                    return prev.filter(p => p._id !== id);
+                });
             }
         } catch (err) {
             console.error("Restore error:", err);
@@ -147,6 +162,19 @@ export default function DashboardPanel({
                         </div>
                     </div>
                 )}
+
+                {activeView === 'profile' && (
+
+                    <ProfileView
+
+                        setActiveView={setActiveView}
+
+                    />
+                )}
+                {activeView === 'profileedit' && (
+                    <ProfileEdit setActiveView={setActiveView} />
+                )}
+
             </div>
         </div>
     );

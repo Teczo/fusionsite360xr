@@ -2,7 +2,7 @@ import React from 'react';
 
 export default function PropertyPanel({ model, models, updateModelTransform, updateTextProperty, onPlayAnimation, updateModelProps, onStartAnchorPick }) {
   if (!model) return (
-    <div className="absolute top-20 bottom-4 right-4 w-72 bg-[#18191e] rounded-3xl shadow-xl p-5 z-10 overflow-y-auto text-white space-y-4">
+    <div className="absolute top-20 bottom-4 right-4 w-72 bg-black/30 backdrop-blur-lg border border-white/10 shadow-xl rounded-3xl p-5 z-10 overflow-y-auto text-white space-y-4">
       <h2 className="text-m font-semibold">Properties</h2>
     </div>
   );
@@ -39,7 +39,7 @@ export default function PropertyPanel({ model, models, updateModelTransform, upd
   const targetChoices = (models || []).filter(m => m.id !== model.id);
 
   return (
-    <div className="absolute top-20 bottom-4 right-4 w-72 bg-[#18191e] rounded-3xl shadow-xl p-5 z-10 overflow-y-auto text-white space-y-4">
+    <div className="absolute top-20 bottom-4 right-4 w-72 bg-black/30 backdrop-blur-lg border border-white/10 shadow-xl rounded-3xl p-5 z-10 overflow-y-auto text-white space-y-4">
       <h2 className="text-m font-semibold">Properties</h2>
 
       {/* Transform Section */}

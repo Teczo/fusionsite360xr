@@ -1,6 +1,5 @@
-// Split components for DashboardPage
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../components/dashboard/Sidebar';
 import DashboardHeader from '../components/dashboard/DashboardHeader';
 import DashboardPanel from '../components/dashboard/DashboardPanel';
@@ -13,13 +12,67 @@ export default function DashboardPage() {
     const [openMenuId, setOpenMenuId] = useState(null);
     const [trashedProjects, setTrashedProjects] = useState([]);
     const [isCollapsed, setIsCollapsed] = useState(false);
-
+    const [searchQuery, setSearchQuery] = useState('');
+    const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [projectName, setProjectName] = useState('');
+    const [isCreating, setIsCreating] = useState(false);
     const token = localStorage.getItem('token');
     const navigate = useNavigate();
 
     const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
-    const [user] = useState({ name: "Alex Johnson" }); // Replace with real user data later
+
+    const [user, setUser] = useState({ name: "Alex Johnson" });
+    const [loading, setLoading] = useState(true);
+
+    const location = useLocation();
+
+    // Keep <html> class in sync with theme
+    useEffect(() => {
+        document.documentElement.classList.toggle('dark', theme === 'dark');
+        localStorage.setItem('theme', theme);
+    }, [theme]);
+
+    useEffect(() => {
+        const token = localStorage.getItem('token'); // matches your existing auth usage
+        (async () => {
+            try {
+                const res = await fetch(`${import.meta.env.VITE_API_URL}/api/profile`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                const data = await res.json();
+                setUser(data);
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setLoading(false);
+            }
+        })();
+    }, []);
+
+    // Adjust left padding to account for fixed sidebar width
+    const contentPaddingLeft = isCollapsed ? 'pl-24' : 'pl-72'; // 6rem vs 18rem
+
+    // Outlet context so children (DashboardPage etc.) can read state
+    const outletCtx = useMemo(
+        () => ({
+            isCollapsed,
+            setIsCollapsed,
+            activeView,
+            setActiveView,
+            searchQuery,
+            setSearchQuery,
+            theme,
+            setTheme,
+            user,
+            navigate,
+        }),
+        [isCollapsed, activeView, searchQuery, theme, user, navigate]
+    );
+
+
+
 
     const fetchProjects = async () => {
         try {
@@ -79,19 +132,18 @@ export default function DashboardPage() {
                 setShowModal={setShowModal}
             />
 
-            <div className={`flex-1 transition-all duration-300 ${isCollapsed ? 'pl-29' : 'pl-72'} pt-25 pr-4 pb-4`}>
+
+
+            <div className={`flex-1 transition-all duration-300 ${isCollapsed ? 'pl-29' : 'pl-72'} pt-4 pr-4 pb-4`}>
                 <div className="flex flex-col h-full">
-                    <div className="absolute top-6 right-6">
-                        <button
-                            onClick={() => navigate('/profile')}
-                            className="w-10 h-10 rounded-full bg-indigo-600 hover:bg-indigo-700 flex items-center justify-center text-white font-bold text-sm"
-                            title="Profile Settings"
-                        >
-                            {user.name.charAt(0).toUpperCase()}
-                        </button>
+
+                    {/* Top Header (sits above glass panel). z-50 prevents overlap issues */}
+                    <div className={"flex pr-6 pt-4 z-50 mb-4"}>
+                        <DashboardHeader searchQuery={searchQuery} setSearchQuery={setSearchQuery} theme={theme} setTheme={setTheme} user={user} setActiveView={setActiveView} />
                     </div>
 
-                    <DashboardHeader />
+
+
                     <DashboardPanel
                         activeView={activeView}
                         projects={projects}
@@ -102,6 +154,7 @@ export default function DashboardPage() {
                         handleCreate={handleCreate}
                         setProjects={setProjects}
                         setTrashedProjects={setTrashedProjects}
+                        setActiveView={setActiveView}
                     />
                 </div>
             </div>

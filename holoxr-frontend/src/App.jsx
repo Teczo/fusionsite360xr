@@ -24,7 +24,7 @@ export default function App() {
         <Route path="/ar-marker/:id" element={<ARMarkerViewer />} />
 
         {/* Auth-protected */}
-        <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
+
         <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />
         <Route path="/studio" element={<RequireAuth><StudioPage /></RequireAuth>} />
 

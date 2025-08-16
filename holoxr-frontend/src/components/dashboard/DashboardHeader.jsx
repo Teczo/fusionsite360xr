@@ -1,18 +1,48 @@
-// DashboardHeader.jsx
+import { Sun, Moon, User } from 'lucide-react';
 
-export default function DashboardHeader() {
+export default function DashboardHeader({ searchQuery, setSearchQuery, theme, setTheme, user, setActiveView }) {
+    const initials = user?.name
+        ? user.name
+            .split(' ')
+            .map((s) => s[0])
+            .slice(0, 2)
+            .join('')
+            .toUpperCase()
+        : 'U';
+
     return (
-        <div className="text-center mb-6">
-            <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-200 via-white to-slate-400 mb-4">
-                What AR world will you create today?
-            </h1>
-            <div className="flex justify-center">
-                <input
-                    type="text"
-                    placeholder="Search your projects or prompt MeshAI..."
-                    className="w-full max-w-2xl bg-black/30 backdrop-blur-sm border border-white/20 rounded-full px-6 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow"
-                />
+        <header className="w-full">
+            <div className="flex items-center gap-3">
+                {/* Search */}
+                <div className="flex-1">
+                    <input
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search your projects or prompt MeshAI..."
+                        className="w-full rounded-xl bg-white/80 dark:bg-white/10 border border-slate-300/70 dark:border-white/10
+                       px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-400"
+                    />
+                </div>
+
+                {/* Theme toggle 
+                <button
+                    className="rounded-xl border border-slate-300/70 dark:border-white/10 bg-white/80 dark:bg-white/10 p-2 hover:bg-black/5 dark:hover:bg-white/15"
+                    onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                    title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                >
+                    {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+                </button>*/}
+
+
+                <button
+                    key={'profile'}
+                    onClick={() => setActiveView('profile')}
+                    className="relative inline-flex items-center justify-center w-9 h-9 rounded-full bg-indigo-600 text-white select-none"
+                    title="Profile"
+                >
+                    <span className="text-xs font-semibold">{initials}</span>
+                </button>
             </div>
-        </div>
+        </header>
     );
-} 
+}

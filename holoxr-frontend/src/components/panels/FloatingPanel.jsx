@@ -10,7 +10,7 @@ export default function FloatingPanel({ transformMode, setTransformMode, onReset
     ];
 
     return (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-10 bg-[#18191e] bg-opacity-80 px-4 py-2 rounded-3xl shadow-lg flex gap-2">
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-10 bg-black/30 backdrop-blur-lg border border-white/10 shadow-xl rounded-3xl px-4 py-2 flex gap-2">
             {modes.map(({ key, icon: Icon }) => (
                 <button
                     key={key}
