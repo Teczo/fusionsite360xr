@@ -34,6 +34,7 @@ import {
     handleSaveProject as saveProject,
     handlePublishProject as publishProject,
 } from "./studioLogic.jsx";
+import Quiz3D from "../Items/Quiz3D.jsx";
 
 // Helper: upload a project thumbnail (WebP) to backend
 async function uploadProjectThumbnail(projectId, token, canvasEl) {
@@ -305,6 +306,25 @@ export default function StudioPage() {
                                 models={sceneModels}
                                 orbitRef={orbitRef}
                                 isPreviewing={isPreviewing}
+                            />
+                        );
+                    }
+
+                    if (item.type === "quiz") {
+                        return (
+                            <Quiz3D
+                                key={item.id}
+                                id={item.id}
+                                name={item.name}
+                                quiz={item.quiz}
+                                transform={item.transform}
+                                appearance={item.appearance}
+                                selectedModelId={selectedModelId}
+                                setSelectedModelId={setSelectedModelId}
+                                transformMode={transformMode}
+                                orbitRef={orbitRef}
+                                isPreviewing={isPreviewing}
+                                updateModelTransform={onUpdateTransform}
                             />
                         );
                     }

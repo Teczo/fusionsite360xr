@@ -24,7 +24,9 @@ function buildCleanScene(sceneModels) {
             appearance,
             interactions,
             targetId,
-            lineMode, anchorPoint,
+            lineMode,
+            anchorPoint,
+            quiz, // 👈 include it
         } = model;
 
         return {
@@ -44,10 +46,13 @@ function buildCleanScene(sceneModels) {
             appearance,
             interactions,
             targetId,
-            lineMode, anchorPoint,
+            lineMode,
+            anchorPoint,
+            ...(quiz ? { quiz } : {}), // 👈 persist quiz only if present
         };
     });
 }
+
 
 export async function loadProjectData(projectId, token, setSceneModels, setProjectName) {
     if (!projectId || !token) return;

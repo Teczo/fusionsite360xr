@@ -7,11 +7,13 @@ import { ARButton } from 'three/examples/jsm/webxr/ARButton';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { unzipSync } from 'fflate';
 import UILabel3D from "../components/Items/UILabel3D";
+import Quiz3D from '../components/Items/Quiz3D';
 
 function ModelItem({ url, transform, selectedAnimationIndex = 0, autoplay = false, isPaused = false }) {
     const mixerRef = useRef();
     const [scene, setScene] = useState(null);
     const [animations, setAnimations] = useState([]);
+    const noopUpdate = () => { };
 
     useEffect(() => {
         if (!url) return;
@@ -281,7 +283,26 @@ export default function ARViewer() {
                                 isPreviewing={true}
                             />
                         );
+                    } else if (item.type === 'quiz') {
+                        return (
+                            <Quiz3D
+                                key={item.id}
+                                id={item.id}
+                                name={item.name}
+                                quiz={item.quiz}
+                                transform={item.transform}
+                                appearance={item.appearance}
+                                // AR viewer is read-only: no selection / gizmos
+                                selectedModelId={null}
+                                setSelectedModelId={() => { }}
+                                transformMode="none"
+                                isPreviewing={true}
+                                orbitRef={null}
+                                updateModelTransform={() => { }}
+                            />
+                        );
                     }
+
 
                     return null;
                 })}

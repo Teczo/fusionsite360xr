@@ -20,6 +20,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 // npm i fflate
 import { unzipSync } from 'fflate';
+import { v4 as uuid } from "uuid";
 
 // Utility: classnames
 const cx = (...args) => args.filter(Boolean).join(' ');
@@ -239,8 +240,38 @@ function renderUiPresets({ onSelectItem, onClose }) {
     onClose();
   };
 
+  function makeQuiz({
+    title = "Safety Basics",
+    instructions = "Answer the questions. Tap Start to begin.",
+    settings = { feedbackMode: "immediate", shuffle: true, passScore: 70 },
+    questions = [
+      { id: "q1", type: "mcq", prompt: "Wear PPE in the lab?", options: ["Never", "Sometimes", "Always"], correct: 2, explanation: "PPE is mandatory.", points: 1 },
+      { id: "q2", type: "boolean", prompt: "Spills must be reported.", correct: true, points: 1 },
+      { id: "q3", type: "text", prompt: "What does PPE stand for?", correct: "personal protective equipment", points: 2 }
+    ],
+  } = {}) {
+    return {
+      id: `quiz-${uuid()}`,
+      type: "quiz",
+      name: title,
+      transform: { x: 0, y: 1.4, z: -2, rx: 0, ry: 0, rz: 0, sx: 1, sy: 1, sz: 1 },
+      appearance: { bg: "#111827", fg: "#fff", width: 3.6, billboard: true },
+      quiz: { title, instructions, settings, questions }
+    };
+  }
+
+  const createUIQuiz = () => {
+    onSelectItem(makeQuiz());
+    onClose();
+  };
+
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <UIPresetCard
+        title="3D Text"
+        subtitle="3D Text in AR Space"
+        onCreate={createUIButton}
+      />
       <UIPresetCard
         title="3D Button"
         subtitle="Clickable 3D UI button with actions"
@@ -251,6 +282,8 @@ function renderUiPresets({ onSelectItem, onClose }) {
         subtitle="Text label that points to an object"
         onCreate={createUILabel}
       />
+      <UIPresetCard title="Quiz System" subtitle="Multiple choice questions in AR space" onCreate={createUIQuiz} />
+
     </div>
   );
 }
