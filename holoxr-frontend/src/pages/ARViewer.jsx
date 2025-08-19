@@ -1,111 +1,348 @@
-// src/pages/ARViewer.jsx
-import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { ARButton } from "three/examples/jsm/webxr/ARButton";
-import useAnalytics from "../components/hooks/useAnalytics";
-import SceneCanvas from "../components/viewer/SceneCanvas";
+import React, { useEffect, useState, useMemo, useRef } from "react";
+import { useParams } from 'react-router-dom';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { OrbitControls, Text, useGLTF, Html } from '@react-three/drei';
+import * as THREE from 'three';
+import { ARButton } from 'three/examples/jsm/webxr/ARButton';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { unzipSync } from 'fflate';
+import UILabel3D from "../components/Items/UILabel3D";
+import Quiz3D from '../components/Items/Quiz3D';
 
-function runActions(actions, setSceneData, navigateToProject, track) {
-    (actions || []).forEach((act) => {
-        if (act.type === "toggleVisibility" && act.targetId) {
-            setSceneData(prev => prev.map(o => o.id === act.targetId ? { ...o, visible: o.visible === false ? true : false } : o));
-            track("action_run", { kind: "toggleVisibility", targetId: act.targetId });
+
+function ModelItem({ url, transform, selectedAnimationIndex = 0, autoplay = false, isPaused = false }) {
+    const mixerRef = useRef();
+    const [scene, setScene] = useState(null);
+    const [animations, setAnimations] = useState([]);
+    const noopUpdate = () => { };
+
+
+    useEffect(() => {
+        if (!url) return;
+
+
+        const loadModel = async () => {
+            let blobUrl = url;
+            if (url.endsWith('.zip')) {
+                const res = await fetch(url);
+                const arrayBuffer = await res.arrayBuffer();
+                const zip = unzipSync(new Uint8Array(arrayBuffer));
+                const glbName = Object.keys(zip).find(name => name.endsWith('.glb'));
+                if (!glbName) throw new Error('No .glb in zip');
+                const blob = new Blob([zip[glbName]], { type: 'model/gltf-binary' });
+                blobUrl = URL.createObjectURL(blob);
+            }
+
+
+            const loader = new GLTFLoader();
+            loader.load(
+                blobUrl,
+                (gltf) => {
+                    setScene(gltf.scene);
+                    setAnimations(gltf.animations);
+                },
+                undefined,
+                (err) => console.error('❌ GLB load error:', err)
+            );
+        };
+
+
+        loadModel();
+    }, [url]);
+
+
+    useEffect(() => {
+        if (!scene || !autoplay || animations.length === 0) return;
+
+
+        const mixer = new THREE.AnimationMixer(scene);
+        mixerRef.current = mixer;
+
+
+        const clip = animations[selectedAnimationIndex] || animations[0];
+        const action = mixer.clipAction(clip);
+        action.reset().play();
+
+
+        return () => {
+            mixer.stopAllAction();
+            mixer.uncacheRoot(scene);
+        };
+    }, [scene, animations, selectedAnimationIndex, autoplay]);
+
+
+    useFrame((_, delta) => {
+        if (!isPaused) {
+            mixerRef.current?.update(delta);
         }
-        if (act.type === "playPauseAnimation" && act.targetId) {
+    });
+
+
+    if (!scene) return null;
+
+
+    const t = transform || {};
+    return (
+        <group
+            position={[t.x || 0, t.y || 0, t.z || 0]}
+            rotation={[t.rx || 0, t.ry || 0, t.rz || 0]}
+            scale={[t.sx || 1, t.sy || 1, t.sz || 1]}
+        >
+            <primitive object={scene} />
+        </group>
+    );
+}
+
+
+function ImageItem({ url, transform = {} }) {
+    const texture = new THREE.TextureLoader().load(url);
+    const ref = useRef();
+
+
+    useEffect(() => {
+        if (ref.current) {
+            const { x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1 } = transform;
+            ref.current.position.set(x, y, z);
+            ref.current.rotation.set(rx, ry, rz);
+            ref.current.scale.set(sx, sy, sz);
+        }
+    }, [transform]);
+
+
+    return (
+        <mesh ref={ref}>
+            <planeGeometry args={[3, 3]} />
+            <meshBasicMaterial map={texture} />
+        </mesh>
+    );
+}
+
+
+function TextItem({ content, fontSize, color, transform = {} }) {
+    const ref = useRef();
+
+
+    useEffect(() => {
+        if (ref.current) {
+            const { x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1 } = transform;
+            ref.current.position.set(x, y, z);
+            ref.current.rotation.set(rx, ry, rz);
+            ref.current.scale.set(sx, sy, sz);
+        }
+    }, [transform]);
+
+
+    return (
+        <Text ref={ref} fontSize={fontSize || 1} color={color || 'white'}>
+            {content}
+        </Text>
+    );
+}
+
+
+function ButtonItem({ item, onPress }) {
+    const ref = useRef();
+    const { transform = {}, appearance = {} } = item;
+
+
+    useEffect(() => {
+        if (!ref.current) return;
+        const { x = 0, y = 1, z = 0, rx = 0, ry = 0, rz = 0, sx = 0.4, sy = 0.2, sz = 0.1 } = transform;
+        ref.current.position.set(x, y, z);
+        ref.current.rotation.set(rx, ry, rz);
+        ref.current.scale.set(sx, sy, sz);
+    }, [transform]);
+
+
+    return (
+        <group
+            ref={ref}
+            onPointerDown={(e) => {
+                e.stopPropagation();
+                onPress?.(item);
+            }}
+        >
+            <mesh>
+                <boxGeometry args={[1, 0.4, 0.1]} />
+                <meshStandardMaterial color="#2a6df1" />
+            </mesh>
+            <Text position={[0, 0, 0.06]} fontSize={0.15} color="white" anchorX="center" anchorY="middle">
+                {appearance.label || 'Button'}
+            </Text>
+        </group>
+    );
+}
+
+
+function runActions(actions, setSceneData, navigateToProject) {
+    (actions || []).forEach((act) => {
+        if (act.type === 'toggleVisibility' && act.targetId) {
+            setSceneData(prev =>
+                prev.map(o => o.id === act.targetId ? { ...o, visible: o.visible === false ? true : false } : o)
+            );
+        }
+        if (act.type === 'playPauseAnimation' && act.targetId) {
             setSceneData(prev => prev.map(o => {
                 if (o.id !== act.targetId) return o;
-                const nextPaused = act.mode === "pause" ? true : act.mode === "play" ? false : !o.isPaused;
+                const nextPaused = act.mode === 'pause' ? true : act.mode === 'play' ? false : !o.isPaused;
                 return { ...o, isPaused: nextPaused };
             }));
-            track("action_run", { kind: "playPauseAnimation", targetId: act.targetId, mode: act.mode || "toggle" });
         }
-        if (act.type === "changeProject" && act.projectId) {
-            track("action_run", { kind: "changeProject", projectId: act.projectId });
+        if (act.type === 'changeProject' && act.projectId) {
             navigateToProject(act.projectId);
         }
-        if (act.type === "openClosePanel" && act.targetId) {
-            const mode = act.mode || "toggle";
+        if (act.type === 'openClosePanel' && act.targetId) {
+            const mode = act.mode || 'toggle';
             setSceneData(prev => prev.map(o => {
                 if (o.id !== act.targetId) return o;
-                if (mode === "show") return { ...o, visible: true };
-                if (mode === "hide") return { ...o, visible: false };
+                if (mode === 'show') return { ...o, visible: true };
+                if (mode === 'hide') return { ...o, visible: false };
                 return { ...o, visible: o.visible === false ? true : false };
             }));
-            track("action_run", { kind: "openClosePanel", targetId: act.targetId, mode });
         }
     });
 }
 
+
 export default function ARViewer() {
-    const { id: projectId } = useParams();
+    const { id } = useParams();
     const [sceneData, setSceneData] = useState([]);
     const [isAR, setIsAR] = useState(false);
-    const { track } = useAnalytics({ projectId });
 
-    const navigateToProject = (pid) => {
-        window.location.href = `/ar/${pid}`;
+
+    const navigateToProject = (projectId) => {
+        window.location.href = `/ar/${projectId}`;
     };
 
+
     useEffect(() => {
-        (async () => {
+        const fetchScene = async () => {
             try {
-                const res = await fetch(`${import.meta.env.VITE_API_URL}/api/published/${projectId}`);
+                const res = await fetch(`${import.meta.env.VITE_API_URL}/api/published/${id}`);
                 const data = await res.json();
-                console.log("📦 AR Scene Data:", data);
+                console.log('📦 AR Scene Data:', data);
                 if (res.ok && data.publishedScene) {
                     setSceneData(data.publishedScene);
-                    track("viewer_loaded", { objects: data.publishedScene.length });
                 }
             } catch (err) {
-                console.error("Failed to load published scene", err);
+                console.error('Failed to load published scene', err);
             }
-        })();
-    }, [projectId, track]);
+        };
 
-    // Create AR button and track XR session lifecycle
-    useEffect(() => {
-        const tid = setTimeout(() => {
-            const canvas = document.querySelector("canvas");
-            if (!canvas) return;
-            const gl = canvas.__webglrenderer || canvas.getContext("webgl2") || canvas.getContext("webgl");
-            if (!gl || !canvas?.xr) return;
 
-            const button = ARButton.createButton(canvas.__r3f?.root.getState().gl, {
-                requiredFeatures: ["hit-test"],
-                optionalFeatures: ["dom-overlay"],
-                domOverlay: { root: document.body }
-            });
-            document.body.appendChild(button);
+        fetchScene();
+    }, [id]);
 
-            const xr = canvas.__r3f?.root.getState().gl.xr;
-            xr.addEventListener("sessionstart", () => { setIsAR(true); track("xr_session_start"); });
-            xr.addEventListener("sessionend", () => { setIsAR(false); track("xr_session_end"); });
-        }, 200);
-
-        return () => clearTimeout(tid);
-    }, [track]);
 
     return (
         <div className="w-screen h-screen">
-            <SceneCanvas
-                sceneData={sceneData}
-                isAR={isAR}
-                onModelLoaded={({ id, animations }) => track("model_loaded", { objectId: id, animations })}
-                onObjectTap={(obj) => {
-                    track("tap_object", { objectId: obj.id, type: obj.type || "unknown", name: obj.name || null });
+            <Canvas
+                camera={{ position: [0, 1.6, 3], fov: 70 }}
+                onCreated={({ gl }) => {
+                    gl.xr.enabled = true;
+                    gl.xr.addEventListener('sessionstart', () => setIsAR(true));
+                    gl.xr.addEventListener('sessionend', () => setIsAR(false));
+
+
+                    const button = ARButton.createButton(gl, {
+                        requiredFeatures: ['hit-test'],
+                        optionalFeatures: ['dom-overlay'],
+                        domOverlay: { root: document.body }
+                    });
+                    document.body.appendChild(button);
                 }}
-                onCTA={(btn) => {
-                    track("button_click", { objectId: btn.id, label: btn?.appearance?.label || "Button" });
-                    runActions(btn.interactions, setSceneData, navigateToProject, track);
-                }}
-                onQuizAttempt={({ item, questionId, correct }) => {
-                    track("quiz_attempt", { quizId: item.id, questionId, correct });
-                    if (typeof correct === "boolean") {
-                        track("quiz_result", { quizId: item.id, questionId, correct });
+            >
+                <ambientLight intensity={0.5} />
+                <directionalLight position={[5, 5, 5]} intensity={1} />
+
+
+                {!isAR && <OrbitControls />}
+
+
+                {sceneData.map((item) => {
+                    if (item.visible === false) return null;
+
+
+                    if (item.type === 'model') {
+                        return (
+                            <ModelItem
+                                key={item.id}
+                                url={item.url}
+                                transform={item.transform}
+                                selectedAnimationIndex={item.selectedAnimationIndex}
+                                autoplay={item.autoplay}
+                                isPaused={item.isPaused}
+                            />
+                        );
+                    } else if (item.type === 'image') {
+                        return <ImageItem key={item.id} url={item.url} transform={item.transform} />;
+                    } else if (item.type === 'text') {
+                        return (
+                            <TextItem
+                                key={item.id}
+                                content={item.content}
+                                fontSize={item.fontSize}
+                                color={item.color}
+                                transform={item.transform}
+                            />
+                        );
+                    } else if (item.type === 'button') {
+                        return (
+                            <ButtonItem
+                                key={item.id}
+                                item={item}
+                                onPress={(btn) => runActions(btn.interactions, setSceneData, navigateToProject)}
+                            />
+                        );
+                    } else if (item.type === 'label') {
+                        return (
+                            <UILabel3D
+                                key={item.id}
+                                id={item.id}
+                                name={item.name}
+                                content={item.content}
+                                fontSize={item.fontSize}
+                                color={item.color}
+                                appearance={item.appearance}
+                                transform={item.transform}
+                                lineMode={item.lineMode || 'none'}
+                                targetId={item.targetId || null}
+                                anchorPoint={item.anchorPoint || null}
+                                models={sceneData}
+                                selectedModelId={null}
+                                transformMode="none"
+                                isPreviewing={true}
+                            />
+                        );
+                    } else if (item.type === 'quiz') {
+                        return (
+                            <Quiz3D
+                                key={item.id}
+                                id={item.id}
+                                name={item.name}
+                                quiz={item.quiz}
+                                transform={item.transform}
+                                appearance={item.appearance}
+                                // AR viewer is read-only: no selection / gizmos
+                                selectedModelId={null}
+                                setSelectedModelId={() => { }}
+                                transformMode="none"
+                                isPreviewing={true}
+                                orbitRef={null}
+                                updateModelTransform={() => { }}
+                            />
+                        );
                     }
-                }}
-                onActionRun={(meta) => track("action_run", meta)}
-            />
+
+
+
+
+                    return null;
+                })}
+            </Canvas>
         </div>
     );
 }
+
+
+
