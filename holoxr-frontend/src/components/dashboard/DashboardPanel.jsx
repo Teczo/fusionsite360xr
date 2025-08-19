@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from "react-hot-toast";
 import ProfileEdit from '../../pages/ProfilePage';
 import ProfileView from '../../pages/ProfileView';
+import AnalyticsDashboard from '../analytics/AnalyticsDashboard';
 
 export default function DashboardPanel({
     activeView,
@@ -154,7 +155,7 @@ export default function DashboardPanel({
                     </div>
                 )}
 
-                {(activeView === 'templates' || activeView === 'meshai' || activeView === 'team' || activeView === 'experiences' || activeView === 'analytics') && (
+                {(activeView === 'templates' || activeView === 'meshai' || activeView === 'team' || activeView === 'experiences') && (
                     <div className="flex items-center justify-center h-full">
                         <div className="text-center">
                             <h2 className="text-3xl font-bold capitalize">{activeView}</h2>
@@ -173,6 +174,10 @@ export default function DashboardPanel({
                 )}
                 {activeView === 'profileedit' && (
                     <ProfileEdit setActiveView={setActiveView} />
+                )}
+
+                {activeView === 'analytics' && (
+                    <AnalyticsDashboard />
                 )}
 
             </div>

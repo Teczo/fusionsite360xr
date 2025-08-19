@@ -53,6 +53,9 @@ export default function Quiz3D({
     orbitRef,
     isPreviewing = false,
     updateModelTransform,
+    onStart,                 // () => void
+    onAnswer,                // (questionId: string, correct: boolean) => void
+    onComplete,              // () => void
 }) {
     const groupRef = useRef();
     const isSelected = selectedModelId === id;
@@ -174,6 +177,7 @@ export default function Quiz3D({
         setShowFeedback(false);
         setLastCorrect(null);
         setTextInput("");
+        onStart && onStart();
     };
 
     const submitAnswer = (userValue) => {
@@ -187,6 +191,7 @@ export default function Quiz3D({
         }));
 
         const { correct, pts } = gradeQuestion(q, userValue);
+        onAnswer && onAnswer(q.id, !!correct)
 
         if (feedbackMode === "immediate") {
             setLastCorrect(correct);
@@ -211,6 +216,7 @@ export default function Quiz3D({
             // (stay on results screen by keeping started=true but with finished flag)
             setStarted(true);
             setIndex(order.length); // sentinel means "results"
+            onComplete && onComplete();
         }
     };
 

@@ -9,8 +9,7 @@ import { Grid, OrbitControls } from "@react-three/drei";
 import PropertyPanel from "../panels/PropertyPanel";
 import FloatingPanel from "../panels/FloatingPanel";
 import TopBar from "../panels/TopBar";
-import LibraryModal from "../LibraryModal";
-import QRCodeModal from "../QRCodeModal";
+import QRCodeModal from "../modals/QRCodeModal.jsx";
 import LayersPanel from "../panels/LayersPanel";
 import UIButton3D from "../Items/UIButton3D";
 import UILabel3D from "../Items/UILabel3D";
@@ -35,6 +34,7 @@ import {
     handlePublishProject as publishProject,
 } from "./studioLogic.jsx";
 import Quiz3D from "../Items/Quiz3D.jsx";
+import LibraryModal from "../modals/LibraryModal.jsx";
 
 // Helper: upload a project thumbnail (WebP) to backend
 async function uploadProjectThumbnail(projectId, token, canvasEl) {
