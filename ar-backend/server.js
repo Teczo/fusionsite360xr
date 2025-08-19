@@ -16,68 +16,97 @@ import projectRoutes from './routes/project.js';
 import fileRoutes from './routes/file.js';
 import File from './models/File.js';
 import profileRouter from './routes/profile.js';
+import analyticsRoutes from "./routes/analytics.js";
 
-
-// Define __dirname manually for ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// Middleware
-app.use(cors());
+// 1) Define allowlist FIRST
+const allowlist = [
+  'http://localhost:5173',
+  'https://holoxr.teczo.co',
+];
+
+// 2) Single CORS middleware (no second app.use(cors()))
+const corsOptions = {
+  origin(origin, cb) {
+    if (!origin || allowlist.includes(origin)) return cb(null, true);
+    return cb(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+app.use(cors(corsOptions));
+
+// 3) EITHER delete this line entirely (CORS will still add headers):
+// app.options('*', cors(corsOptions));
+// OR, if you want an explicit preflight handler for all routes, use regex:
+app.options(/.*/, cors(corsOptions)); // avoids the "*" path-to-regexp error
+
+// Body parsers
 app.use(express.json());
+app.use(express.text({ type: 'text/plain' }));
+
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// DB Connection
+// DB
 mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log("✅ MongoDB connected"))
+  .then(() => console.log('✅ MongoDB connected'))
   .catch((err) => console.error(err));
 
-// Azure Blob Setup
-const AZURE_STORAGE_CONNECTION_STRING = process.env.AZURE_STORAGE_CONNECTION_STRING;
-const blobServiceClient = BlobServiceClient.fromConnectionString(AZURE_STORAGE_CONNECTION_STRING);
-const containerClient = blobServiceClient.getContainerClient("uploads");
+// Azure
+const blobServiceClient = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
+const containerClient = blobServiceClient.getContainerClient('uploads');
 
-// Multer in-memory upload
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
+// Multer
+const upload = multer({ storage: multer.memoryStorage() });
 
+// Analytics endpoint
+app.post('/api/analytics/track', (req, res) => {
+  let body = req.body;
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch { body = { raw: req.body }; }
+  }
+  // TODO: persist `body`
+  res.sendStatus(204);
+});
 
-
-// Files route
+// Files
 app.get('/files', async (req, res) => {
   const files = await File.find().sort({ uploadedAt: -1 });
   res.json(files);
 });
 
-// List Azure blobs
+// Blobs
 app.get('/blobs', async (req, res) => {
   try {
-    let blobs = [];
+    const blobs = [];
     for await (const blob of containerClient.listBlobsFlat()) {
-      const blobUrl = `${containerClient.url}/${blob.name}`;
       blobs.push({
         name: blob.name,
-        url: blobUrl,
-        lastModified: blob.properties.lastModified
+        url: `${containerClient.url}/${blob.name}`,
+        lastModified: blob.properties.lastModified,
       });
     }
     res.status(200).json(blobs);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Failed to list blobs" });
+    res.status(500).json({ error: 'Failed to list blobs' });
   }
 });
 
-// Additional routes
+// Routes
 app.use('/api', authRoutes);
 app.use('/api', projectRoutes);
 app.use('/api', fileRoutes);
 app.use('/api/profile', profileRouter);
+app.use("/api/analytics", analyticsRoutes);
 
-// Start server
+// Start
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
 });
