@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useParams } from 'react-router-dom';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Text, useGLTF, Html } from '@react-three/drei';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { OrbitControls, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { ARButton } from 'three/examples/jsm/webxr/ARButton';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
@@ -9,18 +9,15 @@ import { unzipSync } from 'fflate';
 import UILabel3D from "../components/Items/UILabel3D";
 import Quiz3D from '../components/Items/Quiz3D';
 
+// -------------------- Items --------------------
 
 function ModelItem({ url, transform, selectedAnimationIndex = 0, autoplay = false, isPaused = false }) {
     const mixerRef = useRef();
     const [scene, setScene] = useState(null);
     const [animations, setAnimations] = useState([]);
-    const noopUpdate = () => { };
-
 
     useEffect(() => {
         if (!url) return;
-
-
         const loadModel = async () => {
             let blobUrl = url;
             if (url.endsWith('.zip')) {
@@ -32,54 +29,38 @@ function ModelItem({ url, transform, selectedAnimationIndex = 0, autoplay = fals
                 const blob = new Blob([zip[glbName]], { type: 'model/gltf-binary' });
                 blobUrl = URL.createObjectURL(blob);
             }
-
-
             const loader = new GLTFLoader();
             loader.load(
                 blobUrl,
                 (gltf) => {
                     setScene(gltf.scene);
-                    setAnimations(gltf.animations);
+                    setAnimations(gltf.animations || []);
                 },
                 undefined,
                 (err) => console.error('❌ GLB load error:', err)
             );
         };
-
-
         loadModel();
     }, [url]);
 
-
     useEffect(() => {
         if (!scene || !autoplay || animations.length === 0) return;
-
-
         const mixer = new THREE.AnimationMixer(scene);
         mixerRef.current = mixer;
-
-
         const clip = animations[selectedAnimationIndex] || animations[0];
         const action = mixer.clipAction(clip);
         action.reset().play();
-
-
         return () => {
             mixer.stopAllAction();
             mixer.uncacheRoot(scene);
         };
     }, [scene, animations, selectedAnimationIndex, autoplay]);
 
-
     useFrame((_, delta) => {
-        if (!isPaused) {
-            mixerRef.current?.update(delta);
-        }
+        if (!isPaused) mixerRef.current?.update(delta);
     });
 
-
     if (!scene) return null;
-
 
     const t = transform || {};
     return (
@@ -93,12 +74,9 @@ function ModelItem({ url, transform, selectedAnimationIndex = 0, autoplay = fals
     );
 }
 
-
 function ImageItem({ url, transform = {} }) {
     const texture = new THREE.TextureLoader().load(url);
     const ref = useRef();
-
-
     useEffect(() => {
         if (ref.current) {
             const { x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1 } = transform;
@@ -107,8 +85,6 @@ function ImageItem({ url, transform = {} }) {
             ref.current.scale.set(sx, sy, sz);
         }
     }, [transform]);
-
-
     return (
         <mesh ref={ref}>
             <planeGeometry args={[3, 3]} />
@@ -117,11 +93,8 @@ function ImageItem({ url, transform = {} }) {
     );
 }
 
-
 function TextItem({ content, fontSize, color, transform = {} }) {
     const ref = useRef();
-
-
     useEffect(() => {
         if (ref.current) {
             const { x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1 } = transform;
@@ -130,8 +103,6 @@ function TextItem({ content, fontSize, color, transform = {} }) {
             ref.current.scale.set(sx, sy, sz);
         }
     }, [transform]);
-
-
     return (
         <Text ref={ref} fontSize={fontSize || 1} color={color || 'white'}>
             {content}
@@ -139,12 +110,9 @@ function TextItem({ content, fontSize, color, transform = {} }) {
     );
 }
 
-
 function ButtonItem({ item, onPress }) {
     const ref = useRef();
     const { transform = {}, appearance = {} } = item;
-
-
     useEffect(() => {
         if (!ref.current) return;
         const { x = 0, y = 1, z = 0, rx = 0, ry = 0, rz = 0, sx = 0.4, sy = 0.2, sz = 0.1 } = transform;
@@ -152,8 +120,6 @@ function ButtonItem({ item, onPress }) {
         ref.current.rotation.set(rx, ry, rz);
         ref.current.scale.set(sx, sy, sz);
     }, [transform]);
-
-
     return (
         <group
             ref={ref}
@@ -172,7 +138,6 @@ function ButtonItem({ item, onPress }) {
         </group>
     );
 }
-
 
 function runActions(actions, setSceneData, navigateToProject) {
     (actions || []).forEach((act) => {
@@ -203,17 +168,169 @@ function runActions(actions, setSceneData, navigateToProject) {
     });
 }
 
+// -------------------- AR Controller (hit-test, anchors, reticle) --------------------
+
+function ARPlacementController({ enableAR, onAnchorPoseMatrix, onTapPlace }) {
+    const { gl, scene } = useThree();
+
+    const reticleRef = useRef();
+    const hitTestSourceRef = useRef(null);
+    const xrRefSpaceRef = useRef(null);
+    const viewerSpaceRef = useRef(null);
+
+    // Set up a simple ring reticle
+    useEffect(() => {
+        const ring = new THREE.Mesh(
+            new THREE.RingGeometry(0.08, 0.1, 32),
+            new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.9, side: THREE.DoubleSide })
+        );
+        ring.rotation.x = -Math.PI / 2;
+        ring.matrixAutoUpdate = false;
+        ring.visible = false;
+        scene.add(ring);
+        reticleRef.current = ring;
+        return () => {
+            scene.remove(ring);
+            ring.geometry.dispose();
+            ring.material.dispose();
+        };
+    }, [scene]);
+
+    // Handle session lifecycle: request spaces + hitTest
+    useEffect(() => {
+        if (!enableAR) return;
+
+        function onSessionStart() {
+            const session = gl.xr.getSession();
+            if (!session) return;
+
+            // request reference spaces
+            Promise.all([
+                session.requestReferenceSpace('local-floor').catch(() => session.requestReferenceSpace('local')),
+                session.requestReferenceSpace('viewer')
+            ]).then(([xrRefSpace, viewerSpace]) => {
+                xrRefSpaceRef.current = xrRefSpace;
+                viewerSpaceRef.current = viewerSpace;
+                session.requestHitTestSource({ space: viewerSpace }).then((source) => {
+                    hitTestSourceRef.current = source;
+                }).catch((e) => console.warn('HitTestSource failed:', e));
+            });
+
+            // cleanup on end
+            const endHandler = () => {
+                hitTestSourceRef.current = null;
+                xrRefSpaceRef.current = null;
+                viewerSpaceRef.current = null;
+                if (reticleRef.current) reticleRef.current.visible = false;
+            };
+            session.addEventListener('end', endHandler);
+        }
+
+        gl.xr.addEventListener('sessionstart', onSessionStart);
+        return () => {
+            gl.xr.removeEventListener('sessionstart', onSessionStart);
+        };
+    }, [gl, enableAR]);
+
+    // Per-frame reticle + anchor pose updates
+    useFrame((_, __, frame) => {
+        if (!frame) return;
+
+        const source = hitTestSourceRef.current;
+        const xrRefSpace = xrRefSpaceRef.current;
+        const reticle = reticleRef.current;
+
+        // Update reticle by hit-test
+        if (source && xrRefSpace && reticle) {
+            const results = frame.getHitTestResults(source);
+            if (results.length > 0) {
+                const hit = results[0];
+                const pose = hit.getPose(xrRefSpace);
+                if (pose) {
+                    reticle.visible = true;
+                    reticle.matrix.fromArray(pose.transform.matrix);
+                }
+            } else {
+                reticle.visible = false;
+            }
+        }
+
+        // If parent provided a callback to update anchor-driven matrix, call it every frame
+        if (onAnchorPoseMatrix) onAnchorPoseMatrix(frame, xrRefSpace || gl.xr.getReferenceSpace());
+    });
+
+    // Tap to place anchor
+    const handleTap = useCallback(
+        (e) => {
+            const frame = gl.xr.getFrame?.();
+            const session = gl.xr.getSession?.();
+            const source = hitTestSourceRef.current;
+            const xrRefSpace = xrRefSpaceRef.current;
+            if (!frame || !session || !source || !xrRefSpace) return;
+
+            const results = frame.getHitTestResults(source);
+            if (!results || results.length === 0) return;
+
+            const hit = results[0];
+
+            // Prefer createAnchor on hit; fallback to frame.createAnchor if available; else place without anchor
+            if (hit.createAnchor) {
+                hit.createAnchor().then(anchor => {
+                    onTapPlace?.({ anchor, xrRefSpace });
+                }).catch(() => {
+                    // fallback: try frame.createAnchor (some impls)
+                    try {
+                        const pose = hit.getPose(xrRefSpace);
+                        if (pose && frame.createAnchor) {
+                            frame.createAnchor(pose.transform, xrRefSpace).then(anchor => {
+                                onTapPlace?.({ anchor, xrRefSpace });
+                            }).catch(() => onTapPlace?.({ anchor: null, poseMatrix: pose.transform.matrix, xrRefSpace }));
+                        }
+                    } catch {
+                        // last resort: no anchor support
+                    }
+                });
+            } else if (frame.createAnchor) {
+                const pose = hit.getPose(xrRefSpace);
+                if (pose) {
+                    frame.createAnchor(pose.transform, xrRefSpace).then(anchor => {
+                        onTapPlace?.({ anchor, xrRefSpace });
+                    }).catch(() => onTapPlace?.({ anchor: null, poseMatrix: pose.transform.matrix, xrRefSpace }));
+                }
+            } else {
+                const pose = hit.getPose(xrRefSpace);
+                if (pose) onTapPlace?.({ anchor: null, poseMatrix: pose.transform.matrix, xrRefSpace });
+            }
+        },
+        [gl, onTapPlace]
+    );
+
+    // Only listen during AR
+    useEffect(() => {
+        const canvas = gl.domElement;
+        if (!enableAR) return;
+        canvas.addEventListener('click', handleTap);
+        return () => canvas.removeEventListener('click', handleTap);
+    }, [gl, enableAR, handleTap]);
+
+    return null; // controller renders nothing (reticle is added directly to scene)
+}
+
+// -------------------- Viewer --------------------
 
 export default function ARViewer() {
     const { id } = useParams();
     const [sceneData, setSceneData] = useState([]);
     const [isAR, setIsAR] = useState(false);
 
+    // Anchor group: the whole scene is a child of this node, driven by anchor pose
+    const anchorGroupRef = useRef();
+    const currentAnchorRef = useRef(null); // XRAnchor
+    const fallbackPoseMatrixRef = useRef(null); // Float32Array (when anchors unsupported)
 
     const navigateToProject = (projectId) => {
         window.location.href = `/ar/${projectId}`;
     };
-
 
     useEffect(() => {
         const fetchScene = async () => {
@@ -228,11 +345,52 @@ export default function ARViewer() {
                 console.error('Failed to load published scene', err);
             }
         };
-
-
         fetchScene();
     }, [id]);
 
+    // Update anchorGroup from anchor each frame (called by controller)
+    const handleAnchorPoseMatrix = useCallback((frame, xrRefSpace) => {
+        const group = anchorGroupRef.current;
+        if (!group) return;
+
+        // Prefer live anchor tracking
+        const anchor = currentAnchorRef.current;
+        if (anchor && anchor.anchorSpace) {
+            const pose = frame.getPose(anchor.anchorSpace, xrRefSpace);
+            if (pose) {
+                group.matrix.fromArray(pose.transform.matrix);
+                group.matrix.decompose(group.position, group.quaternion, group.scale);
+                return;
+            }
+        }
+
+        // Fallback: apply static placement matrix (no anchors)
+        const m = fallbackPoseMatrixRef.current;
+        if (m) {
+            group.matrix.fromArray(m);
+            group.matrix.decompose(group.position, group.quaternion, group.scale);
+        }
+    }, []);
+
+    // When user taps to place
+    const handleTapPlace = useCallback(({ anchor, poseMatrix }) => {
+        // Clear previous anchor
+        if (currentAnchorRef.current) {
+            try { currentAnchorRef.current.delete?.(); } catch { }
+            currentAnchorRef.current = null;
+        }
+        fallbackPoseMatrixRef.current = null;
+
+        if (anchor) {
+            currentAnchorRef.current = anchor;
+            anchor.addEventListener?.('remove', () => {
+                if (currentAnchorRef.current === anchor) currentAnchorRef.current = null;
+            });
+        } else if (poseMatrix) {
+            // No anchor support -> store the static placement
+            fallbackPoseMatrixRef.current = new Float32Array(poseMatrix);
+        }
+    }, []);
 
     return (
         <div className="w-screen h-screen">
@@ -240,109 +398,127 @@ export default function ARViewer() {
                 camera={{ position: [0, 1.6, 3], fov: 70 }}
                 onCreated={({ gl }) => {
                     gl.xr.enabled = true;
+
+                    // Prefer floor-aligned coordinates if available
+                    try { gl.xr.setReferenceSpaceType?.('local-floor'); } catch { }
+
                     gl.xr.addEventListener('sessionstart', () => setIsAR(true));
-                    gl.xr.addEventListener('sessionend', () => setIsAR(false));
+                    gl.xr.addEventListener('sessionend', () => {
+                        setIsAR(false);
+                        // Reset anchor state on AR exit
+                        if (currentAnchorRef.current) {
+                            try { currentAnchorRef.current.delete?.(); } catch { }
+                            currentAnchorRef.current = null;
+                        }
+                        fallbackPoseMatrixRef.current = null;
+                    });
 
-
+                    // Create AR button with the right features
                     const button = ARButton.createButton(gl, {
                         requiredFeatures: ['hit-test'],
-                        optionalFeatures: ['dom-overlay'],
+                        optionalFeatures: ['anchors', 'local-floor', 'dom-overlay'],
                         domOverlay: { root: document.body }
                     });
-                    document.body.appendChild(button);
+
+                    // Avoid adding multiple buttons across HMR or re-mounts
+                    const existing = document.querySelector('.webxr-ar-button');
+                    if (!existing) {
+                        button.classList.add('webxr-ar-button');
+                        document.body.appendChild(button);
+                    }
                 }}
             >
                 <ambientLight intensity={0.5} />
                 <directionalLight position={[5, 5, 5]} intensity={1} />
-
-
                 {!isAR && <OrbitControls />}
 
+                {/* AR controller manages reticle + placement + anchor updates */}
+                <ARPlacementController
+                    enableAR={isAR}
+                    onAnchorPoseMatrix={handleAnchorPoseMatrix}
+                    onTapPlace={handleTapPlace}
+                />
 
-                {sceneData.map((item) => {
-                    if (item.visible === false) return null;
+                {/* Anchor-driven root (matrix updated from anchor/pose per frame) */}
+                <group ref={anchorGroupRef} matrixAutoUpdate={false}>
 
+                    {sceneData.map((item) => {
+                        if (item.visible === false) return null;
 
-                    if (item.type === 'model') {
-                        return (
-                            <ModelItem
-                                key={item.id}
-                                url={item.url}
-                                transform={item.transform}
-                                selectedAnimationIndex={item.selectedAnimationIndex}
-                                autoplay={item.autoplay}
-                                isPaused={item.isPaused}
-                            />
-                        );
-                    } else if (item.type === 'image') {
-                        return <ImageItem key={item.id} url={item.url} transform={item.transform} />;
-                    } else if (item.type === 'text') {
-                        return (
-                            <TextItem
-                                key={item.id}
-                                content={item.content}
-                                fontSize={item.fontSize}
-                                color={item.color}
-                                transform={item.transform}
-                            />
-                        );
-                    } else if (item.type === 'button') {
-                        return (
-                            <ButtonItem
-                                key={item.id}
-                                item={item}
-                                onPress={(btn) => runActions(btn.interactions, setSceneData, navigateToProject)}
-                            />
-                        );
-                    } else if (item.type === 'label') {
-                        return (
-                            <UILabel3D
-                                key={item.id}
-                                id={item.id}
-                                name={item.name}
-                                content={item.content}
-                                fontSize={item.fontSize}
-                                color={item.color}
-                                appearance={item.appearance}
-                                transform={item.transform}
-                                lineMode={item.lineMode || 'none'}
-                                targetId={item.targetId || null}
-                                anchorPoint={item.anchorPoint || null}
-                                models={sceneData}
-                                selectedModelId={null}
-                                transformMode="none"
-                                isPreviewing={true}
-                            />
-                        );
-                    } else if (item.type === 'quiz') {
-                        return (
-                            <Quiz3D
-                                key={item.id}
-                                id={item.id}
-                                name={item.name}
-                                quiz={item.quiz}
-                                transform={item.transform}
-                                appearance={item.appearance}
-                                // AR viewer is read-only: no selection / gizmos
-                                selectedModelId={null}
-                                setSelectedModelId={() => { }}
-                                transformMode="none"
-                                isPreviewing={true}
-                                orbitRef={null}
-                                updateModelTransform={() => { }}
-                            />
-                        );
-                    }
+                        if (item.type === 'model') {
+                            return (
+                                <ModelItem
+                                    key={item.id}
+                                    url={item.url}
+                                    transform={item.transform}
+                                    selectedAnimationIndex={item.selectedAnimationIndex}
+                                    autoplay={item.autoplay}
+                                    isPaused={item.isPaused}
+                                />
+                            );
+                        } else if (item.type === 'image') {
+                            return <ImageItem key={item.id} url={item.url} transform={item.transform} />;
+                        } else if (item.type === 'text') {
+                            return (
+                                <TextItem
+                                    key={item.id}
+                                    content={item.content}
+                                    fontSize={item.fontSize}
+                                    color={item.color}
+                                    transform={item.transform}
+                                />
+                            );
+                        } else if (item.type === 'button') {
+                            return (
+                                <ButtonItem
+                                    key={item.id}
+                                    item={item}
+                                    onPress={(btn) => runActions(btn.interactions, setSceneData, navigateToProject)}
+                                />
+                            );
+                        } else if (item.type === 'label') {
+                            return (
+                                <UILabel3D
+                                    key={item.id}
+                                    id={item.id}
+                                    name={item.name}
+                                    content={item.content}
+                                    fontSize={item.fontSize}
+                                    color={item.color}
+                                    appearance={item.appearance}
+                                    transform={item.transform}
+                                    lineMode={item.lineMode || 'none'}
+                                    targetId={item.targetId || null}
+                                    anchorPoint={item.anchorPoint || null}
+                                    models={sceneData}
+                                    selectedModelId={null}
+                                    transformMode="none"
+                                    isPreviewing={true}
+                                />
+                            );
+                        } else if (item.type === 'quiz') {
+                            return (
+                                <Quiz3D
+                                    key={item.id}
+                                    id={item.id}
+                                    name={item.name}
+                                    quiz={item.quiz}
+                                    transform={item.transform}
+                                    appearance={item.appearance}
+                                    selectedModelId={null}
+                                    setSelectedModelId={() => { }}
+                                    transformMode="none"
+                                    isPreviewing={true}
+                                    orbitRef={null}
+                                    updateModelTransform={() => { }}
+                                />
+                            );
+                        }
+                        return null;
+                    })}
 
-
-
-
-                    return null;
-                })}
+                </group>
             </Canvas>
         </div>
     );
 }
-
-
-
