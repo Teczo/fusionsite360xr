@@ -387,14 +387,13 @@ function ARGestureControls({ enabled, targetRef, minScale = 0.1, maxScale = 5, r
         const canvas = gl.domElement;
         if (!enabled || !targetRef?.current) return;
 
-        // helpers
-        const dist = (t0, t1) => {
-            const dx = t1.clientX - t0.clientX, dy = t1.clientY - t0.clientY;
-            return Math.hypot(dx, dy);
-        };
+        const dist = (t0, t1) => Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
         const ang = (t0, t1) => Math.atan2(t1.clientY - t0.clientY, t1.clientX - t0.clientX);
 
         const onStart = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
             const s = stateRef.current;
             s.touches = Array.from(e.touches);
             const target = targetRef.current;
@@ -411,12 +410,15 @@ function ARGestureControls({ enabled, targetRef, minScale = 0.1, maxScale = 5, r
                 const [t0, t1] = s.touches;
                 s.startDist = dist(t0, t1);
                 s.startAngle = ang(t0, t1);
-                s.startScale = target.scale.x; // assume uniform scale
+                s.startScale = target.scale.x; // assume uniform
                 s.startYaw = target.rotation.y;
             }
         };
 
         const onMove = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
             const s = stateRef.current;
             const target = targetRef.current;
             if (!target) return;
@@ -425,14 +427,16 @@ function ARGestureControls({ enabled, targetRef, minScale = 0.1, maxScale = 5, r
 
             if (s.pinching && s.touches.length >= 2) {
                 const [t0, t1] = s.touches;
-                // pinch scale
+
+                // pinch to scale
                 const d = dist(t0, t1);
                 if (s.startDist > 0) {
                     let next = (d / s.startDist) * s.startScale;
                     next = Math.min(maxScale, Math.max(minScale, next));
                     target.scale.set(next, next, next);
                 }
-                // twist rotate (around Y)
+
+                // optional two‑finger twist to rotate
                 const a = ang(t0, t1);
                 const deltaA = a - s.startAngle;
                 target.rotation.y = s.startYaw + deltaA;
@@ -445,13 +449,15 @@ function ARGestureControls({ enabled, targetRef, minScale = 0.1, maxScale = 5, r
         };
 
         const onEnd = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
             const s = stateRef.current;
             s.touches = Array.from(e.touches);
             if (s.touches.length === 0) {
                 s.rotating = false;
                 s.pinching = false;
             } else if (s.touches.length === 1) {
-                // fall back to one-finger rotate if one finger remains
                 s.rotating = true;
                 s.pinching = false;
                 s.lastX = s.touches[0].clientX;
@@ -459,7 +465,6 @@ function ARGestureControls({ enabled, targetRef, minScale = 0.1, maxScale = 5, r
             }
         };
 
-        // use non-passive to allow preventDefault if you later need it
         canvas.addEventListener('touchstart', onStart, { passive: false });
         canvas.addEventListener('touchmove', onMove, { passive: false });
         canvas.addEventListener('touchend', onEnd, { passive: false });
@@ -475,6 +480,7 @@ function ARGestureControls({ enabled, targetRef, minScale = 0.1, maxScale = 5, r
 
     return null;
 }
+
 
 
 // -------------------- Viewer --------------------
@@ -555,11 +561,14 @@ export default function ARViewer() {
     }, []);
 
     return (
-        <div className="w-screen h-screen">
+        <div className="w-screen h-screen touch-none select-none">
             <Canvas
                 camera={{ position: [0, 1.6, 10], fov: 70 }}  // push desktop preview camera back
                 onCreated={({ gl }) => {
                     gl.xr.enabled = true;
+
+                    // Prevent browser pinch-to-zoom / scroll on canvas
+                    gl.domElement.style.touchAction = 'none';
 
                     // Prefer floor-aligned coordinates if available
                     try { gl.xr.setReferenceSpaceType?.('local-floor'); } catch { }
