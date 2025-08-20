@@ -615,82 +615,82 @@ export default function ARViewer() {
 
                 {/* Anchor-driven root (matrix updated from anchor/pose per frame) */}
                 <group ref={anchorGroupRef} matrixAutoUpdate={false}>
+                    <group ref={userGroupRef}>
+                        {sceneData.map((item) => {
+                            if (item.visible === false) return null;
 
-                    {sceneData.map((item) => {
-                        if (item.visible === false) return null;
-
-                        if (item.type === 'model') {
-                            return (
-                                <ModelItem
-                                    key={item.id}
-                                    url={item.url}
-                                    transform={item.transform}
-                                    selectedAnimationIndex={item.selectedAnimationIndex}
-                                    autoplay={item.autoplay}
-                                    isPaused={item.isPaused}
-                                />
-                            );
-                        } else if (item.type === 'image') {
-                            return <ImageItem key={item.id} url={item.url} transform={item.transform} />;
-                        } else if (item.type === 'text') {
-                            return (
-                                <TextItem
-                                    key={item.id}
-                                    content={item.content}
-                                    fontSize={item.fontSize}
-                                    color={item.color}
-                                    transform={item.transform}
-                                />
-                            );
-                        } else if (item.type === 'button') {
-                            return (
-                                <ButtonItem
-                                    key={item.id}
-                                    item={item}
-                                    onPress={(btn) => runActions(btn.interactions, setSceneData, navigateToProject)}
-                                />
-                            );
-                        } else if (item.type === 'label') {
-                            return (
-                                <UILabel3D
-                                    key={item.id}
-                                    id={item.id}
-                                    name={item.name}
-                                    content={item.content}
-                                    fontSize={item.fontSize}
-                                    color={item.color}
-                                    appearance={item.appearance}
-                                    transform={item.transform}
-                                    lineMode={item.lineMode || 'none'}
-                                    targetId={item.targetId || null}
-                                    anchorPoint={item.anchorPoint || null}
-                                    models={sceneData}
-                                    selectedModelId={null}
-                                    transformMode="none"
-                                    isPreviewing={true}
-                                />
-                            );
-                        } else if (item.type === 'quiz') {
-                            return (
-                                <Quiz3D
-                                    key={item.id}
-                                    id={item.id}
-                                    name={item.name}
-                                    quiz={item.quiz}
-                                    transform={item.transform}
-                                    appearance={item.appearance}
-                                    selectedModelId={null}
-                                    setSelectedModelId={() => { }}
-                                    transformMode="none"
-                                    isPreviewing={true}
-                                    orbitRef={null}
-                                    updateModelTransform={() => { }}
-                                />
-                            );
-                        }
-                        return null;
-                    })}
-
+                            if (item.type === 'model') {
+                                return (
+                                    <ModelItem
+                                        key={item.id}
+                                        url={item.url}
+                                        transform={item.transform}
+                                        selectedAnimationIndex={item.selectedAnimationIndex}
+                                        autoplay={item.autoplay}
+                                        isPaused={item.isPaused}
+                                    />
+                                );
+                            } else if (item.type === 'image') {
+                                return <ImageItem key={item.id} url={item.url} transform={item.transform} />;
+                            } else if (item.type === 'text') {
+                                return (
+                                    <TextItem
+                                        key={item.id}
+                                        content={item.content}
+                                        fontSize={item.fontSize}
+                                        color={item.color}
+                                        transform={item.transform}
+                                    />
+                                );
+                            } else if (item.type === 'button') {
+                                return (
+                                    <ButtonItem
+                                        key={item.id}
+                                        item={item}
+                                        onPress={(btn) => runActions(btn.interactions, setSceneData, navigateToProject)}
+                                    />
+                                );
+                            } else if (item.type === 'label') {
+                                return (
+                                    <UILabel3D
+                                        key={item.id}
+                                        id={item.id}
+                                        name={item.name}
+                                        content={item.content}
+                                        fontSize={item.fontSize}
+                                        color={item.color}
+                                        appearance={item.appearance}
+                                        transform={item.transform}
+                                        lineMode={item.lineMode || 'none'}
+                                        targetId={item.targetId || null}
+                                        anchorPoint={item.anchorPoint || null}
+                                        models={sceneData}
+                                        selectedModelId={null}
+                                        transformMode="none"
+                                        isPreviewing={true}
+                                    />
+                                );
+                            } else if (item.type === 'quiz') {
+                                return (
+                                    <Quiz3D
+                                        key={item.id}
+                                        id={item.id}
+                                        name={item.name}
+                                        quiz={item.quiz}
+                                        transform={item.transform}
+                                        appearance={item.appearance}
+                                        selectedModelId={null}
+                                        setSelectedModelId={() => { }}
+                                        transformMode="none"
+                                        isPreviewing={true}
+                                        orbitRef={null}
+                                        updateModelTransform={() => { }}
+                                    />
+                                );
+                            }
+                            return null;
+                        })}
+                    </group>
                 </group>
             </Canvas>
         </div>
