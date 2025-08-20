@@ -327,6 +327,7 @@ export default function ARViewer() {
     const anchorGroupRef = useRef();
     const currentAnchorRef = useRef(null); // XRAnchor
     const fallbackPoseMatrixRef = useRef(null); // Float32Array (when anchors unsupported)
+    const MIN_PLACE_DIST = 1.0;
 
     const navigateToProject = (projectId) => {
         window.location.href = `/ar/${projectId}`;
@@ -373,24 +374,72 @@ export default function ARViewer() {
     }, []);
 
     // When user taps to place
-    const handleTapPlace = useCallback(({ anchor, poseMatrix }) => {
-        // Clear previous anchor
-        if (currentAnchorRef.current) {
-            try { currentAnchorRef.current.delete?.(); } catch { }
-            currentAnchorRef.current = null;
-        }
-        fallbackPoseMatrixRef.current = null;
+    const handleTapPlace = useCallback((e) => {
+        const frame = gl.xr.getFrame?.();
+        const session = gl.xr.getSession?.();
+        const source = hitTestSourceRef.current;
+        const xrRefSpace = xrRefSpaceRef.current;
+        if (!frame || !session || !source || !xrRefSpace) return;
 
-        if (anchor) {
-            currentAnchorRef.current = anchor;
-            anchor.addEventListener?.('remove', () => {
-                if (currentAnchorRef.current === anchor) currentAnchorRef.current = null;
-            });
-        } else if (poseMatrix) {
-            // No anchor support -> store the static placement
-            fallbackPoseMatrixRef.current = new Float32Array(poseMatrix);
+        const results = frame.getHitTestResults(source);
+        if (!results || results.length === 0) return;
+
+        const hit = results[0];
+
+        // Get viewer pose (camera)
+        const viewerPose = frame.getViewerPose(xrRefSpace);
+        if (!viewerPose) return;
+        const vp = viewerPose.transform.position;
+        const vq = viewerPose.transform.orientation;
+        const camPos = new THREE.Vector3(vp.x, vp.y, vp.z);
+        const camQuat = new THREE.Quaternion(vq.x, vq.y, vq.z, vq.w);
+        const camForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camQuat);
+
+        // Hit pose (if available)
+        const hitPose = hit.getPose?.(xrRefSpace);
+        let finalPos = null;
+        let finalQuat = camQuat.clone(); // default orientation = camera facing forward
+
+        if (hitPose) {
+            const m = new THREE.Matrix4().fromArray(hitPose.transform.matrix);
+            const hitPos = new THREE.Vector3().setFromMatrixPosition(m);
+            const dist = hitPos.distanceTo(camPos);
+
+            if (dist < MIN_PLACE_DIST) {
+                // Too close: push to MIN_PLACE_DIST in front of camera
+                finalPos = camPos.clone().add(camForward.multiplyScalar(MIN_PLACE_DIST));
+            } else {
+                finalPos = hitPos;
+                // Optionally keep original hit rotation:
+                const r = new THREE.Quaternion().setFromRotationMatrix(m);
+                finalQuat.copy(r);
+            }
+        } else {
+            // No hit pose: place straight ahead at MIN_PLACE_DIST
+            finalPos = camPos.clone().add(camForward.multiplyScalar(MIN_PLACE_DIST));
         }
-    }, []);
+
+        // Try to create an anchor at our adjusted transform
+        const xf = new XRRigidTransform(
+            { x: finalPos.x, y: finalPos.y, z: finalPos.z },
+            { x: finalQuat.x, y: finalQuat.y, z: finalQuat.z, w: finalQuat.w }
+        );
+
+        if (frame.createAnchor) {
+            frame.createAnchor(xf, xrRefSpace).then(anchor => {
+                onTapPlace?.({ anchor, xrRefSpace });
+            }).catch(() => {
+                // Fallback: no anchors permitted
+                onTapPlace?.({ anchor: null, poseMatrix: new THREE.Matrix4().compose(finalPos, finalQuat, new THREE.Vector3(1, 1, 1)).toArray(), xrRefSpace });
+            });
+        } else if (hit.createAnchor) {
+            // Some UAs only allow hit.createAnchor() (no offset); as a last resort use it
+            hit.createAnchor().then(anchor => onTapPlace?.({ anchor, xrRefSpace }))
+                .catch(() => onTapPlace?.({ anchor: null, poseMatrix: new THREE.Matrix4().compose(finalPos, finalQuat, new THREE.Vector3(1, 1, 1)).toArray(), xrRefSpace }));
+        } else {
+            onTapPlace?.({ anchor: null, poseMatrix: new THREE.Matrix4().compose(finalPos, finalQuat, new THREE.Vector3(1, 1, 1)).toArray(), xrRefSpace });
+        }
+    }, [gl, onTapPlace]);
 
     return (
         <div className="w-screen h-screen">
