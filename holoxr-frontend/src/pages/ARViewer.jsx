@@ -460,10 +460,10 @@ function ARGestureControls({ enabled, targetRef, minScale = 0.1, maxScale = 5, r
         };
 
         // use non-passive to allow preventDefault if you later need it
-        canvas.addEventListener('touchstart', onStart, { passive: true });
-        canvas.addEventListener('touchmove', onMove, { passive: true });
-        canvas.addEventListener('touchend', onEnd, { passive: true });
-        canvas.addEventListener('touchcancel', onEnd, { passive: true });
+        canvas.addEventListener('touchstart', onStart, { passive: false });
+        canvas.addEventListener('touchmove', onMove, { passive: false });
+        canvas.addEventListener('touchend', onEnd, { passive: false });
+        canvas.addEventListener('touchcancel', onEnd, { passive: false });
 
         return () => {
             canvas.removeEventListener('touchstart', onStart);
