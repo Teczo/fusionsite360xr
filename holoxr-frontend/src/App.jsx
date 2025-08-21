@@ -3,10 +3,10 @@ import SignUpPage from './pages/SignUpPage';
 import SignInPage from './pages/SignInPage';
 import DashboardPage from './pages/DashboardPage';
 import StudioPage from './components/Studio/StudioPage';
-import ARViewer from './pages/ARViewer';
 import ARMarkerViewer from './pages/ARMarkerViewer';
 import ProfilePage from './pages/ProfilePage'
 import { Toaster } from 'react-hot-toast';
+import ARViewer from './components/viewer/ARViewer';
 
 const RequireAuth = ({ children }) => {
   const token = localStorage.getItem('token');

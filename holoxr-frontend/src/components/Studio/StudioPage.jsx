@@ -18,7 +18,9 @@ import UILabel3D from "../Items/UILabel3D";
 import ImagePlane from "../Items/ImagePlane";
 import TextItem from "../Items/TextItem";
 
-import { CameraController, CaptureCamera, handleFocusOnObject, ModelWithAnimation } from "./studioComponents.jsx";
+// add to import list
+import { CameraController, CaptureCamera, handleFocusOnObject, ModelWithAnimation, CameraFrustumIndicator } from "./studioComponents.jsx";
+
 
 import { useLocation } from "react-router-dom";
 

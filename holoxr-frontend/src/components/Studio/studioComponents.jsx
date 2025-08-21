@@ -4,6 +4,7 @@ import { useThree, useFrame } from "@react-three/fiber";
 import { TransformControls } from "@react-three/drei";
 import * as THREE from "three";
 import { BoxHelper } from "three";
+import { useMemo } from "react";
 
 // Camera reset by signal
 export function CameraController({ resetSignal }) {
@@ -115,5 +116,63 @@ export function ModelWithAnimation({
                 />
             )}
         </>
+    );
+}
+
+export function CameraFrustumIndicator({
+    // Overall size in world units (keep small)
+    scale = 0.15,
+    // How far in front of the camera to place the gizmo so it doesn't clip at the near plane
+    forwardOffset = 0.25,
+    color = "#ffffff",
+    lineWidth = 1, // thickness on some platforms (ignored by many WebGL impls)
+}) {
+    const { camera } = useThree();
+    const group = useRef();
+    const tmpDir = useMemo(() => new THREE.Vector3(), []);
+
+    // Wireframe pyramid (tip = camera, base = view rectangle)
+    const geometry = useMemo(() => {
+        // A unit camera pyramid pointing -Z, base at z = -1, tip at 0
+        const s = 0.5;     // half-width/height of base square
+        const d = 1.0;     // distance to base along -Z
+        const verts = new Float32Array([
+            // tip -> base corners
+            0, 0, 0, s, s, -d,
+            0, 0, 0, -s, s, -d,
+            0, 0, 0, -s, -s, -d,
+            0, 0, 0, s, -s, -d,
+            // base rectangle
+            s, s, -d, -s, s, -d,
+            -s, s, -d, -s, -s, -d,
+            -s, -s, -d, s, -s, -d,
+            s, -s, -d, s, s, -d,
+        ]);
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.BufferAttribute(verts, 3));
+        return geo;
+    }, []);
+
+    useFrame(() => {
+        if (!group.current) return;
+        // position = camera pos + forwardOffset along camera forward
+        camera.getWorldDirection(tmpDir).normalize();
+        group.current.position.copy(camera.position).add(tmpDir.multiplyScalar(forwardOffset));
+        group.current.quaternion.copy(camera.quaternion);
+        group.current.scale.setScalar(scale);
+    });
+
+    return (
+        <group ref={group} renderOrder={0}>
+            <lineSegments>
+                <bufferGeometry {...{ attributes: geometry.attributes }} />
+                <lineBasicMaterial color={color} linewidth={lineWidth} depthTest depthWrite />
+            </lineSegments>
+            {/* tiny “body” rectangle behind the tip (optional, wireframe) */}
+            <lineSegments position={[0, 0, 0.15]}>
+                <edgesGeometry args={[new THREE.BoxGeometry(0.35, 0.22, 0.18)]} />
+                <lineBasicMaterial color={color} depthTest depthWrite />
+            </lineSegments>
+        </group>
     );
 }
