@@ -113,33 +113,69 @@ export default function ARPlane() {
 
             // First tap -> place anchor group and fetch scene
             if (!placedRef.current) {
+                // Copy reticle pose to anchor and force world-update
                 anchorGroup.matrix.copy(reticle.matrix);
+                anchorGroup.matrixWorldNeedsUpdate = true;
+                anchorGroup.updateMatrixWorld(true);
+
+                // Optional: axis helper to visually confirm placement
+                const axes = new THREE.AxesHelper(0.3);
+                anchorGroup.add(axes);
+
                 placedRef.current = true;
                 setHint(""); // hide hint
+
                 if (id) {
                     setLoadingScene(true);
                     try {
-                        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/published/${id}`);
+                        const url = `${import.meta.env.VITE_API_URL}/api/published/${id}`;
+                        console.log("[ARPlane] Fetching:", url);
+                        const res = await fetch(url);
                         const data = await res.json();
-                        if (res.ok && data?.publishedScene?.length) {
-                            await addPublishedSceneToAnchor(data.publishedScene, anchorGroup);
+                        console.log("[ARPlane] API response:", data);
+
+                        const items = data?.publishedScene;
+                        if (Array.isArray(items)) {
+                            const loadedCount = await addPublishedSceneToAnchor(items, anchorGroup);
+                            console.log(`[ARPlane] Loaded ${loadedCount} supported items (model/image).`);
+
+                            // Safety: if nothing loaded, drop a debug cube so you know placement worked
+                            if (loadedCount === 0) {
+                                console.warn("[ARPlane] No supported items found (model/image). Dropping a debug cube.");
+                                const cube = new THREE.Mesh(
+                                    new THREE.BoxGeometry(0.2, 0.2, 0.2),
+                                    new THREE.MeshNormalMaterial()
+                                );
+                                cube.position.set(0, 0.1, 0);
+                                anchorGroup.add(cube);
+                                setHint("No models/images in this project (yet).");
+                            }
                         } else {
-                            console.warn("No publishedScene found for id:", id, data);
+                            console.warn("[ARPlane] 'publishedScene' missing/invalid. Dropping a debug cube.");
+                            const cube = new THREE.Mesh(
+                                new THREE.BoxGeometry(0.2, 0.2, 0.2),
+                                new THREE.MeshNormalMaterial()
+                            );
+                            cube.position.set(0, 0.1, 0);
+                            anchorGroup.add(cube);
+                            setHint("No publishedScene in API response.");
                         }
                     } catch (err) {
                         console.error("Failed to fetch published scene:", err);
+                        setHint("Failed to fetch scene (see console).");
                     } finally {
                         setLoadingScene(false);
                     }
                 } else {
                     console.warn("No :id provided in route. Use /ar-plane/<projectId>");
+                    setHint("Missing project id in URL.");
                 }
                 return;
             }
 
-            // (Optional) Later in Step 3, we can reposition the group here.
-            // For now, do nothing on subsequent taps.
+            // (Step 3 later): re-tap to reposition anchorGroup if you want
         }
+
 
         controller1.addEventListener("select", onSelect);
         controller2.addEventListener("select", onSelect);
@@ -241,31 +277,43 @@ export default function ARPlane() {
     }
 
     async function addPublishedSceneToAnchor(items, anchorGroup) {
-        // Minimal support: model + image
+        let loaded = 0;
+
         for (const item of items) {
             try {
                 if (item?.visible === false) continue;
+
                 if (item?.type === "model" && item?.url) {
+                    if (item.url.toLowerCase().endsWith(".zip")) {
+                        console.warn(`[ARPlane] Skipping ZIP model for now (not supported directly): ${item.url}`);
+                        continue;
+                    }
                     await addModel(anchorGroup, item);
+                    loaded++;
                 } else if (item?.type === "image" && item?.url) {
                     await addImage(anchorGroup, item);
+                    loaded++;
+                } else {
+                    // Not supported yet in step 2
+                    // console.log("[ARPlane] Skipping non-supported item:", item?.type, item?.id || item?.name);
                 }
-                // Other types (text/labels/quiz/buttons) will come in later steps.
             } catch (e) {
                 console.warn("Failed to add item:", item?.id || item?.name || item, e);
             }
         }
+
+        return loaded;
     }
 
     async function addModel(parent, item) {
         const gltfLoader = gltfLoaderRef.current;
         if (!gltfLoader) return;
 
+        console.log("[ARPlane] Loading GLTF:", item.url);
         const gltf = await gltfLoader.loadAsync(item.url);
         const root = gltf.scene || gltf.scenes?.[0];
         if (!root) return;
 
-        // Optional: set cast/receive shadow per your pipeline
         root.traverse((o) => {
             if (o.isMesh) {
                 o.castShadow = false;
@@ -275,26 +323,20 @@ export default function ARPlane() {
 
         applyTransformFromItem(root, item.transform);
         parent.add(root);
-
-        // (Step 4 later): set up mixers for animations if gltf.animations?.length
-        // const mixer = new THREE.AnimationMixer(root); ...
     }
 
     async function addImage(parent, item) {
         const textureLoader = textureLoaderRef.current;
         if (!textureLoader) return;
 
+        console.log("[ARPlane] Loading image:", item.url);
         const tex = await textureLoader.loadAsync(item.url);
         tex.colorSpace = THREE.SRGBColorSpace;
 
-        // Make a unit plane and scale via transform (so authoring scale is respected)
         const geom = new THREE.PlaneGeometry(1, 1);
-        // Keep alpha if PNG
         const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
         const mesh = new THREE.Mesh(geom, mat);
 
-        // If you’d like to keep image aspect automatically when no scale provided:
-        // If transform.scale is missing or [1,1,1], scale to image aspect.
         const hasCustomScale =
             item?.transform?.scale && Array.isArray(item.transform.scale) && item.transform.scale.some((v) => v !== 1);
         if (!hasCustomScale && tex.image && tex.image.width && tex.image.height) {
@@ -305,6 +347,7 @@ export default function ARPlane() {
         applyTransformFromItem(mesh, item.transform);
         parent.add(mesh);
     }
+
 
     return (
         <>
