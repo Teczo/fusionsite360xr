@@ -38,13 +38,12 @@ function runActions(actions, setSceneData, navigateToProject) {
     });
 }
 
+// -------------------- Viewer --------------------
+
 export default function ARViewer() {
     const { id } = useParams();
     const [sceneData, setSceneData] = useState([]);
     const [isAR, setIsAR] = useState(false);
-    const [placed, setPlaced] = useState(false); // <-- new
-    const [loadingScene, setLoadingScene] = useState(false); // optional nice-to-have
-
     const userGroupRef = useRef();
 
     // Anchor group: the whole scene is a child of this node, driven by anchor pose
@@ -57,43 +56,20 @@ export default function ARViewer() {
     };
 
     useEffect(() => {
-        const g = anchorGroupRef.current;
-        if (!g) return;
-        if (isAR) {
-            g.matrixAutoUpdate = false;   // AR: driven by anchor pose
-        } else {
-            g.matrixAutoUpdate = true;    // Desktop: let Three.js update normally
-            g.position.set(0, 0, 0);
-            g.quaternion.set(0, 0, 0, 1);
-            g.scale.set(1, 1, 1);
-            g.updateMatrix();
-            g.updateMatrixWorld(true);
-        }
-    }, [isAR]);
-
-
-    // Fetch the scene ONLY after the user places the anchor the first time
-    useEffect(() => {
-        let cancelled = false;
         const fetchScene = async () => {
-            if (!placed || !id) return;
             try {
-                setLoadingScene(true);
                 const res = await fetch(`${import.meta.env.VITE_API_URL}/api/published/${id}`);
                 const data = await res.json();
-                console.log('📦 AR Scene Data (after placement):', data);
-                if (!cancelled && res.ok && data.publishedScene) {
+                console.log('📦 AR Scene Data:', data);
+                if (res.ok && data.publishedScene) {
                     setSceneData(data.publishedScene);
                 }
             } catch (err) {
                 console.error('Failed to load published scene', err);
-            } finally {
-                setLoadingScene(false);
             }
         };
         fetchScene();
-        return () => { cancelled = true; };
-    }, [placed, id]);
+    }, [id]);
 
     // Update anchorGroup from anchor each frame (called by controller)
     const handleAnchorPoseMatrix = useCallback((frame, xrRefSpace) => {
@@ -137,56 +113,10 @@ export default function ARViewer() {
             // No anchor support -> store static placement
             fallbackPoseMatrixRef.current = new Float32Array(poseMatrix);
         }
-
-        // Mark as placed (first time triggers the fetch)
-        if (!placed) setPlaced(true);
-    }, [placed]);
+    }, []);
 
     return (
         <div className="w-screen h-screen touch-none select-none">
-            {/* Simple placement / loading UI using DOM overlay */}
-            <div
-                style={{
-                    position: 'fixed',
-                    inset: 0,
-                    pointerEvents: 'none',
-                    display: isAR ? 'block' : 'none',
-                    fontFamily: 'system-ui, sans-serif'
-                }}
-            >
-                {!placed && (
-                    <div style={{ position: 'absolute', left: 0, right: 0, bottom: 24, textAlign: 'center' }}>
-                        <div
-                            style={{
-                                display: 'inline-block',
-                                background: 'rgba(0,0,0,0.6)',
-                                color: '#fff',
-                                padding: '10px 14px',
-                                borderRadius: 12,
-                                pointerEvents: 'auto'
-                            }}
-                        >
-                            Move your phone to find a surface, then tap to place.
-                        </div>
-                    </div>
-                )}
-                {placed && loadingScene && (
-                    <div style={{ position: 'absolute', left: 0, right: 0, bottom: 24, textAlign: 'center' }}>
-                        <div
-                            style={{
-                                display: 'inline-block',
-                                background: 'rgba(0,0,0,0.6)',
-                                color: '#fff',
-                                padding: '10px 14px',
-                                borderRadius: 12
-                            }}
-                        >
-                            Loading scene…
-                        </div>
-                    </div>
-                )}
-            </div>
-
             <Canvas
                 camera={{ position: [0, 1.6, 10], fov: 70 }}  // push desktop preview camera back
                 onCreated={({ gl }) => {
@@ -207,9 +137,6 @@ export default function ARViewer() {
                             currentAnchorRef.current = null;
                         }
                         fallbackPoseMatrixRef.current = null;
-                        // Reset placement state so next AR session asks to place again
-                        setPlaced(false);
-                        setSceneData([]);
                     });
 
                     // Create AR button with the right features
@@ -238,21 +165,20 @@ export default function ARViewer() {
                     onTapPlace={handleTapPlace}
                 />
 
-                {/* Anchor-driven root (matrix updated from anchor/pose per frame) */}
-                <group ref={anchorGroupRef} >
-                    {/* Only enable gestures and render the scene AFTER placement */}
-                    {isAR && placed && (
-                        <ARGestureControls
-                            enabled={true}
-                            targetRef={userGroupRef}
-                            minScale={0.1}
-                            maxScale={8}
-                            rotateSpeed={0.006}
-                        />
-                    )}
+                {isAR && (
+                    <ARGestureControls
+                        enabled={true}
+                        targetRef={userGroupRef}
+                        minScale={0.1}
+                        maxScale={8}
+                        rotateSpeed={0.006}
+                    />
+                )}
 
-                    <group ref={userGroupRef} visible={placed}>
-                        {placed && sceneData.map((item) => {
+                {/* Anchor-driven root (matrix updated from anchor/pose per frame) */}
+                <group ref={anchorGroupRef} matrixAutoUpdate={false}>
+                    <group ref={userGroupRef}>
+                        {sceneData.map((item) => {
                             if (item.visible === false) return null;
 
                             if (item.type === 'model') {
