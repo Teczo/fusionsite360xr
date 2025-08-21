@@ -56,6 +56,22 @@ export default function ARViewer() {
         window.location.href = `/ar/${projectId}`;
     };
 
+    useEffect(() => {
+        const g = anchorGroupRef.current;
+        if (!g) return;
+        if (isAR) {
+            g.matrixAutoUpdate = false;   // AR: driven by anchor pose
+        } else {
+            g.matrixAutoUpdate = true;    // Desktop: let Three.js update normally
+            g.position.set(0, 0, 0);
+            g.quaternion.set(0, 0, 0, 1);
+            g.scale.set(1, 1, 1);
+            g.updateMatrix();
+            g.updateMatrixWorld(true);
+        }
+    }, [isAR]);
+
+
     // Fetch the scene ONLY after the user places the anchor the first time
     useEffect(() => {
         let cancelled = false;
@@ -223,7 +239,7 @@ export default function ARViewer() {
                 />
 
                 {/* Anchor-driven root (matrix updated from anchor/pose per frame) */}
-                <group ref={anchorGroupRef} matrixAutoUpdate={false}>
+                <group ref={anchorGroupRef} >
                     {/* Only enable gestures and render the scene AFTER placement */}
                     {isAR && placed && (
                         <ARGestureControls
