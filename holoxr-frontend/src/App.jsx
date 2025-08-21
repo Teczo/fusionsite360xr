@@ -23,7 +23,7 @@ export default function App() {
         <Route path="/signin" element={<SignInPage />} />
         <Route path="/ar/:id" element={<ARViewer />} />
         <Route path="/ar-marker/:id" element={<ARMarkerViewer />} />
-        <Route path="/ar-plane" element={<ARPlane />} />
+        <Route path="/ar-plane/:id" element={<ARPlane />} />
         {/* Auth-protected */}
 
         <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />
