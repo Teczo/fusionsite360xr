@@ -8,30 +8,31 @@ import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { unzipSync } from "fflate";
 
 export default function ARPlane() {
-    const { id } = useParams(); // project id
+    const { id } = useParams(); // /ar-plane/:id
     const containerRef = useRef(null);
 
-    // Three.js refs
+    // three
     const rendererRef = useRef(null);
     const sceneRef = useRef(null);
     const cameraRef = useRef(null);
+
     const reticleRef = useRef(null);
     const controller1Ref = useRef(null);
     const controller2Ref = useRef(null);
 
-    // Hit-test state
+    // xr hit-test
     const hitTestSourceRef = useRef(null);
     const hitTestRequestedRef = useRef(false);
 
-    // Anchor root for the whole scene (set on first tap)
+    // anchor root
     const anchorGroupRef = useRef(null);
     const placedRef = useRef(false);
 
-    // Loaders
+    // loaders
     const gltfLoaderRef = useRef(null);
     const textureLoaderRef = useRef(null);
 
-    // Mixers for possible future animations (Step 4)
+    // animations (future step)
     const mixersRef = useRef([]);
 
     const [loadingScene, setLoadingScene] = useState(false);
@@ -40,7 +41,7 @@ export default function ARPlane() {
     useEffect(() => {
         const container = containerRef.current;
 
-        // --- Scene / Camera ---
+        // scene + camera
         const scene = new THREE.Scene();
         sceneRef.current = scene;
 
@@ -51,13 +52,13 @@ export default function ARPlane() {
         light.position.set(0.5, 1, 0.25);
         scene.add(light);
 
-        // Anchor group (content attaches here after placement)
+        // anchor root
         const anchorGroup = new THREE.Group();
-        anchorGroup.matrixAutoUpdate = false; // driven by reticle matrix when placed
+        anchorGroup.matrixAutoUpdate = false; // we’ll set its matrix from reticle when placed
         scene.add(anchorGroup);
         anchorGroupRef.current = anchorGroup;
 
-        // --- Renderer ---
+        // renderer
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -66,7 +67,7 @@ export default function ARPlane() {
         container.appendChild(renderer.domElement);
         rendererRef.current = renderer;
 
-        // --- AR Button ---
+        // AR button
         const arButton = ARButton.createButton(renderer, {
             requiredFeatures: ["hit-test"],
             optionalFeatures: ["dom-overlay"],
@@ -77,7 +78,7 @@ export default function ARPlane() {
             container.appendChild(arButton);
         }
 
-        // --- Reticle ---
+        // reticle
         const reticle = new THREE.Mesh(
             new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
             new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 })
@@ -87,18 +88,18 @@ export default function ARPlane() {
         scene.add(reticle);
         reticleRef.current = reticle;
 
-        // --- Controllers ---
+        // controllers (AR select)
         const controller1 = renderer.xr.getController(0);
         const controller2 = renderer.xr.getController(1);
-        controller1Ref.current = controller1;
-        controller2Ref.current = controller2;
         scene.add(controller1);
         scene.add(controller2);
+        controller1Ref.current = controller1;
+        controller2Ref.current = controller2;
 
-        // --- Loaders (GLTF + optional Draco, and textures) ---
+        // loaders
         const gltfLoader = new GLTFLoader();
         const draco = new DRACOLoader();
-        // Use Google’s hosted decoders (works out-of-the-box). If you host your own, change this path.
+        // quick working decoder path; swap to your own if you host
         draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
         gltfLoader.setDRACOLoader(draco);
         gltfLoaderRef.current = gltfLoader;
@@ -106,82 +107,104 @@ export default function ARPlane() {
         const textureLoader = new THREE.TextureLoader();
         textureLoaderRef.current = textureLoader;
 
-        // --- Handle AR "select" (tap) ---
+        // handle select (tap)
         async function onSelect() {
             const reticle = reticleRef.current;
             const anchorGroup = anchorGroupRef.current;
             if (!reticle || !anchorGroup || !reticle.visible) return;
 
-            // First tap -> place anchor group and fetch scene
             if (!placedRef.current) {
-                // Copy reticle pose to anchor and force world-update
+                // place anchor
                 anchorGroup.matrix.copy(reticle.matrix);
                 anchorGroup.matrixWorldNeedsUpdate = true;
                 anchorGroup.updateMatrixWorld(true);
 
-                // Optional: axis helper to visually confirm placement
-                const axes = new THREE.AxesHelper(0.3);
-                anchorGroup.add(axes);
+                // visual confirm at anchor
+                anchorGroup.add(new THREE.AxesHelper(0.3));
 
                 placedRef.current = true;
-                setHint(""); // hide hint
+                setHint("");
 
-                if (id) {
-                    setLoadingScene(true);
-                    try {
-                        const url = `${import.meta.env.VITE_API_URL}/api/published/${id}`;
-                        console.log("[ARPlane] Fetching:", url);
-                        const res = await fetch(url);
-                        const data = await res.json();
-                        console.log("[ARPlane] API response:", data);
-
-                        const items = data?.publishedScene;
-                        if (Array.isArray(items)) {
-                            const loadedCount = await addPublishedSceneToAnchor(items, anchorGroup);
-                            console.log(`[ARPlane] Loaded ${loadedCount} supported items (model/image).`);
-
-                            // Safety: if nothing loaded, drop a debug cube so you know placement worked
-                            if (loadedCount === 0) {
-                                console.warn("[ARPlane] No supported items found (model/image). Dropping a debug cube.");
-                                const cube = new THREE.Mesh(
-                                    new THREE.BoxGeometry(0.2, 0.2, 0.2),
-                                    new THREE.MeshNormalMaterial()
-                                );
-                                cube.position.set(0, 0.1, 0);
-                                anchorGroup.add(cube);
-                                setHint("No models/images in this project (yet).");
-                            }
-                        } else {
-                            console.warn("[ARPlane] 'publishedScene' missing/invalid. Dropping a debug cube.");
-                            const cube = new THREE.Mesh(
-                                new THREE.BoxGeometry(0.2, 0.2, 0.2),
-                                new THREE.MeshNormalMaterial()
-                            );
-                            cube.position.set(0, 0.1, 0);
-                            anchorGroup.add(cube);
-                            setHint("No publishedScene in API response.");
-                        }
-                    } catch (err) {
-                        console.error("Failed to fetch published scene:", err);
-                        setHint("Failed to fetch scene (see console).");
-                    } finally {
-                        setLoadingScene(false);
-                    }
-                } else {
-                    console.warn("No :id provided in route. Use /ar-plane/<projectId>");
+                // fetch scene now
+                if (!id) {
+                    console.warn("[ARPlane] Missing :id in URL. Use /ar-plane/<projectId>");
                     setHint("Missing project id in URL.");
+                    return;
                 }
-                return;
+
+                setLoadingScene(true);
+                const url = `${import.meta.env.VITE_API_URL}/api/published/${id}`;
+                try {
+                    console.log("[ARPlane] Fetching:", url);
+                    const res = await fetch(url);
+                    const data = await res.json();
+                    console.log("[ARPlane] Raw API response:", data);
+
+                    // robustly extract scene array, mirroring what ARViewer expects
+                    const items = extractSceneArray(data);
+                    if (!Array.isArray(items)) {
+                        console.warn("[ARPlane] Could not find published scene array in payload.");
+                        dropDebugCube(anchorGroup);
+                        setHint("No published scene found in API response.");
+                        return;
+                    }
+
+                    console.log("[ARPlane] Scene items summary:");
+                    console.table(
+                        items.map((it) => ({
+                            id: it.id || it.name,
+                            type: it.type,
+                            url: it.url,
+                            visible: it.visible !== false,
+                            hasTransform: !!it.transform,
+                        }))
+                    );
+
+                    // only load supported types in this step
+                    const supported = items.filter(
+                        (it) => it?.visible !== false && (it?.type === "model" || it?.type === "image")
+                    );
+                    if (supported.length === 0) {
+                        console.warn("[ARPlane] No supported items of type model/image.");
+                        dropDebugCube(anchorGroup);
+                        setHint("No models/images in this project (visible=false?).");
+                        return;
+                    }
+
+                    let loaded = 0;
+                    for (const it of supported) {
+                        try {
+                            if (it.type === "model") {
+                                await addModel(anchorGroup, it);
+                                loaded++;
+                            } else if (it.type === "image") {
+                                await addImage(anchorGroup, it);
+                                loaded++;
+                            }
+                        } catch (e) {
+                            console.warn("[ARPlane] Failed to load item:", it?.id || it?.name || it, e);
+                        }
+                    }
+                    console.log(`[ARPlane] Loaded ${loaded}/${supported.length} model/image items.`);
+                    if (loaded === 0) {
+                        dropDebugCube(anchorGroup);
+                        setHint("Failed to load models/images (check console/CORS/URLs).");
+                    }
+                } catch (err) {
+                    console.error("[ARPlane] Fetch error:", err);
+                    setHint("Failed to fetch scene (see console).");
+                } finally {
+                    setLoadingScene(false);
+                }
+            } else {
+                // (Step 3 later) allow re-tap to reposition anchorGroup if you want
             }
-
-            // (Step 3 later): re-tap to reposition anchorGroup if you want
         }
-
 
         controller1.addEventListener("select", onSelect);
         controller2.addEventListener("select", onSelect);
 
-        // --- Resize ---
+        // resize
         function onWindowResize() {
             const w = window.innerWidth;
             const h = window.innerHeight;
@@ -191,10 +214,9 @@ export default function ARPlane() {
         }
         window.addEventListener("resize", onWindowResize);
 
-        // --- Animation loop with hit-test ---
+        // loop + hit-test
         const clock = new THREE.Clock();
-        renderer.setAnimationLoop((timestamp, frame) => {
-            // Update mixers if we add animations later (Step 4)
+        renderer.setAnimationLoop((_, frame) => {
             const dt = clock.getDelta();
             for (const m of mixersRef.current) m.update(dt);
 
@@ -225,11 +247,15 @@ export default function ARPlane() {
                         const hit = hitTestResults[0];
                         const pose = hit.getPose(referenceSpace);
                         if (pose) {
-                            reticle.visible = true;
-                            reticle.matrix.fromArray(pose.transform.matrix);
+                            const reticle = reticleRef.current;
+                            if (reticle) {
+                                reticle.visible = true;
+                                reticle.matrix.fromArray(pose.transform.matrix);
+                            }
                         }
                     } else {
-                        reticle.visible = false;
+                        const reticle = reticleRef.current;
+                        if (reticle) reticle.visible = false;
                     }
                 }
             }
@@ -237,7 +263,7 @@ export default function ARPlane() {
             renderer.render(scene, camera);
         });
 
-        // --- Cleanup ---
+        // cleanup
         return () => {
             window.removeEventListener("resize", onWindowResize);
             controller1.removeEventListener("select", onSelect);
@@ -261,72 +287,72 @@ export default function ARPlane() {
         };
     }, [id]);
 
-    // --- helpers ---
+    // ---------- helpers ----------
 
-    function applyTransformFromItem(obj, transform) {
-        if (!transform) return;
-        const p = transform.position ?? transform.pos ?? [0, 0, 0];
-        const r = transform.rotation ?? [0, 0, 0]; // assumed radians
-        const s = transform.scale ?? [1, 1, 1];
-
-        if (Array.isArray(p) && p.length === 3) obj.position.set(p[0], p[1], p[2]);
-        if (Array.isArray(r) && r.length === 3) obj.rotation.set(r[0], r[1], r[2]);
-        if (Array.isArray(s) && s.length === 3) obj.scale.set(s[0], s[1], s[2]);
-
-        obj.updateMatrix();
-        obj.updateMatrixWorld(true);
-    }
-
-    async function addPublishedSceneToAnchor(items, anchorGroup) {
-        let loaded = 0;
-
-        for (const item of items) {
-            try {
-                if (item?.visible === false) continue;
-
-                if (item?.type === "model" && item?.url) {
-                    if (item.url.toLowerCase().endsWith(".zip")) {
-                        console.warn(`[ARPlane] Skipping ZIP model for now (not supported directly): ${item.url}`);
-                        continue;
-                    }
-                    await addModel(anchorGroup, item);
-                    loaded++;
-                } else if (item?.type === "image" && item?.url) {
-                    await addImage(anchorGroup, item);
-                    loaded++;
-                } else {
-                    // Not supported yet in step 2
-                    // console.log("[ARPlane] Skipping non-supported item:", item?.type, item?.id || item?.name);
-                }
-            } catch (e) {
-                console.warn("Failed to add item:", item?.id || item?.name || item, e);
+    function extractSceneArray(data) {
+        // Try common shapes we’ve seen across your code
+        if (Array.isArray(data?.publishedScene)) return data.publishedScene;
+        if (Array.isArray(data?.scene)) return data.scene;
+        if (Array.isArray(data?.data?.scene)) return data.data.scene;
+        if (Array.isArray(data?.data?.publishedScene)) return data.data.publishedScene;
+        // Fallback: if API returned the whole project with `scene` field:
+        if (data && typeof data === "object") {
+            for (const key of Object.keys(data)) {
+                const v = data[key];
+                if (v && Array.isArray(v.scene)) return v.scene;
+                if (Array.isArray(v?.publishedScene)) return v.publishedScene;
             }
         }
+        return null;
+    }
 
-        return loaded;
+    function dropDebugCube(parent) {
+        const cube = new THREE.Mesh(
+            new THREE.BoxGeometry(0.2, 0.2, 0.2),
+            new THREE.MeshNormalMaterial()
+        );
+        cube.position.set(0, 0.1, 0);
+        parent.add(cube);
+    }
+
+    function applyTransform(obj, t) {
+        if (!t) {
+            obj.updateMatrix(); obj.updateMatrixWorld(true);
+            return;
+        }
+        // ARViewer uses object fields: x,y,z, rx,ry,rz, sx,sy,sz
+        const px = t.x ?? 0, py = t.y ?? 0, pz = t.z ?? 0;
+        const rx = t.rx ?? 0, ry = t.ry ?? 0, rz = t.rz ?? 0; // radians
+        const sx = t.sx ?? 1, sy = t.sy ?? 1, sz = t.sz ?? 1;
+
+        obj.position.set(px, py, pz);
+        obj.rotation.set(rx, ry, rz);
+        obj.scale.set(sx, sy, sz);
+        obj.updateMatrix();
+        obj.updateMatrixWorld(true);
     }
 
     async function addModel(parent, item) {
         const gltfLoader = gltfLoaderRef.current;
         if (!gltfLoader) return;
+        if (!item?.url) return;
 
         let srcUrl = item.url;
         let revokeUrl = null;
 
-        // Handle .zip -> find a .glb inside and make a blob URL
+        // mirror ARViewer zip logic: unzip first GLB if needed
         if (srcUrl.toLowerCase().endsWith(".zip")) {
             console.log("[ARPlane] Unzipping model:", srcUrl);
             const res = await fetch(srcUrl);
             if (!res.ok) throw new Error(`Failed to fetch zip: ${srcUrl}`);
             const ab = await res.arrayBuffer();
             const zip = unzipSync(new Uint8Array(ab));
-
-            // Prefer a single .glb file
+            // prefer single .glb
             const glbName = Object.keys(zip).find((n) => n.toLowerCase().endsWith(".glb"));
             if (!glbName) {
-                // Fallback: try .gltf (external buffers/textures are trickier; try to prefer .glb in your pipeline)
+                // if only .gltf present (external buffers not handled here) -> recommend GLB in pipeline
                 const gltfName = Object.keys(zip).find((n) => n.toLowerCase().endsWith(".gltf"));
-                if (!gltfName) throw new Error("No .glb/.gltf found inside zip");
+                if (!gltfName) throw new Error("No .glb/.gltf inside zip");
                 const gltfBlob = new Blob([zip[gltfName]], { type: "model/gltf+json" });
                 srcUrl = URL.createObjectURL(gltfBlob);
                 revokeUrl = srcUrl;
@@ -348,20 +374,33 @@ export default function ARPlane() {
             if (o.isMesh) {
                 o.castShadow = false;
                 o.receiveShadow = false;
-                // Optional gamma fix if needed:
-                // o.material && (o.material.toneMapped = true);
             }
         });
 
-        applyTransformFromItem(root, item.transform);
+        applyTransform(root, item.transform);
         parent.add(root);
         parent.updateMatrixWorld(true);
-    }
 
+        // (Optional Step 4) — autoplay animations if provided (parity with ModelItem)
+        if (Array.isArray(gltf.animations) && gltf.animations.length) {
+            const autoplay = !!item.autoplay;
+            const isPaused = !!item.isPaused;
+            const index = Number.isInteger(item.selectedAnimationIndex) ? item.selectedAnimationIndex : 0;
+
+            if (autoplay && !isPaused) {
+                const mixer = new THREE.AnimationMixer(root);
+                const clip = gltf.animations[index] || gltf.animations[0];
+                const action = mixer.clipAction(clip);
+                action.play();
+                mixersRef.current.push(mixer);
+            }
+        }
+    }
 
     async function addImage(parent, item) {
         const textureLoader = textureLoaderRef.current;
         if (!textureLoader) return;
+        if (!item?.url) return;
 
         console.log("[ARPlane] Loading image:", item.url);
         const tex = await textureLoader.loadAsync(item.url);
@@ -371,21 +410,14 @@ export default function ARPlane() {
         const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
         const mesh = new THREE.Mesh(geom, mat);
 
-        const hasCustomScale =
-            item?.transform?.scale && Array.isArray(item.transform.scale) && item.transform.scale.some((v) => v !== 1);
-        if (!hasCustomScale && tex.image && tex.image.width && tex.image.height) {
-            const aspect = tex.image.width / tex.image.height;
-            mesh.scale.set(aspect, 1, 1);
-        }
-
-        applyTransformFromItem(mesh, item.transform);
+        // respect authored scale if provided; otherwise keep 1x1 (you handle aspect in studio)
+        applyTransform(mesh, item.transform);
         parent.add(mesh);
+        parent.updateMatrixWorld(true);
     }
-
 
     return (
         <>
-            {/* Canvas container */}
             <div
                 ref={containerRef}
                 style={{
@@ -397,7 +429,6 @@ export default function ARPlane() {
                     background: "transparent",
                 }}
             />
-            {/* Simple DOM overlay hint */}
             {hint && (
                 <div
                     style={{
