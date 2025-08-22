@@ -1,4 +1,3 @@
-// src/pages/ARPlane.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import * as THREE from "three";
@@ -32,8 +31,16 @@ export default function ARPlane() {
     const gltfLoaderRef = useRef(null);
     const textureLoaderRef = useRef(null);
 
-    // animations (future step)
-    const mixersRef = useRef([]);
+    // animations
+    const mixersRef = useRef([]);                 // update each frame
+    const animMapRef = useRef(new Map());         // id -> { mixer, clips, actionsByIndex, currentAction, currentIndex, root }
+    const itemIndexRef = useRef(new Map());       // id -> original item (to read selectedAnimationIndex)
+
+    // interactions
+    const interactiveRef = useRef([]);            // clickable meshes/groups
+    const objectIndexRef = useRef(new Map());     // id -> Object3D
+    const raycasterRef = useRef(new THREE.Raycaster());
+    const lastTapNDCRef = useRef(null);           // normalized device coords
 
     const [loadingScene, setLoadingScene] = useState(false);
     const [hint, setHint] = useState("Move your phone to find a surface, then tap to place.");
@@ -54,7 +61,7 @@ export default function ARPlane() {
 
         // anchor root
         const anchorGroup = new THREE.Group();
-        anchorGroup.matrixAutoUpdate = false; // we’ll set its matrix from reticle when placed
+        anchorGroup.matrixAutoUpdate = false; // driven by reticle on placement
         scene.add(anchorGroup);
         anchorGroupRef.current = anchorGroup;
 
@@ -66,6 +73,20 @@ export default function ARPlane() {
         renderer.domElement.style.touchAction = "none";
         container.appendChild(renderer.domElement);
         rendererRef.current = renderer;
+
+        // capture touch (for raycast after placement)
+        const onTouchStart = (e) => {
+            if (!placedRef.current) return;
+            if (e.touches && e.touches[0]) {
+                const t = e.touches[0];
+                lastTapNDCRef.current = new THREE.Vector2(
+                    (t.clientX / window.innerWidth) * 2 - 1,
+                    -(t.clientY / window.innerHeight) * 2 + 1
+                );
+                e.preventDefault();
+            }
+        };
+        renderer.domElement.addEventListener("touchstart", onTouchStart, { passive: false });
 
         // AR button
         const arButton = ARButton.createButton(renderer, {
@@ -99,7 +120,6 @@ export default function ARPlane() {
         // loaders
         const gltfLoader = new GLTFLoader();
         const draco = new DRACOLoader();
-        // quick working decoder path; swap to your own if you host
         draco.setDecoderPath("https://www.gstatic.com/draco/v1/decoders/");
         gltfLoader.setDRACOLoader(draco);
         gltfLoaderRef.current = gltfLoader;
@@ -109,23 +129,22 @@ export default function ARPlane() {
 
         // handle select (tap)
         async function onSelect() {
-            const reticle = reticleRef.current;
+            const ret = reticleRef.current;
             const anchorGroup = anchorGroupRef.current;
-            if (!reticle || !anchorGroup || !reticle.visible) return;
+            if (!anchorGroup) return;
 
+            // First tap: place & fetch
             if (!placedRef.current) {
-                // place anchor
-                anchorGroup.matrix.copy(reticle.matrix);
+                if (!ret || !ret.visible) return;
+
+                anchorGroup.matrix.copy(ret.matrix);
                 anchorGroup.matrixWorldNeedsUpdate = true;
                 anchorGroup.updateMatrixWorld(true);
 
-                // visual confirm at anchor
-                anchorGroup.add(new THREE.AxesHelper(0.3));
-
+                anchorGroup.add(new THREE.AxesHelper(0.3)); // visual confirm
                 placedRef.current = true;
                 setHint("");
 
-                // fetch scene now
                 if (!id) {
                     console.warn("[ARPlane] Missing :id in URL. Use /ar-plane/<projectId>");
                     setHint("Missing project id in URL.");
@@ -140,7 +159,6 @@ export default function ARPlane() {
                     const data = await res.json();
                     console.log("[ARPlane] Raw API response:", data);
 
-                    // robustly extract scene array, mirroring what ARViewer expects
                     const items = extractSceneArray(data);
                     if (!Array.isArray(items)) {
                         console.warn("[ARPlane] Could not find published scene array in payload.");
@@ -160,35 +178,38 @@ export default function ARPlane() {
                         }))
                     );
 
-                    // only load supported types in this step
+                    // Support: model/image/text/button (labels/quiz later)
                     const supported = items.filter(
-                        (it) => it?.visible !== false && (it?.type === "model" || it?.type === "image")
+                        (it) =>
+                            it?.visible !== false &&
+                            (it?.type === "model" || it?.type === "image" || it?.type === "text" || it?.type === "button")
                     );
-                    if (supported.length === 0) {
-                        console.warn("[ARPlane] No supported items of type model/image.");
-                        dropDebugCube(anchorGroup);
-                        setHint("No models/images in this project (visible=false?).");
-                        return;
-                    }
 
                     let loaded = 0;
                     for (const it of supported) {
                         try {
+                            itemIndexRef.current.set(it.id, it);
                             if (it.type === "model") {
                                 await addModel(anchorGroup, it);
                                 loaded++;
                             } else if (it.type === "image") {
                                 await addImage(anchorGroup, it);
                                 loaded++;
+                            } else if (it.type === "text") {
+                                await addText(anchorGroup, it);
+                                loaded++;
+                            } else if (it.type === "button") {
+                                await addButton(anchorGroup, it);
+                                loaded++;
                             }
                         } catch (e) {
                             console.warn("[ARPlane] Failed to load item:", it?.id || it?.name || it, e);
                         }
                     }
-                    console.log(`[ARPlane] Loaded ${loaded}/${supported.length} model/image items.`);
+                    console.log(`[ARPlane] Loaded ${loaded}/${supported.length} items.`);
                     if (loaded === 0) {
                         dropDebugCube(anchorGroup);
-                        setHint("Failed to load models/images (check console/CORS/URLs).");
+                        setHint("Failed to load items (check console/CORS/URLs).");
                     }
                 } catch (err) {
                     console.error("[ARPlane] Fetch error:", err);
@@ -196,8 +217,24 @@ export default function ARPlane() {
                 } finally {
                     setLoadingScene(false);
                 }
-            } else {
-                // (Step 3 later) allow re-tap to reposition anchorGroup if you want
+                return;
+            }
+
+            // After placement: treat tap as interaction (raycast)
+            const cam = cameraRef.current;
+            const ndc = lastTapNDCRef.current || new THREE.Vector2(0, 0); // center fallback
+            const raycaster = raycasterRef.current;
+            raycaster.setFromCamera(ndc, cam);
+
+            const hits = raycaster.intersectObjects(interactiveRef.current, true);
+            if (hits.length) {
+                const hit = hits[0].object;
+                // walk up to button root if needed
+                let node = hit;
+                while (node && !node.userData?.buttonRoot) node = node.parent;
+                const root = node || hit;
+                const item = root.userData?.item;
+                if (item) handleButtonPress(item);
             }
         }
 
@@ -236,6 +273,10 @@ export default function ARPlane() {
                         hitTestSourceRef.current = null;
                         placedRef.current = false;
                         setHint("Move your phone to find a surface, then tap to place.");
+                        interactiveRef.current = [];
+                        objectIndexRef.current.clear();
+                        animMapRef.current.clear();
+                        itemIndexRef.current.clear();
                     });
 
                     hitTestRequestedRef.current = true;
@@ -247,15 +288,15 @@ export default function ARPlane() {
                         const hit = hitTestResults[0];
                         const pose = hit.getPose(referenceSpace);
                         if (pose) {
-                            const reticle = reticleRef.current;
-                            if (reticle) {
-                                reticle.visible = true;
-                                reticle.matrix.fromArray(pose.transform.matrix);
+                            const ret = reticleRef.current;
+                            if (ret) {
+                                ret.visible = true;
+                                ret.matrix.fromArray(pose.transform.matrix);
                             }
                         }
                     } else {
-                        const reticle = reticleRef.current;
-                        if (reticle) reticle.visible = false;
+                        const ret = reticleRef.current;
+                        if (ret) ret.visible = false;
                     }
                 }
             }
@@ -268,6 +309,7 @@ export default function ARPlane() {
             window.removeEventListener("resize", onWindowResize);
             controller1.removeEventListener("select", onSelect);
             controller2.removeEventListener("select", onSelect);
+            renderer.domElement.removeEventListener("touchstart", onTouchStart);
 
             renderer.setAnimationLoop(null);
             const canvas = renderer.domElement;
@@ -290,12 +332,10 @@ export default function ARPlane() {
     // ---------- helpers ----------
 
     function extractSceneArray(data) {
-        // Try common shapes we’ve seen across your code
         if (Array.isArray(data?.publishedScene)) return data.publishedScene;
         if (Array.isArray(data?.scene)) return data.scene;
         if (Array.isArray(data?.data?.scene)) return data.data.scene;
         if (Array.isArray(data?.data?.publishedScene)) return data.data.publishedScene;
-        // Fallback: if API returned the whole project with `scene` field:
         if (data && typeof data === "object") {
             for (const key of Object.keys(data)) {
                 const v = data[key];
@@ -320,7 +360,6 @@ export default function ARPlane() {
             obj.updateMatrix(); obj.updateMatrixWorld(true);
             return;
         }
-        // ARViewer uses object fields: x,y,z, rx,ry,rz, sx,sy,sz
         const px = t.x ?? 0, py = t.y ?? 0, pz = t.z ?? 0;
         const rx = t.rx ?? 0, ry = t.ry ?? 0, rz = t.rz ?? 0; // radians
         const sx = t.sx ?? 1, sy = t.sy ?? 1, sz = t.sz ?? 1;
@@ -332,25 +371,125 @@ export default function ARPlane() {
         obj.updateMatrixWorld(true);
     }
 
+    function handleButtonPress(item) {
+        const actions = item?.interactions || [];
+        for (const act of actions) {
+            if (!act?.type) continue;
+
+            if (act.type === "toggleVisibility" && act.targetId) {
+                toggleVisibilityById(act.targetId);
+
+            } else if (act.type === "changeProject" && act.projectId) {
+                window.location.href = `/ar-plane/${act.projectId}`;
+
+            } else if (act.type === "playPauseAnimation" && act.targetId) {
+                // mode: "play" | "pause" | undefined (toggle)
+                const mode = act.mode;
+                const clipIndexFromAction = Number.isInteger(act.index) ? act.index : undefined;
+                playPauseAnimationById(act.targetId, mode, clipIndexFromAction);
+            }
+
+            // (add more: openClosePanel, etc.)
+        }
+    }
+
+    function toggleVisibilityById(targetId) {
+        const obj = objectIndexRef.current.get(targetId);
+        if (obj) {
+            obj.visible = !obj.visible;
+            obj.updateMatrixWorld(true);
+        } else {
+            console.warn("[ARPlane] toggleVisibility: no object found for id", targetId);
+        }
+    }
+
+    function ensureActionForIndex(animator, index) {
+        animator.actionsByIndex ||= [];
+        let action = animator.actionsByIndex[index];
+        if (!action) {
+            action = animator.mixer.clipAction(animator.clips[index], animator.root);
+            animator.actionsByIndex[index] = action;
+        }
+        return action;
+    }
+
+    function playPauseAnimationById(targetId, mode, idxOverride) {
+        const animator = animMapRef.current.get(targetId);
+        if (!animator) {
+            console.warn("[ARPlane] playPauseAnimation: no animator found for id", targetId);
+            return;
+        }
+        if (!animator.clips?.length) {
+            console.warn("[ARPlane] playPauseAnimation: animator has no clips", targetId);
+            return;
+        }
+
+        // Decide which index to use: action override -> item.selectedAnimationIndex -> 0
+        let index = idxOverride;
+        if (!Number.isInteger(index)) {
+            const item = itemIndexRef.current.get(targetId);
+            index = Number.isInteger(item?.selectedAnimationIndex) ? item.selectedAnimationIndex : 0;
+        }
+        index = Math.max(0, Math.min(animator.clips.length - 1, index));
+
+        const action = ensureActionForIndex(animator, index);
+
+        // If switching clips, stop previous
+        if (animator.currentAction && animator.currentAction !== action) {
+            animator.currentAction.stop();
+        }
+
+        if (mode === "play") {
+            action.paused = false;
+            action.play();
+            animator.currentAction = action;
+            animator.currentIndex = index;
+            return;
+        }
+        if (mode === "pause") {
+            // If never played, start then immediately pause for consistent state
+            action.play();
+            action.paused = true;
+            animator.currentAction = action;
+            animator.currentIndex = index;
+            return;
+        }
+
+        // toggle
+        // If never played before, start it
+        if (!animator.currentAction) {
+            action.paused = false;
+            action.play();
+            animator.currentAction = action;
+            animator.currentIndex = index;
+            return;
+        }
+
+        // Flip paused state
+        const target = action;
+        target.paused = !target.paused;
+        if (!target.paused) target.play();
+        animator.currentAction = target;
+        animator.currentIndex = index;
+    }
+
     async function addModel(parent, item) {
         const gltfLoader = gltfLoaderRef.current;
-        if (!gltfLoader) return;
-        if (!item?.url) return;
+        if (!gltfLoader || !item?.url) return;
 
         let srcUrl = item.url;
         let revokeUrl = null;
 
-        // mirror ARViewer zip logic: unzip first GLB if needed
+        // .zip -> .glb/.gltf blob
         if (srcUrl.toLowerCase().endsWith(".zip")) {
             console.log("[ARPlane] Unzipping model:", srcUrl);
             const res = await fetch(srcUrl);
             if (!res.ok) throw new Error(`Failed to fetch zip: ${srcUrl}`);
             const ab = await res.arrayBuffer();
             const zip = unzipSync(new Uint8Array(ab));
-            // prefer single .glb
+
             const glbName = Object.keys(zip).find((n) => n.toLowerCase().endsWith(".glb"));
             if (!glbName) {
-                // if only .gltf present (external buffers not handled here) -> recommend GLB in pipeline
                 const gltfName = Object.keys(zip).find((n) => n.toLowerCase().endsWith(".gltf"));
                 if (!gltfName) throw new Error("No .glb/.gltf inside zip");
                 const gltfBlob = new Blob([zip[gltfName]], { type: "model/gltf+json" });
@@ -378,29 +517,54 @@ export default function ARPlane() {
         });
 
         applyTransform(root, item.transform);
+        root.userData.id = item.id;
         parent.add(root);
         parent.updateMatrixWorld(true);
 
-        // (Optional Step 4) — autoplay animations if provided (parity with ModelItem)
-        if (Array.isArray(gltf.animations) && gltf.animations.length) {
-            const autoplay = !!item.autoplay;
-            const isPaused = !!item.isPaused;
-            const index = Number.isInteger(item.selectedAnimationIndex) ? item.selectedAnimationIndex : 0;
+        objectIndexRef.current.set(item.id, root);
 
-            if (autoplay && !isPaused) {
-                const mixer = new THREE.AnimationMixer(root);
-                const clip = gltf.animations[index] || gltf.animations[0];
-                const action = mixer.clipAction(clip);
+        // Animation setup (play/pause support)
+        if (Array.isArray(gltf.animations) && gltf.animations.length) {
+            const mixer = new THREE.AnimationMixer(root);
+            mixersRef.current.push(mixer);
+
+            const animator = {
+                mixer,
+                clips: gltf.animations,
+                actionsByIndex: [],
+                currentAction: null,
+                currentIndex: -1,
+                root
+            };
+            animMapRef.current.set(item.id, animator);
+
+            // Autoplay if requested and not paused
+            const autoplay = !!item.autoplay;
+            const initiallyPaused = !!item.isPaused;
+            const initialIndex = Number.isInteger(item.selectedAnimationIndex) ? item.selectedAnimationIndex : 0;
+
+            if (autoplay && !initiallyPaused) {
+                const idx = Math.max(0, Math.min(animator.clips.length - 1, initialIndex));
+                const action = ensureActionForIndex(animator, idx);
+                action.paused = false;
                 action.play();
-                mixersRef.current.push(mixer);
+                animator.currentAction = action;
+                animator.currentIndex = idx;
+            } else if (autoplay && initiallyPaused) {
+                // Prepare action but keep it paused
+                const idx = Math.max(0, Math.min(animator.clips.length - 1, initialIndex));
+                const action = ensureActionForIndex(animator, idx);
+                action.play();
+                action.paused = true;
+                animator.currentAction = action;
+                animator.currentIndex = idx;
             }
         }
     }
 
     async function addImage(parent, item) {
         const textureLoader = textureLoaderRef.current;
-        if (!textureLoader) return;
-        if (!item?.url) return;
+        if (!textureLoader || !item?.url) return;
 
         console.log("[ARPlane] Loading image:", item.url);
         const tex = await textureLoader.loadAsync(item.url);
@@ -410,10 +574,87 @@ export default function ARPlane() {
         const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
         const mesh = new THREE.Mesh(geom, mat);
 
-        // respect authored scale if provided; otherwise keep 1x1 (you handle aspect in studio)
         applyTransform(mesh, item.transform);
+        mesh.userData.id = item.id;
         parent.add(mesh);
         parent.updateMatrixWorld(true);
+
+        objectIndexRef.current.set(item.id, mesh);
+    }
+
+    function makeTextTexture(text, color = "#ffffff", px = 64) {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        const padding = 24;
+        ctx.font = `bold ${px}px system-ui, -apple-system, Segoe UI, Roboto, sans-serif`;
+        const metrics = ctx.measureText(text || "");
+        const width = Math.ceil(metrics.width) + padding * 2;
+        const height = Math.ceil(px * 1.6) + padding * 2;
+        canvas.width = Math.max(2, width);
+        canvas.height = Math.max(2, height);
+
+        const ctx2 = canvas.getContext("2d");
+        ctx2.font = `bold ${px}px system-ui, -apple-system, Segoe UI, Roboto, sans-serif`;
+        ctx2.fillStyle = color;
+        ctx2.textBaseline = "middle";
+        ctx2.textAlign = "left";
+        ctx2.fillText(text || "", padding, canvas.height / 2);
+
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        return { tex, width: canvas.width, height: canvas.height };
+    }
+
+    async function addText(parent, item) {
+        const content = item.content || item.name || "Text";
+        const color = item.color || "#ffffff";
+        const px = Math.max(24, Math.round((item.fontSize || 0.12) * 280));
+
+        const { tex, width, height } = makeTextTexture(content, color, px);
+        const aspect = width / height;
+        const geom = new THREE.PlaneGeometry(1, 1 / aspect);
+        const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
+        const mesh = new THREE.Mesh(geom, mat);
+
+        applyTransform(mesh, item.transform);
+        mesh.userData.id = item.id;
+        parent.add(mesh);
+        parent.updateMatrixWorld(true);
+
+        objectIndexRef.current.set(item.id, mesh);
+    }
+
+    async function addButton(parent, item) {
+        const group = new THREE.Group();
+
+        const body = new THREE.Mesh(
+            new THREE.BoxGeometry(0.40, 0.12, 0.02),
+            new THREE.MeshStandardMaterial({ color: "#2563eb", roughness: 0.8, metalness: 0.0 })
+        );
+        body.position.set(0, 0, 0);
+        body.userData.buttonRoot = true;
+        group.add(body);
+
+        const labelText = item.name || "Button";
+        const { tex, width, height } = makeTextTexture(labelText, "#ffffff", 56);
+        const label = new THREE.Mesh(
+            new THREE.PlaneGeometry(0.36, 0.36 * (height / width)),
+            new THREE.MeshBasicMaterial({ map: tex, transparent: true })
+        );
+        label.position.set(0, 0, 0.012);
+        label.userData.buttonRoot = true;
+        group.add(label);
+
+        group.userData.item = item;       // for actions
+        group.userData.buttonRoot = true;
+        applyTransform(group, item.transform);
+        group.userData.id = item.id;
+
+        parent.add(group);
+        parent.updateMatrixWorld(true);
+
+        objectIndexRef.current.set(item.id, group);
+        interactiveRef.current.push(group);
     }
 
     return (
