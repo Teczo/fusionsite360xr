@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { ARButton } from "three/examples/jsm/webxr/ARButton.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
+import { unzipSync } from "fflate";
 
 export default function ARPlane() {
     const { id } = useParams(); // project id
@@ -309,8 +310,37 @@ export default function ARPlane() {
         const gltfLoader = gltfLoaderRef.current;
         if (!gltfLoader) return;
 
-        console.log("[ARPlane] Loading GLTF:", item.url);
-        const gltf = await gltfLoader.loadAsync(item.url);
+        let srcUrl = item.url;
+        let revokeUrl = null;
+
+        // Handle .zip -> find a .glb inside and make a blob URL
+        if (srcUrl.toLowerCase().endsWith(".zip")) {
+            console.log("[ARPlane] Unzipping model:", srcUrl);
+            const res = await fetch(srcUrl);
+            if (!res.ok) throw new Error(`Failed to fetch zip: ${srcUrl}`);
+            const ab = await res.arrayBuffer();
+            const zip = unzipSync(new Uint8Array(ab));
+
+            // Prefer a single .glb file
+            const glbName = Object.keys(zip).find((n) => n.toLowerCase().endsWith(".glb"));
+            if (!glbName) {
+                // Fallback: try .gltf (external buffers/textures are trickier; try to prefer .glb in your pipeline)
+                const gltfName = Object.keys(zip).find((n) => n.toLowerCase().endsWith(".gltf"));
+                if (!gltfName) throw new Error("No .glb/.gltf found inside zip");
+                const gltfBlob = new Blob([zip[gltfName]], { type: "model/gltf+json" });
+                srcUrl = URL.createObjectURL(gltfBlob);
+                revokeUrl = srcUrl;
+            } else {
+                const glbBlob = new Blob([zip[glbName]], { type: "model/gltf-binary" });
+                srcUrl = URL.createObjectURL(glbBlob);
+                revokeUrl = srcUrl;
+            }
+        }
+
+        console.log("[ARPlane] Loading GLTF:", srcUrl);
+        const gltf = await gltfLoader.loadAsync(srcUrl);
+        if (revokeUrl) URL.revokeObjectURL(revokeUrl);
+
         const root = gltf.scene || gltf.scenes?.[0];
         if (!root) return;
 
@@ -318,12 +348,16 @@ export default function ARPlane() {
             if (o.isMesh) {
                 o.castShadow = false;
                 o.receiveShadow = false;
+                // Optional gamma fix if needed:
+                // o.material && (o.material.toneMapped = true);
             }
         });
 
         applyTransformFromItem(root, item.transform);
         parent.add(root);
+        parent.updateMatrixWorld(true);
     }
+
 
     async function addImage(parent, item) {
         const textureLoader = textureLoaderRef.current;
