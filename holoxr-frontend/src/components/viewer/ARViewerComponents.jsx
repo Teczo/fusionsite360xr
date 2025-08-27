@@ -5,11 +5,29 @@ import * as THREE from "three";
 import { unzipSync } from 'fflate';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { Text } from '@react-three/drei';
+import { BehaviorRunner } from "../Studio/studioComponents";
 
-export function ModelItem({ url, transform, selectedAnimationIndex = 0, autoplay = false, isPaused = false }) {
+export function ModelItem({
+    id,
+    url,
+    transform,
+    selectedAnimationIndex = 0,
+    autoplay = false,
+    isPaused = false,
+    behaviors = [],
+    registerRef,          // new
+    getObjectRefById      // new
+}) {
+    const containerRef = useRef();          // new: wrapper node to be animated
     const mixerRef = useRef();
     const [scene, setScene] = useState(null);
     const [animations, setAnimations] = useState([]);
+
+    useEffect(() => {
+        // register/unregister this object for orbit targets
+        registerRef?.(id, containerRef);
+        return () => registerRef?.(id, null);
+    }, [id, registerRef]);
 
     useEffect(() => {
         if (!url) return;
@@ -60,11 +78,20 @@ export function ModelItem({ url, transform, selectedAnimationIndex = 0, autoplay
     const t = transform || {};
     return (
         <group
+            ref={containerRef}                               // animate this wrapper
             position={[t.x || 0, t.y || 0, t.z || 0]}
             rotation={[t.rx || 0, t.ry || 0, t.rz || 0]}
             scale={[t.sx || 1, t.sy || 1, t.sz || 1]}
         >
             <primitive object={scene} />
+
+            {/* 🔥 Add behavior runner so this model can rotate/orbit/translate in AR */}
+            <BehaviorRunner
+                targetRef={containerRef}
+                behaviors={behaviors}
+                getObjectRefById={getObjectRefById}
+                paused={isPaused}
+            />
         </group>
     );
 }

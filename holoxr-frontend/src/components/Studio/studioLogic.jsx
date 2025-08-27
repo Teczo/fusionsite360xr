@@ -331,3 +331,46 @@ export async function handlePublishProject(projectId, sceneModels) {
         return false;
     }
 }
+
+// ---------- Animations API (project scope & per-object) ----------
+export async function fetchProjectAnimations(projectId) {
+    const token = localStorage.getItem("token");
+    if (!projectId || !token) return {};
+    try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/animations?projectId=${projectId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return {};
+        const list = await res.json(); // [{ _id, projectId, objectId, enabled, behaviors, ... }]
+        const byId = {};
+        list.forEach((a) => { byId[a.objectId] = a; });
+        return byId;
+    } catch (e) {
+        console.warn("fetchProjectAnimations error:", e);
+        return {};
+    }
+}
+
+export async function upsertObjectAnimation(projectId, objectId, payload) {
+    const token = localStorage.getItem("token");
+    if (!projectId || !objectId || !token) return null;
+    try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/animations`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ projectId, objectId, ...payload }),
+        });
+        if (!res.ok) {
+            console.warn("upsertObjectAnimation failed:", await res.text());
+            return null;
+        }
+        return await res.json();
+    } catch (e) {
+        console.warn("upsertObjectAnimation error:", e);
+        return null;
+    }
+}
+

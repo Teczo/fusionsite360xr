@@ -27,6 +27,7 @@ import { useLocation } from "react-router-dom";
 import {
     loadProjectData,
     initializeModelLoading,
+    fetchProjectAnimations,
     handleLibraryItemSelect as addFromLibrary,
     updateModelTransform as updateXform,
     updateModelProps as updateProps,
@@ -68,6 +69,7 @@ async function uploadProjectThumbnail(projectId, token, canvasEl) {
 
 export default function StudioPage() {
     const [sceneModels, setSceneModels] = useState([]);
+    const [animByObject, setAnimByObject] = useState({});
     const [selectedModelId, setSelectedModelId] = useState(null);
     const [transformMode, setTransformMode] = useState("translate");
     const [resetSignal, setResetSignal] = useState(0);
@@ -75,6 +77,7 @@ export default function StudioPage() {
     const location = useLocation();
     const projectId = new URLSearchParams(location.search).get("id");
     const orbitRef = useRef();
+    const objectRefs = useRef(new Map());
     const [projectName, setProjectName] = useState("");
     const [showQRModal, setShowQRModal] = useState(false);
     const [isPreviewing, setIsPreviewing] = useState(false);
@@ -92,10 +95,27 @@ export default function StudioPage() {
         loadProjectData(projectId, token, setSceneModels, setProjectName);
     }, [projectId]);
 
+    // Load animation docs for this project
+    useEffect(() => {
+        (async () => {
+            if (!projectId) return;
+            const map = await fetchProjectAnimations(projectId);
+            setAnimByObject(map || {});
+        })();
+    }, [projectId]);
+
     // Load GLB/ZIP for models when scene changes
     useEffect(() => {
         initializeModelLoading(sceneModels, setSceneModels);
     }, [sceneModels]);
+
+    // Register model refs for orbit targeting
+    const registerRef = (id, ref) => {
+        if (!id) return;
+        if (ref) objectRefs.current.set(id, ref);
+        else objectRefs.current.delete(id);
+    };
+    const getObjectRefById = (id) => objectRefs.current.get(id);
 
     const onUpdateTransform = (id, updates) => updateXform(setSceneModels, id, updates);
     const onUpdateProps = (id, updatesOrFn) => updateProps(setSceneModels, id, updatesOrFn);
@@ -211,15 +231,19 @@ export default function StudioPage() {
                         return (
                             <ModelWithAnimation
                                 key={item.id}
+                                id={item.id} // NEW
                                 scene={item.scene}
                                 animations={item.animations}
                                 selectedAnimationIndex={item.selectedAnimationIndex}
                                 playAnimationKey={item.playAnimationKey}
                                 isPaused={item.isPaused}
+                                behaviors={animByObject[item.id]?.behaviors || []}
                                 transformMode={transformMode}
                                 isSelected={item.id === selectedModelId}
                                 transform={item.transform}
                                 orbitRef={orbitRef}
+                                onSelect={(id) => setSelectedModelId(id)} // NEW
+                                handleFocusObject={handleFocusOnObject(cameraRef)} // optional NEW
                                 onTransformEnd={(obj) => {
                                     onUpdateTransform(item.id, {
                                         x: obj.position.x, y: obj.position.y, z: obj.position.z,
@@ -227,6 +251,8 @@ export default function StudioPage() {
                                         sx: obj.scale.x, sy: obj.scale.y, sz: obj.scale.z,
                                     });
                                 }}
+                                getObjectRefById={getObjectRefById}                  // NEW
+                                registerRef={registerRef}
                             />
                         );
                     }
@@ -362,14 +388,22 @@ export default function StudioPage() {
                 )}
             </Canvas>
 
+
+
             <PropertyPanel
                 model={selectedModel}
                 models={sceneModels}
                 updateModelTransform={onUpdateTransform}
                 updateTextProperty={onUpdateText}
-                onPlayAnimation={(id) => onUpdateTransform(id, { playAnimationKey: Date.now() })}
                 updateModelProps={onUpdateProps}
+                onPlayAnimation={(id) => onUpdateTransform(id, { playAnimationKey: Date.now() })}
+
                 onStartAnchorPick={startAnchorPick}
+                projectId={projectId}                                   // NEW
+                objectBehaviors={animByObject[selectedModel?.id]?.behaviors || []}  // NEW
+                onBehaviorsSaved={(id, savedDoc) =>                     // NEW: keep local cache in sync
+                    setAnimByObject(m => ({ ...m, [id]: savedDoc }))
+                }
             />
 
             <LibraryModal

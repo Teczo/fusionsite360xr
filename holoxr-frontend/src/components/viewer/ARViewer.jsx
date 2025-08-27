@@ -115,6 +115,15 @@ export default function ARViewer() {
         }
     }, []);
 
+    const objectRefs = useRef(new Map());
+    const registerRef = useCallback((id, ref) => {
+        if (!id) return;
+        if (ref) objectRefs.current.set(id, ref);
+        else objectRefs.current.delete(id);
+    }, []);
+    const getObjectRefById = useCallback((id) => objectRefs.current.get(id) || null, []);
+
+
     return (
         <div className="w-screen h-screen touch-none select-none">
             <Canvas
@@ -185,11 +194,15 @@ export default function ARViewer() {
                                 return (
                                     <ModelItem
                                         key={item.id}
+                                        id={item.id}
                                         url={item.url}
                                         transform={item.transform}
                                         selectedAnimationIndex={item.selectedAnimationIndex}
                                         autoplay={item.autoplay}
                                         isPaused={item.isPaused}
+                                        behaviors={item.behaviors || []}
+                                        registerRef={registerRef}
+                                        getObjectRefById={getObjectRefById}
                                     />
                                 );
                             } else if (item.type === 'image') {
