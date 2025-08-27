@@ -53,6 +53,20 @@ function buildCleanScene(sceneModels) {
     });
 }
 
+async function buildCleanSceneWithBehaviors(projectId, sceneModels) {
+    // 1) Build the base scene (stripped to core props)
+    const base = buildCleanScene(sceneModels); // keeps id, type, url, transform, interactions, label props, quiz, etc.
+    // 2) Fetch animations for this project and map by objectId
+    const byObjectId = await fetchProjectAnimations(projectId); // { [objectId]: { behaviors: [...] } }
+    // 3) Attach behaviors to matching objects
+    return base.map(obj => {
+        const anim = byObjectId?.[obj.id];
+        const behaviors = Array.isArray(anim?.behaviors) ? anim.behaviors : undefined;
+        // Only include the key if behaviors exist, to keep payload lean
+        return behaviors ? { ...obj, behaviors } : obj;
+    });
+}
+
 
 export async function loadProjectData(projectId, token, setSceneModels, setProjectName) {
     if (!projectId || !token) return;
@@ -283,13 +297,14 @@ export async function handleSaveProject(projectId, sceneModels) {
     if (!projectId || !sceneModels.length) return false;
     const token = localStorage.getItem("token");
     try {
+        const mergedScene = await buildCleanSceneWithBehaviors(projectId, sceneModels);
         const res = await fetch(`${import.meta.env.VITE_API_URL}/api/projects/${projectId}`, {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({ scene: buildCleanScene(sceneModels) }),
+            body: JSON.stringify({ scene: mergedScene }),
         });
 
         const data = await res.json();
@@ -310,13 +325,16 @@ export async function handlePublishProject(projectId, sceneModels) {
     if (!projectId || !sceneModels.length) return false;
     const token = localStorage.getItem("token");
     try {
+        // ⬇️ Use the merged scene with behaviors
+        const mergedScene = await buildCleanSceneWithBehaviors(projectId, sceneModels);
+
         const res = await fetch(`${import.meta.env.VITE_API_URL}/api/projects/${projectId}/publish`, {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({ scene: buildCleanScene(sceneModels) }),
+            body: JSON.stringify({ scene: mergedScene }),
         });
 
         const data = await res.json();
@@ -324,13 +342,14 @@ export async function handlePublishProject(projectId, sceneModels) {
             toast.error(data.error || "Failed to publish project");
             return false;
         }
-        return true; // let UI decide what to do (e.g., open QR modal)
+        return true;
     } catch (err) {
         console.error(err);
         toast.error("Network error while publishing");
         return false;
     }
 }
+
 
 // ---------- Animations API (project scope & per-object) ----------
 export async function fetchProjectAnimations(projectId) {
