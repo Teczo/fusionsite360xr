@@ -8,9 +8,17 @@ import Quiz3D from '../Items/Quiz3D';
 import { ModelItem, ImageItem, ButtonItem, TextItem } from "./ARViewerComponents";
 import { ARGestureControls } from "./ARGestureControls";
 import { ARPlacementController } from "./ARPlacement";
+import useAnalytics from "../hooks/useAnalytics";
 
-function runActions(actions, setSceneData, navigateToProject) {
+function runActions(actions, setSceneData, navigateToProject, track) {
     (actions || []).forEach((act) => {
+        // optional: high-level event per action
+        track?.("button_action", {
+            actionType: act.type,
+            targetId: act.targetId || null,
+            projectId: act.projectId || null
+        });
+
         if (act.type === 'toggleVisibility' && act.targetId) {
             setSceneData(prev =>
                 prev.map(o => o.id === act.targetId ? { ...o, visible: o.visible === false ? true : false } : o)
@@ -20,23 +28,27 @@ function runActions(actions, setSceneData, navigateToProject) {
             setSceneData(prev => prev.map(o => {
                 if (o.id !== act.targetId) return o;
                 const nextPaused = act.mode === 'pause' ? true : act.mode === 'play' ? false : !o.isPaused;
+                // optional: specific animation event
+                track?.("animation_toggle", { targetId: o.id, paused: nextPaused });
                 return { ...o, isPaused: nextPaused };
             }));
         }
         if (act.type === 'changeProject' && act.projectId) {
+            track?.("navigate_project", { toProjectId: act.projectId });
             navigateToProject(act.projectId);
         }
         if (act.type === 'openClosePanel' && act.targetId) {
             const mode = act.mode || 'toggle';
             setSceneData(prev => prev.map(o => {
                 if (o.id !== act.targetId) return o;
-                if (mode === 'show') return { ...o, visible: true };
-                if (mode === 'hide') return { ...o, visible: false };
-                return { ...o, visible: o.visible === false ? true : false };
+                const nextVisible = mode === 'show' ? true : mode === 'hide' ? false : (o.visible === false ? true : false);
+                track?.("panel_toggle", { targetId: o.id, visible: nextVisible });
+                return { ...o, visible: nextVisible };
             }));
         }
     });
 }
+
 
 // -------------------- Viewer --------------------
 
@@ -45,6 +57,7 @@ export default function ARViewer() {
     const [sceneData, setSceneData] = useState([]);
     const [isAR, setIsAR] = useState(false);
     const userGroupRef = useRef();
+    const { track, sessionId } = useAnalytics({ projectId: id });
 
     // Anchor group: the whole scene is a child of this node, driven by anchor pose
     const anchorGroupRef = useRef();
@@ -63,6 +76,18 @@ export default function ARViewer() {
                 console.log('📦 AR Scene Data:', data);
                 if (res.ok && data.publishedScene) {
                     setSceneData(data.publishedScene);
+                    try {
+                        const items = data.publishedScene;
+                        const counts = items.reduce((acc, it) => {
+                            acc[it.type] = (acc[it.type] || 0) + 1;
+                            return acc;
+                        }, {});
+                        track("scene_loaded", {
+                            itemCount: items.length,
+                            byType: counts,
+                            projectId: id,
+                        });
+                    } catch { }
                 }
             } catch (err) {
                 console.error('Failed to load published scene', err);
@@ -113,7 +138,12 @@ export default function ARViewer() {
             // No anchor support -> store static placement
             fallbackPoseMatrixRef.current = new Float32Array(poseMatrix);
         }
-    }, []);
+        track("ar_place", {
+            projectId: id,
+            usedAnchor: Boolean(anchor),
+            usedStaticPose: Boolean(poseMatrix),
+        });
+    }, [id, track]);
 
     const objectRefs = useRef(new Map());
     const registerRef = useCallback((id, ref) => {
@@ -137,7 +167,10 @@ export default function ARViewer() {
                     // Prefer floor-aligned coordinates if available
                     try { gl.xr.setReferenceSpaceType?.('local-floor'); } catch { }
 
-                    gl.xr.addEventListener('sessionstart', () => setIsAR(true));
+                    gl.xr.addEventListener('sessionstart', () => {
+                        setIsAR(true);
+                        track("ar_session_start", { projectId: id, sessionId });
+                    });
                     gl.xr.addEventListener('sessionend', () => {
                         setIsAR(false);
                         // Reset anchor state on AR exit
@@ -146,6 +179,7 @@ export default function ARViewer() {
                             currentAnchorRef.current = null;
                         }
                         fallbackPoseMatrixRef.current = null;
+                        track("ar_session_end", { projectId: id, sessionId });
                     });
 
                     // Create AR button with the right features
@@ -222,7 +256,7 @@ export default function ARViewer() {
                                     <ButtonItem
                                         key={item.id}
                                         item={item}
-                                        onPress={(btn) => runActions(btn.interactions, setSceneData, navigateToProject)}
+                                        onPress={(btn) => runActions(btn.interactions, setSceneData, navigateToProject, track)}
                                     />
                                 );
                             } else if (item.type === 'label') {

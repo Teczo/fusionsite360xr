@@ -6,7 +6,7 @@ import { useEffect, useState, useRef } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Grid, OrbitControls } from "@react-three/drei";
 
-import PropertyPanel from "../panels/PropertyPanel";
+import PropertyPanel from "../panels/Propertypanel/PropertyPanel.jsx";
 import FloatingPanel from "../panels/FloatingPanel";
 import TopBar from "../panels/TopBar";
 import QRCodeModal from "../modals/QRCodeModal.jsx";
