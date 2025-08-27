@@ -4,9 +4,17 @@ import path from 'path';
 import { BlobServiceClient } from '@azure/storage-blob';
 import Project from '../models/Project.js';
 import auth from '../middleware/authMiddleware.js';
+import cors from 'cors';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
+
+router.options('/projects/:id/thumbnail', cors({
+    origin: ['https://holoxr.teczo.co', 'https://holoxr.onrender.com', 'http://localhost:5173'],
+    methods: ['PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+}));
 
 // Create project
 router.post('/projects', auth, async (req, res) => {
@@ -182,36 +190,45 @@ router.delete('/projects/:id/permanent', auth, async (req, res) => {
     }
 });
 
-router.patch('/projects/:id/thumbnail', auth, upload.single('thumbnail'), async (req, res) => {
-    try {
-        const project = await Project.findOne({ _id: req.params.id, userId: req.userId });
-        if (!project) return res.status(404).json({ error: 'Project not found' });
-        if (!req.file) return res.status(400).json({ error: 'No thumbnail provided' });
+router.patch(
+    '/projects/:id/thumbnail',
+    cors({
+        origin: ['https://holoxr.teczo.co', 'https://holoxr.onrender.com', 'http://localhost:5173'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
+        credentials: true,
+    }),
+    auth,
+    upload.single('thumbnail'),
+    async (req, res) => {
+        try {
+            const project = await Project.findOne({ _id: req.params.id, userId: req.userId });
+            if (!project) return res.status(404).json({ error: 'Project not found' });
+            if (!req.file) return res.status(400).json({ error: 'No thumbnail provided' });
 
-        const AZURE_STORAGE_CONNECTION_STRING = process.env.AZURE_STORAGE_CONNECTION_STRING;
-        if (!AZURE_STORAGE_CONNECTION_STRING) {
-            return res.status(500).json({ error: 'Azure configuration missing' });
+            const AZURE_STORAGE_CONNECTION_STRING = process.env.AZURE_STORAGE_CONNECTION_STRING;
+            if (!AZURE_STORAGE_CONNECTION_STRING) {
+                return res.status(500).json({ error: 'Azure configuration missing' });
+            }
+
+            const blobServiceClient = BlobServiceClient.fromConnectionString(AZURE_STORAGE_CONNECTION_STRING);
+            const containerClient = blobServiceClient.getContainerClient('uploads'); // same container you use for assets
+
+            const timestamp = Date.now();
+            const blobName = `thumbnails/projects/${project._id}-${timestamp}.webp`;
+            const blockBlob = containerClient.getBlockBlobClient(blobName);
+
+            await blockBlob.uploadData(req.file.buffer, {
+                blobHTTPHeaders: { blobContentType: req.file.mimetype || 'image/webp' },
+            });
+
+            project.thumbnail = blockBlob.url;
+            await project.save();
+
+            res.json({ message: 'Thumbnail updated', project });
+        } catch (err) {
+            console.error('❌ Failed to update project thumbnail:', err);
+            res.status(500).json({ error: 'Failed to update project thumbnail' });
         }
-
-        const blobServiceClient = BlobServiceClient.fromConnectionString(AZURE_STORAGE_CONNECTION_STRING);
-        const containerClient = blobServiceClient.getContainerClient('uploads'); // same container you use for assets
-
-        const timestamp = Date.now();
-        const blobName = `thumbnails/projects/${project._id}-${timestamp}.webp`;
-        const blockBlob = containerClient.getBlockBlobClient(blobName);
-
-        await blockBlob.uploadData(req.file.buffer, {
-            blobHTTPHeaders: { blobContentType: req.file.mimetype || 'image/webp' },
-        });
-
-        project.thumbnail = blockBlob.url;
-        await project.save();
-
-        res.json({ message: 'Thumbnail updated', project });
-    } catch (err) {
-        console.error('❌ Failed to update project thumbnail:', err);
-        res.status(500).json({ error: 'Failed to update project thumbnail' });
-    }
-});
+    });
 
 export default router;

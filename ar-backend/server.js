@@ -29,6 +29,7 @@ const PORT = process.env.PORT || 4000;
 const allowlist = [
   'http://localhost:5173',
   'https://holoxr.teczo.co',
+  'https://holoxr.onrender.com',
 ];
 
 // 2) Single CORS middleware (no second app.use(cors()))
@@ -38,8 +39,10 @@ const corsOptions = {
     return cb(new Error('Not allowed by CORS'));
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  // ✅ include PATCH (and HEAD is nice to have)
+  methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  maxAge: 86400,
 };
 app.use(cors(corsOptions));
 
