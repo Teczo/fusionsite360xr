@@ -20,6 +20,10 @@ import {
 // ---- Config ----
 const API = import.meta.env.VITE_API_URL; // e.g. https://api.holoxr.com
 
+// ---- Chart Colors ----
+const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#8dd1e1"];
+
+
 // ---- Utility: tiny formatter helpers ----
 const fmt = {
     n: (v) => (v ?? 0).toLocaleString(),
@@ -104,9 +108,9 @@ function DevicesPie({ data }) {
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <Tooltip />
-                        <Pie data={data || []} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80}>
+                        <Pie data={data || []} dataKey="count" nameKey="_id" innerRadius={50} outerRadius={80}>
                             {(data || []).map((_, i) => (
-                                <Cell key={i} />
+                                <Cell key={i} fill={COLORS[i % COLORS.length]} />
                             ))}
                         </Pie>
                     </PieChart>
@@ -118,17 +122,17 @@ function DevicesPie({ data }) {
 
 function ReturningBar({ data }) {
     return (
-        <Card title="Returning vs New" subtitle="Users">
+        <Card title="Languages" subtitle="User locale breakdown">
             <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data || []} margin={{ left: 8, right: 8, top: 8, bottom: 8 }}>
                         <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                        <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                        <XAxis dataKey="_id" tick={{ fontSize: 12 }} />
                         <YAxis tick={{ fontSize: 12 }} />
                         <Tooltip />
-                        <Bar dataKey="value">
+                        <Bar dataKey="count">
                             {(data || []).map((_, i) => (
-                                <Cell key={i} />
+                                <Cell key={i} fill={COLORS[i % COLORS.length]} />
                             ))}
                         </Bar>
                     </BarChart>
@@ -195,7 +199,24 @@ function useOverview(range) {
         if (!API) return;
         fetch(`${API}/api/analytics/overview?range=${range}`, { credentials: "include" })
             .then((r) => r.json())
-            .then(setData)
+            .then((raw) => {
+                const shaped = {
+                    totals: {
+                        views: raw.views ?? raw.totalEvents ?? 0,
+                        uniques: raw.uniques ?? raw.uniqueSessions ?? 0,
+                        avgSessionMs: raw.avgSessionMs ?? raw.avgSession ?? 0,
+                    },
+                    daily: (raw.daily ?? raw.dailyEvents ?? []).map((d) => ({
+                        day: d.day ?? d.date,
+                        views: d.views ?? d.totalEvents ?? d.count ?? 0,
+                    })),
+                    funnel: (raw.funnel ?? raw.funnelData) ? (raw.funnel ?? raw.funnelData).map((f) => ({
+                        name: f.name ?? f.step,
+                        value: f.value ?? f.count ?? 0,
+                    })) : null,
+                };
+                setData(shaped);
+            })
             .catch(setErr);
     }, [range]);
     return { data, err };
@@ -208,7 +229,19 @@ function useProject(projectId, range) {
         if (!API || !projectId) return;
         fetch(`${API}/api/analytics/projects/${projectId}?range=${range}`, { credentials: "include" })
             .then((r) => r.json())
-            .then(setData)
+            .then((res) => {
+                // Map older or newer backend formats to the expected shape
+                if (res && (res.retention || res.views || res.objects)) {
+                    setData(res);
+                } else {
+                    const viewCount = res.events?.find?.((e) => e._id === "scene_loaded" || e._id === "viewer_open")?.count || 0;
+                    setData({
+                        retention: res.daily || [],
+                        views: viewCount,
+                        objects: res.events || [],
+                    });
+                }
+            })
             .catch(setErr);
     }, [projectId, range]);
     return { data, err };
@@ -224,7 +257,11 @@ function useAudience(projectId, range) {
         if (projectId) qs.set("projectId", projectId);
         fetch(`${API}/api/analytics/audience?${qs.toString()}`, { credentials: "include" })
             .then((r) => r.json())
-            .then(setData)
+            .then((raw) => {
+                const devices = (raw.platforms || []).map((p) => ({ name: p._id, value: p.count }));
+                const newReturning = (raw.langs || []).map((l) => ({ label: l._id, value: l.count }));
+                setData({ ...raw, devices, newReturning });
+            })
             .catch(setErr);
     }, [projectId, range]);
     return { data, err };
@@ -238,6 +275,12 @@ function useEngagement(projectId, range) {
         fetch(`${API}/api/analytics/engagement/${projectId}?range=${range}`, { credentials: "include" })
             .then((r) => r.json())
             .then(setData)
+            .then((d) =>
+                setData({
+                    ctas: d.ctas ?? d.clicks,
+                    quiz: d.quiz ?? d.quizzes,
+                })
+            )
             .catch(setErr);
     }, [projectId, range]);
     return { data, err };
@@ -257,10 +300,16 @@ export default function AnalyticsDashboard({ projects = [] }) {
     );
 
     // Live data per-tab
-    const { data: overview } = useOverview(range);
-    const { data: projectData } = useProject(currentProject?.id, range);
-    const { data: audience } = useAudience(tab === "Audience" ? currentProject?.id : undefined, range);
-    const { data: engagement } = useEngagement(currentProject?.id, range);
+    const { data: overview, err: overviewErr } = useOverview(range);
+    const { data: projectData, err: projectErr } = useProject(currentProject?.id, range);
+    const { data: audience, err: audienceErr } = useAudience(
+        tab === "Audience" ? currentProject?.id : undefined,
+        range
+    );
+    const { data: engagement, err: engagementErr } = useEngagement(
+        currentProject?.id,
+        range
+    );
 
     return (
         <div className="flex flex-col gap-4">
@@ -272,8 +321,8 @@ export default function AnalyticsDashboard({ projects = [] }) {
                             key={t}
                             onClick={() => setTab(t)}
                             className={`px-3 py-1.5 rounded-xl text-sm border transition ${tab === t
-                                    ? "bg-indigo-600/20 border-indigo-500/40 text-indigo-200"
-                                    : "bg-white/5 border-white/10 text-white/80 hover:bg-white/10"
+                                ? "bg-indigo-600/20 border-indigo-500/40 text-indigo-200"
+                                : "bg-white/5 border-white/10 text-white/80 hover:bg-white/10"
                                 }`}
                         >
                             {t}
@@ -312,7 +361,11 @@ export default function AnalyticsDashboard({ projects = [] }) {
 
             {/* Content */}
             {tab === "Overview" && (
-                overview ? (
+                overviewErr ? (
+                    <div className="text-red-400">
+                        Failed to load analytics: {overviewErr.message || String(overviewErr)}
+                    </div>
+                ) : overview ? (
                     <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
                         <div className="xl:col-span-3">
                             <KPIRow totals={overview.totals} />
@@ -320,9 +373,11 @@ export default function AnalyticsDashboard({ projects = [] }) {
                         <div className="xl:col-span-2">
                             <DailyLine data={overview.daily} />
                         </div>
-                        <div className="xl:col-span-1">
-                            <EngagementFunnel data={overview.funnel} />
-                        </div>
+                        {overview.funnel && (
+                            <div className="xl:col-span-1">
+                                <EngagementFunnel data={overview.funnel} />
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="text-white/60">Loading overview…</div>
@@ -330,7 +385,11 @@ export default function AnalyticsDashboard({ projects = [] }) {
             )}
 
             {tab === "Projects" && (
-                projectData ? (
+                projectErr ? (
+                    <div className="text-red-400">
+                        Failed to load analytics: {projectErr.message || String(projectErr)}
+                    </div>
+                ) : projectData ? (
                     <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
                         <div className="xl:col-span-2">
                             <RetentionLine data={projectData.retention} />
@@ -351,13 +410,17 @@ export default function AnalyticsDashboard({ projects = [] }) {
             )}
 
             {tab === "Audience" && (
-                audience ? (
+                audienceErr ? (
+                    <div className="text-red-400">
+                        Failed to load analytics: {audienceErr.message || String(audienceErr)}
+                    </div>
+                ) : audience ? (
                     <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
                         <div className="xl:col-span-1">
-                            <DevicesPie data={audience.devices} />
+                            <DevicesPie data={audience.platforms} />
                         </div>
                         <div className="xl:col-span-2">
-                            <ReturningBar data={audience.newReturning} />
+                            <ReturningBar data={audience.langs} />
                         </div>
                     </div>
                 ) : (
@@ -366,7 +429,11 @@ export default function AnalyticsDashboard({ projects = [] }) {
             )}
 
             {tab === "Engagement" && (
-                engagement ? (
+                engagementErr ? (
+                    <div className="text-red-400">
+                        Failed to load analytics: {engagementErr.message || String(engagementErr)}
+                    </div>
+                ) : engagement ? (
                     <div className="grid grid-cols-1 gap-4">
                         <Card title="3D Heatmap" subtitle="Tap hotspots on model">
                             <div className="h-56 grid place-items-center text-white/60">

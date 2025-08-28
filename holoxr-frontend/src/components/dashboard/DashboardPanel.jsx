@@ -177,7 +177,9 @@ export default function DashboardPanel({
                 )}
 
                 {activeView === 'analytics' && (
-                    <AnalyticsDashboard />
+                    <AnalyticsDashboard
+                        projects={projects.map((p) => ({ id: p.id || p._id, name: p.name }))}
+                    />
                 )}
 
             </div>
