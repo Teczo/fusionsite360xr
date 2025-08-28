@@ -138,12 +138,16 @@ router.get("/projects/:projectId", async (req, res) => {
     const { range = "7" } = req.query;
     const { start, end } = parseRange(range);
 
+    // event breakdown for backwards compatibility / ad-hoc metrics
     const byEvent = await AnalyticsEvent.aggregate([
         { $match: { projectId, ts: { $gte: start, $lte: end } } },
         { $group: { _id: "$event", count: { $sum: 1 } } },
         { $sort: { count: -1 } },
     ]);
 
+    const views = byEvent.find((e) => ["scene_loaded", "viewer_open"].includes(e._id))?.count || 0;
+
+    // daily time-series of all events
     const daily = await AnalyticsEvent.aggregate([
         { $match: { projectId, ts: { $gte: start, $lte: end } } },
         {
@@ -155,7 +159,34 @@ router.get("/projects/:projectId", async (req, res) => {
         { $sort: { _id: 1 } },
     ]);
 
-    res.json({ projectId, events: byEvent, daily });
+    // crude retention curve based on session duration buckets (10s)
+    const retentionBuckets = await AnalyticsEvent.aggregate([
+        { $match: { projectId, ts: { $gte: start, $lte: end }, event: { $in: ["viewer_open", "session_end"] } } },
+        { $sort: { sessionId: 1, ts: 1 } },
+        { $group: { _id: "$sessionId", first: { $first: "$ts" }, last: { $last: "$ts" } } },
+        { $project: { bucket: { $floor: { $divide: [{ $subtract: ["$last", "$first"] }, 10000] } } } },
+        { $group: { _id: "$bucket", c: { $sum: 1 } } },
+        { $sort: { _id: 1 } },
+    ]);
+
+    const totalSessions = retentionBuckets.reduce((a, b) => a + b.c, 0) || 1;
+    let remaining = totalSessions;
+    const retention = [];
+    for (const row of retentionBuckets) {
+        retention.push({ t: row._id * 10, pct: Math.round((remaining / totalSessions) * 100) });
+        remaining -= row.c;
+    }
+
+    // object interaction stats (currently just tap counts per targetId)
+    const objectsRaw = await AnalyticsEvent.aggregate([
+        { $match: { projectId, ts: { $gte: start, $lte: end }, "payload.targetId": { $exists: true } } },
+        { $group: { _id: "$payload.targetId", taps: { $sum: 1 } } },
+        { $sort: { taps: -1 } },
+    ]);
+
+    const objects = objectsRaw.map((o) => ({ id: o._id, label: o._id, taps: o.taps }));
+
+    res.json({ projectId, views, retention, objects, events: byEvent, daily });
 });
 
 // --- Engagement (GET /api/analytics/engagement/:projectId?range=30) ---

@@ -69,16 +69,6 @@ const containerClient = blobServiceClient.getContainerClient('uploads');
 // Multer
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Analytics endpoint
-app.post('/api/analytics/track', (req, res) => {
-  let body = req.body;
-  if (typeof body === 'string') {
-    try { body = JSON.parse(body); } catch { body = { raw: req.body }; }
-  }
-  // TODO: persist `body`
-  res.sendStatus(204);
-});
-
 // Files
 app.get('/files', async (req, res) => {
   const files = await File.find().sort({ uploadedAt: -1 });
