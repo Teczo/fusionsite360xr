@@ -4,6 +4,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { unzipSync } from 'fflate';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { Text } from '@react-three/drei';
 import { BehaviorRunner } from "../Studio/studioComponents";
 
@@ -43,6 +44,9 @@ export function ModelItem({
                 blobUrl = URL.createObjectURL(blob);
             }
             const loader = new GLTFLoader();
+            const draco = new DRACOLoader();
+            draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+            loader.setDRACOLoader(draco);
             loader.load(
                 blobUrl,
                 (gltf) => {
@@ -50,7 +54,11 @@ export function ModelItem({
                     setAnimations(gltf.animations || []);
                 },
                 undefined,
-                (err) => console.error('❌ GLB load error:', err)
+                (err) => {
+                    const msg = err?.message || String(err);
+                    console.error('❌ GLB load error:', msg, err);
+                    alert(`GLB load error: ${msg}`);
+                }
             );
         };
         loadModel();

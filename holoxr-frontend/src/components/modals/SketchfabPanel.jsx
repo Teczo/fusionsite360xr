@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { unzipSync } from 'fflate';
 
 const SKETCHFAB_API_TOKEN = "438795e58eda4a47aecc0563fc0d4107"; // Replace with your own token
@@ -66,6 +67,9 @@ export default function SketchfabPanel({ onImport }) {
             const downloadData = await downloadRes.json();
 
             const loader = new GLTFLoader();
+            const draco = new DRACOLoader();
+            draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+            loader.setDRACOLoader(draco);
             let gltf;
 
             // --- Path 1: Direct .glb model (the easy way) ---
@@ -136,8 +140,9 @@ export default function SketchfabPanel({ onImport }) {
             if (onImport) onImport(item);
 
         } catch (err) {
-            console.error("Failed to import Sketchfab model:", err);
-            alert("This model could not be downloaded or parsed. See console for details.");
+            const msg = err?.message || String(err);
+            console.error("Failed to import Sketchfab model:", msg, err);
+            alert(`This model could not be downloaded or parsed: ${msg}`);
         }
     };
 

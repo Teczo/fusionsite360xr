@@ -1,6 +1,7 @@
 // studioLogic.jsx
 // Pure logic: API fetch/save, model loading, and scene state updates (no JSX returned)
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { unzipSync } from "fflate";
 import toast from "react-hot-toast";
 
@@ -114,7 +115,15 @@ export function initializeModelLoading(sceneModels, setSceneModels) {
         const loadFromBlob = (blob) => {
             const blobUrl = URL.createObjectURL(blob);
             const loader = new GLTFLoader();
-            loader.load(blobUrl, (gltf) => setLoaded(gltf));
+            const draco = new DRACOLoader();
+            draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+            loader.setDRACOLoader(draco);
+            loader.load(
+                blobUrl,
+                (gltf) => setLoaded(gltf),
+                undefined,
+                (err) => console.error("GLTF load error:", err?.message || err)
+            );
         };
 
         if (model.url.endsWith(".zip")) {
@@ -127,10 +136,21 @@ export function initializeModelLoading(sceneModels, setSceneModels) {
                     const blob = new Blob([zip[glbName]], { type: "model/gltf-binary" });
                     loadFromBlob(blob);
                 })
-                .catch((e) => console.error("Zip load error:", e));
+                .catch((e) => {
+                    const msg = e?.message || String(e);
+                    console.error("Zip load error:", msg, e);
+                });
         } else {
             const loader = new GLTFLoader();
-            loader.load(model.url, (gltf) => setLoaded(gltf));
+            const draco = new DRACOLoader();
+            draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+            loader.setDRACOLoader(draco);
+            loader.load(
+                model.url,
+                (gltf) => setLoaded(gltf),
+                undefined,
+                (err) => console.error("GLTF load error:", err?.message || err)
+            );
         }
     });
 }
@@ -204,12 +224,31 @@ export function handleLibraryItemSelect(item, setSceneModels, setSelectedModelId
                     const blob = new Blob([zip[glbName]], { type: "model/gltf-binary" });
                     const blobUrl = URL.createObjectURL(blob);
                     const loader = new GLTFLoader();
-                    loader.load(blobUrl, (gltf) => setLoaded(gltf));
+                    const draco = new DRACOLoader();
+                    draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+                    loader.setDRACOLoader(draco);
+                    loader.load(
+                        blobUrl,
+                        (gltf) => setLoaded(gltf),
+                        undefined,
+                        (err) => console.error("GLTF load error:", err?.message || err)
+                    );
                 })
-                .catch((e) => console.error("Zip load error:", e));
+                .catch((e) => {
+                    const msg = e?.message || String(e);
+                    console.error("Zip load error:", msg, e);
+                });
         } else {
             const loader = new GLTFLoader();
-            loader.load(item.url, (gltf) => setLoaded(gltf));
+            const draco = new DRACOLoader();
+            draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+            loader.setDRACOLoader(draco);
+            loader.load(
+                item.url,
+                (gltf) => setLoaded(gltf),
+                undefined,
+                (err) => console.error("GLTF load error:", err?.message || err)
+            );
         }
     } else {
         // non-model types (image/text/button/label) finalize immediately

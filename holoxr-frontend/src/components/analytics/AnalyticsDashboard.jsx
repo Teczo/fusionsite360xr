@@ -274,7 +274,6 @@ function useEngagement(projectId, range) {
         if (!API || !projectId) return;
         fetch(`${API}/api/analytics/engagement/${projectId}?range=${range}`, { credentials: "include" })
             .then((r) => r.json())
-            .then(setData)
             .then((d) =>
                 setData({
                     ctas: d.ctas ?? d.clicks,
