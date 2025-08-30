@@ -115,7 +115,14 @@ async function createModelThumbnailBlob(file, { size = 512 } = {}) {
 
   // 3) Load model
   const loader = new GLTFLoader();
-  const gltf = await loader.loadAsync(url);
+  let gltf;
+  try {
+    gltf = await loader.loadAsync(url);
+  } catch (err) {
+    const msg = err?.message || String(err);
+    console.error('Failed to load model for thumbnail:', msg, err);
+    throw err;
+  }
   const model = gltf.scene || gltf.scenes?.[0];
   scene.add(model);
 

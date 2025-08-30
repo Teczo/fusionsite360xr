@@ -71,12 +71,13 @@ export default function SketchfabPanel({ onImport }) {
             draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
             loader.setDRACOLoader(draco);
             let gltf;
+            let downloadUrl;
 
             // --- Path 1: Direct .glb model (the easy way) ---
             if (downloadData.glb?.url) {
                 console.log("✅ GLB available. Loading directly.");
-                const glbUrl = downloadData.glb.url;
-                const glbBuffer = await fetch(glbUrl).then(res => res.arrayBuffer());
+                downloadUrl = downloadData.glb.url;
+                const glbBuffer = await fetch(downloadUrl).then(res => res.arrayBuffer());
                 const blob = new Blob([glbBuffer]);
                 const objectUrl = URL.createObjectURL(blob);
                 gltf = await loader.loadAsync(objectUrl);
@@ -85,8 +86,8 @@ export default function SketchfabPanel({ onImport }) {
                 // --- Path 2: Zipped .gltf assets (the 'address book' way) ---
             } else if (downloadData.gltf?.url) {
                 console.log("⚠️ No GLB. Using GLTF zip archive.");
-                const zipUrl = downloadData.gltf.url;
-                const zipBuffer = await fetch(zipUrl).then(res => res.arrayBuffer());
+                downloadUrl = downloadData.gltf.url;
+                const zipBuffer = await fetch(downloadUrl).then(res => res.arrayBuffer());
                 const unzipped = unzipSync(new Uint8Array(zipBuffer));
                 const gltfEntry = Object.entries(unzipped).find(([name]) => name.toLowerCase().endsWith('.gltf'));
                 if (!gltfEntry) throw new Error('No .gltf file found in the ZIP archive');
@@ -122,13 +123,24 @@ export default function SketchfabPanel({ onImport }) {
             // ✅ NORMALIZE THE MODEL'S SCALE AND POSITION
             normalizeModel(gltf.scene);
 
+            // 2. Persist the model via backend
+            const storeRes = await fetch(`${import.meta.env.VITE_API_URL}/api/upload/sketchfab`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: downloadUrl, name: model.name })
+            });
+            const storeData = await storeRes.json();
+            if (!storeRes.ok) throw new Error(storeData.error || 'Failed to store model');
+
+
             // --- Success: Prepare the final object for your application ---
             const item = {
                 id: Date.now().toString(),
                 name: model.name,
                 type: 'model',
                 scene: gltf.scene.clone(), // Clone the now-normalized scene
-                animations: gltf.animations.map((clip) => clip.name),
+                url: storeData.file.url,
+                animations: gltf.animations || [],
                 selectedAnimationIndex: 0,
                 transform: {
                     x: 0, y: 0, z: 0,

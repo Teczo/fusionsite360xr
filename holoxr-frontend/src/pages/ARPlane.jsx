@@ -42,6 +42,10 @@ export default function ARPlane() {
     const raycasterRef = useRef(new THREE.Raycaster());
     const lastTapNDCRef = useRef(null);           // normalized device coords
 
+    const billboardRef = useRef([]);              // objects that should billboard toward camera
+    const labelLineRef = useRef([]);              // label line tracking
+    const quizStateRef = useRef(new Map());       // quiz runtime data
+
     const [loadingScene, setLoadingScene] = useState(false);
     const [hint, setHint] = useState("Move your phone to find a surface, then tap to place.");
 
@@ -125,6 +129,7 @@ export default function ARPlane() {
         gltfLoaderRef.current = gltfLoader;
 
         const textureLoader = new THREE.TextureLoader();
+        textureLoader.crossOrigin = "anonymous";
         textureLoaderRef.current = textureLoader;
 
         // handle select (tap)
@@ -183,6 +188,12 @@ export default function ARPlane() {
                         (it) =>
                             it?.visible !== false &&
                             (it?.type === "model" || it?.type === "image" || it?.type === "text" || it?.type === "button")
+                                (it?.type === "model" ||
+                                    it?.type === "image" ||
+                                    it?.type === "text" ||
+                                    it?.type === "button" ||
+                                    it?.type === "label" ||
+                                    it?.type === "quiz")
                     );
 
                     let loaded = 0;
@@ -200,6 +211,12 @@ export default function ARPlane() {
                                 loaded++;
                             } else if (it.type === "button") {
                                 await addButton(anchorGroup, it);
+                                loaded++;
+                            } else if (it.type === "label") {
+                                await addLabel(anchorGroup, it);
+                                loaded++;
+                            } else if (it.type === "quiz") {
+                                await addQuiz(anchorGroup, it);
                                 loaded++;
                             }
                         } catch (e) {
@@ -229,12 +246,16 @@ export default function ARPlane() {
             const hits = raycaster.intersectObjects(interactiveRef.current, true);
             if (hits.length) {
                 const hit = hits[0].object;
-                // walk up to button root if needed
+                // walk up to button/quiz root if needed
                 let node = hit;
-                while (node && !node.userData?.buttonRoot) node = node.parent;
+                while (node && !node.userData?.buttonRoot && !node.userData?.quizOptionRoot) node = node.parent;
                 const root = node || hit;
-                const item = root.userData?.item;
-                if (item) handleButtonPress(item);
+                if (root.userData?.buttonRoot) {
+                    const item = root.userData?.item;
+                    if (item) handleButtonPress(item);
+                } else if (root.userData?.quizOptionRoot) {
+                    handleQuizOptionSelect(root.userData.quizId, root.userData.optionIndex);
+                }
             }
         }
 
@@ -257,6 +278,28 @@ export default function ARPlane() {
             const dt = clock.getDelta();
             for (const m of mixersRef.current) m.update(dt);
 
+            const cam = cameraRef.current;
+            for (const obj of billboardRef.current) {
+                if (obj) obj.quaternion.copy(cam.quaternion);
+            }
+            for (const info of labelLineRef.current) {
+                const { group, line, lineMode, targetId, anchorPoint } = info;
+                if (!group || !line) continue;
+                const start = new THREE.Vector3(0, 0, 0);
+                const end = new THREE.Vector3();
+                if (lineMode === "toObject" && targetId) {
+                    const target = objectIndexRef.current.get(targetId);
+                    if (target) {
+                        target.getWorldPosition(end);
+                        group.worldToLocal(end);
+                    }
+                } else if (lineMode === "toPoint" && anchorPoint) {
+                    end.set(anchorPoint.x || 0, anchorPoint.y || 0, anchorPoint.z || 0);
+                    group.worldToLocal(end);
+                }
+                line.geometry.setFromPoints([start, end]);
+            }
+
             if (frame) {
                 const referenceSpace = renderer.xr.getReferenceSpace();
                 const session = renderer.xr.getSession();
@@ -277,6 +320,9 @@ export default function ARPlane() {
                         objectIndexRef.current.clear();
                         animMapRef.current.clear();
                         itemIndexRef.current.clear();
+                        billboardRef.current = [];
+                        labelLineRef.current = [];
+                        quizStateRef.current.clear();
                     });
 
                     hitTestRequestedRef.current = true;
@@ -387,10 +433,33 @@ export default function ARPlane() {
                 const mode = act.mode;
                 const clipIndexFromAction = Number.isInteger(act.index) ? act.index : undefined;
                 playPauseAnimationById(act.targetId, mode, clipIndexFromAction);
+            } else if (act.type === "openClosePanel" && act.targetId) {
+                const mode = act.mode; // "show" | "hide" | undefined (toggle)
+                togglePanelVisibilityById(act.targetId, mode);
             }
 
             // (add more: openClosePanel, etc.)
         }
+    }
+
+    function handleQuizOptionSelect(quizId, optionIndex) {
+        const state = quizStateRef.current.get(quizId);
+        if (!state || state.answered) return;
+        state.answered = true;
+        const group = objectIndexRef.current.get(quizId);
+        if (!group) return;
+        const correct = state.correctIndex;
+        group.traverse((obj) => {
+            if (obj.userData?.quizOptionRoot && obj.userData.quizId === quizId) {
+                const bg = obj.children[0];
+                if (!bg || !bg.material) return;
+                if (obj.userData.optionIndex === correct) {
+                    bg.material.color.set("#16a34a");
+                } else if (obj.userData.optionIndex === optionIndex) {
+                    bg.material.color.set("#dc2626");
+                }
+            }
+        });
     }
 
     function toggleVisibilityById(targetId) {
@@ -402,6 +471,22 @@ export default function ARPlane() {
             console.warn("[ARPlane] toggleVisibility: no object found for id", targetId);
         }
     }
+
+    function getPanelById(panelId) {
+        return objectIndexRef.current.get(panelId) || null;
+    }
+
+    function togglePanelVisibilityById(panelId, mode) {
+        const panel = getPanelById(panelId);
+        if (!panel) {
+            console.warn("[ARPlane] openClosePanel: no panel found for id", panelId);
+            return;
+        }
+        const nextVisible = mode === "show" ? true : mode === "hide" ? false : panel.visible === false ? true : false;
+        panel.visible = nextVisible;
+        panel.updateMatrixWorld(true);
+    }
+
 
     function ensureActionForIndex(animator, index) {
         animator.actionsByIndex ||= [];
@@ -566,11 +651,29 @@ export default function ARPlane() {
         const textureLoader = textureLoaderRef.current;
         if (!textureLoader || !item?.url) return;
 
+        textureLoader.crossOrigin = "anonymous";
         console.log("[ARPlane] Loading image:", item.url);
         const tex = await textureLoader.loadAsync(item.url);
         tex.colorSpace = THREE.SRGBColorSpace;
 
-        const geom = new THREE.PlaneGeometry(1, 1);
+        const imageWidth = tex.image?.width || 1;
+        const imageHeight = tex.image?.height || 1;
+        const aspect = imageWidth / imageHeight;
+
+        let width = item.width;
+        let height = item.height;
+        if (width && height) {
+            // both provided, use as is
+        } else if (width) {
+            height = width / aspect;
+        } else if (height) {
+            width = height * aspect;
+        } else {
+            width = 1;
+            height = 1 / aspect;
+        }
+
+        const geom = new THREE.PlaneGeometry(width, height);
         const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
         const mesh = new THREE.Mesh(geom, mat);
 
@@ -656,6 +759,250 @@ export default function ARPlane() {
         objectIndexRef.current.set(item.id, group);
         interactiveRef.current.push(group);
     }
+
+    async function addLabel(parent, item) {
+        const content = item.content || item.name || "Label";
+        const color = item.color || "#ffffff";
+        const appearance = item.appearance || {};
+        const { bg = "#111827", padding = [0.3, 0.15], lineWidth = 2, billboard = false } = appearance;
+
+        const px = Math.max(24, Math.round((item.fontSize || 0.35) * 280));
+        const { tex, width, height } = makeTextTexture(content, color, px);
+        const aspect = width / height;
+
+        const group = new THREE.Group();
+
+        const bgGeom = new THREE.PlaneGeometry(1 + padding[0] * 2, 1 / aspect + padding[1] * 2);
+        const bgMat = new THREE.MeshBasicMaterial({ color: bg });
+        const bgMesh = new THREE.Mesh(bgGeom, bgMat);
+        bgMesh.position.set(0, 0, 0);
+        group.add(bgMesh);
+
+        const textMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(1, 1 / aspect),
+            new THREE.MeshBasicMaterial({ map: tex, transparent: true })
+        );
+        textMesh.position.set(0, 0, 0.001);
+        group.add(textMesh);
+
+        let line = null;
+        if (item.lineMode && item.lineMode !== "none") {
+            line = new THREE.Line(
+                new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(0, 0, 0),
+                    new THREE.Vector3(0, 0, 0)
+                ]),
+                new THREE.LineBasicMaterial({ color, linewidth: lineWidth })
+            );
+            group.add(line);
+        }
+
+        applyTransform(group, item.transform);
+        group.userData.id = item.id;
+        parent.add(group);
+        parent.updateMatrixWorld(true);
+
+        objectIndexRef.current.set(item.id, group);
+        if (billboard) billboardRef.current.push(group);
+        if (line) {
+            labelLineRef.current.push({
+                group,
+                line,
+                lineMode: item.lineMode || "none",
+                targetId: item.targetId || null,
+                anchorPoint: item.anchorPoint || null
+            });
+        }
+    }
+
+    async function addQuiz(parent, item) {
+        const quiz = item.quiz;
+        if (!quiz?.questions?.length) return;
+        const q = quiz.questions[0];
+        const appearance = item.appearance || {};
+        const { bg = "#111827", fg = "#ffffff", pad = [0.35, 0.25], width = 3, billboard = false } = appearance;
+
+        const group = new THREE.Group();
+
+        const panelHeight = 1.5 + (q.options?.length || 0) * 0.6;
+        const panel = new THREE.Mesh(
+            new THREE.PlaneGeometry(width, panelHeight),
+            new THREE.MeshBasicMaterial({ color: bg })
+        );
+        panel.position.set(0, 0, -0.001);
+        group.add(panel);
+
+        const qFont = Math.max(24, Math.round(0.28 * 280));
+        const { tex: qTex, width: qW, height: qH } = makeTextTexture(q.prompt, fg, qFont);
+        const qAspect = qW / qH;
+        const qMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(width - pad[0] * 2, (width - pad[0] * 2) / qAspect),
+            new THREE.MeshBasicMaterial({ map: qTex, transparent: true })
+        );
+        qMesh.position.set(0, panelHeight / 2 - pad[1] - (width - pad[0] * 2) / (2 * qAspect), 0);
+        group.add(qMesh);
+
+        const optionFont = Math.max(24, Math.round(0.2 * 280));
+        (q.options || []).forEach((opt, i) => {
+            const optGroup = new THREE.Group();
+            const { tex: oTex, width: oW, height: oH } = makeTextTexture(opt, fg, optionFont);
+            const oAspect = oW / oH;
+            const w = width - pad[0] * 2;
+            const h = w / oAspect;
+
+            const bgMesh = new THREE.Mesh(
+                new THREE.PlaneGeometry(w, h),
+                new THREE.MeshBasicMaterial({ color: "#374151" })
+            );
+            optGroup.add(bgMesh);
+            const txtMesh = new THREE.Mesh(
+                new THREE.PlaneGeometry(w, h),
+                new THREE.MeshBasicMaterial({ map: oTex, transparent: true })
+            );
+            txtMesh.position.set(0, 0, 0.001);
+            optGroup.add(txtMesh);
+
+            optGroup.position.set(
+                0,
+                panelHeight / 2 - pad[1] - (width - pad[0] * 2) / qAspect - 0.5 - i * (h + 0.1),
+                0.001
+            );
+            optGroup.userData.quizOptionRoot = true;
+            optGroup.userData.quizId = item.id;
+            optGroup.userData.optionIndex = i;
+            group.add(optGroup);
+            interactiveRef.current.push(optGroup);
+        });
+
+        applyTransform(group, item.transform);
+        group.userData.id = item.id;
+        parent.add(group);
+        parent.updateMatrixWorld(true);
+
+        objectIndexRef.current.set(item.id, group);
+        quizStateRef.current.set(item.id, {
+            question: q,
+            correctIndex: q.correct,
+            answered: false,
+        });
+        if (billboard) billboardRef.current.push(group);
+    }
+
+    async function addQuiz(parent, item) {
+        const quiz = item.quiz || {};
+        const questions = quiz.questions || [];
+        const group = new THREE.Group();
+        group.userData.id = item.id;
+        applyTransform(group, item.transform);
+        parent.add(group);
+        parent.updateMatrixWorld(true);
+
+        objectIndexRef.current.set(item.id, group);
+
+        const panelW = 1.6;
+        const panelH = 1.0;
+        const bg = new THREE.Mesh(
+            new THREE.PlaneGeometry(panelW, panelH),
+            new THREE.MeshBasicMaterial({ color: "#111827" })
+        );
+        bg.position.set(0, 0, 0);
+        group.add(bg);
+
+        let questionMesh = null;
+        const optionMeshes = [];
+        const state = { index: 0, score: 0 };
+
+        function clearOptions() {
+            while (optionMeshes.length) {
+                const m = optionMeshes.pop();
+                interactiveRef.current = interactiveRef.current.filter((o) => o !== m);
+                m.parent?.remove(m);
+            }
+        }
+
+        function showQuestion() {
+            clearOptions();
+            if (questionMesh) {
+                interactiveRef.current = interactiveRef.current.filter((o) => o !== questionMesh);
+                questionMesh.parent?.remove(questionMesh);
+                questionMesh = null;
+            }
+
+            const q = questions[state.index];
+            if (!q) return showResults();
+
+            const { tex, width, height } = makeTextTexture(q.prompt || "Question", "#ffffff", 48);
+            const aspect = width / height;
+            questionMesh = new THREE.Mesh(
+                new THREE.PlaneGeometry(panelW * 0.9, (panelW * 0.9) / aspect),
+                new THREE.MeshBasicMaterial({ map: tex, transparent: true })
+            );
+            questionMesh.position.set(0, panelH / 2 - 0.25, 0.001);
+            group.add(questionMesh);
+
+            q.options?.forEach((opt, idx) => {
+                const optGeom = new THREE.PlaneGeometry(panelW * 0.8, 0.18);
+                const optMat = new THREE.MeshBasicMaterial({ color: "#374151" });
+                const btn = new THREE.Mesh(optGeom, optMat);
+                btn.position.set(0, 0.1 - idx * 0.25, 0.001);
+                btn.userData.buttonRoot = true;
+                btn.userData.onPress = () => handleSelect(idx, btn, optMat, q);
+
+                const { tex: otex, width: ow, height: oh } = makeTextTexture(opt, "#ffffff", 40);
+                const oaspect = ow / oh;
+                const lbl = new THREE.Mesh(
+                    new THREE.PlaneGeometry(panelW * 0.75, (panelW * 0.75) / oaspect),
+                    new THREE.MeshBasicMaterial({ map: otex, transparent: true })
+                );
+                lbl.position.set(0, 0, 0.001);
+                btn.add(lbl);
+
+                group.add(btn);
+                optionMeshes.push(btn);
+                interactiveRef.current.push(btn);
+            });
+        }
+
+        function handleSelect(idx, btn, mat, q) {
+            const correct = Number.isInteger(q.correct) && q.correct === idx;
+            mat.color.set(correct ? "#16a34a" : "#dc2626");
+            if (window && window.dispatchEvent) {
+                window.dispatchEvent(
+                    new CustomEvent("hxr-quiz-answer", {
+                        detail: { quizId: item.id, questionId: q.id, correct },
+                    })
+                );
+            }
+            if (correct) state.score++;
+            setTimeout(() => {
+                state.index++;
+                showQuestion();
+            }, 800);
+        }
+
+        function showResults() {
+            clearOptions();
+            const result = `Score: ${state.score}/${questions.length}`;
+            const { tex, width, height } = makeTextTexture(result, "#ffffff", 64);
+            const aspect = width / height;
+            const mesh = new THREE.Mesh(
+                new THREE.PlaneGeometry(panelW * 0.8, (panelW * 0.8) / aspect),
+                new THREE.MeshBasicMaterial({ map: tex, transparent: true })
+            );
+            mesh.position.set(0, 0, 0.001);
+            group.add(mesh);
+            if (window && window.dispatchEvent) {
+                window.dispatchEvent(
+                    new CustomEvent("hxr-quiz-complete", {
+                        detail: { quizId: item.id, score: state.score, total: questions.length },
+                    })
+                );
+            }
+        }
+
+        showQuestion();
+    }
+
 
     return (
         <>

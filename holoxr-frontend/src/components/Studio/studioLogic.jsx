@@ -95,7 +95,8 @@ export async function loadProjectData(projectId, token, setSceneModels, setProje
 export function initializeModelLoading(sceneModels, setSceneModels) {
     sceneModels.forEach((model) => {
         if (model.type !== "model") return;
-        if (model.scene || !model.url) return;
+        if (model.scene) return;
+        if (!model.url) return;
 
         const setLoaded = (gltf) => {
             setSceneModels((prev) =>
@@ -208,48 +209,61 @@ export function handleLibraryItemSelect(item, setSceneModels, setSelectedModelId
     };
 
     if (item.type === "model") {
-        const setLoaded = (gltf) => {
-            baseModel.scene = gltf.scene;
-            baseModel.animations = gltf.animations || [];
+        if (item.scene) {
+            baseModel.scene = item.scene;
+            baseModel.animations = item.animations || [];
             finalizeAdd(baseModel);
-        };
-
-        if (item.url?.endsWith(".zip")) {
-            fetch(item.url)
-                .then((res) => res.arrayBuffer())
-                .then((buffer) => {
-                    const zip = unzipSync(new Uint8Array(buffer));
-                    const glbName = Object.keys(zip).find((n) => n.endsWith(".glb"));
-                    if (!glbName) return;
-                    const blob = new Blob([zip[glbName]], { type: "model/gltf-binary" });
-                    const blobUrl = URL.createObjectURL(blob);
-                    const loader = new GLTFLoader();
-                    const draco = new DRACOLoader();
-                    draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
-                    loader.setDRACOLoader(draco);
-                    loader.load(
-                        blobUrl,
-                        (gltf) => setLoaded(gltf),
-                        undefined,
-                        (err) => console.error("GLTF load error:", err?.message || err)
-                    );
-                })
-                .catch((e) => {
-                    const msg = e?.message || String(e);
-                    console.error("Zip load error:", msg, e);
-                });
-        } else {
-            const loader = new GLTFLoader();
-            const draco = new DRACOLoader();
-            draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
-            loader.setDRACOLoader(draco);
-            loader.load(
-                item.url,
-                (gltf) => setLoaded(gltf),
-                undefined,
-                (err) => console.error("GLTF load error:", err?.message || err)
-            );
+            return;
         }
+
+        if (item.url) {
+            const setLoaded = (gltf) => {
+                baseModel.scene = gltf.scene;
+                baseModel.animations = gltf.animations || [];
+                finalizeAdd(baseModel);
+            };
+
+            if (item.url.endsWith(".zip")) {
+                fetch(item.url)
+                    .then((res) => res.arrayBuffer())
+                    .then((buffer) => {
+                        const zip = unzipSync(new Uint8Array(buffer));
+                        const glbName = Object.keys(zip).find((n) => n.endsWith(".glb"));
+                        if (!glbName) return;
+                        const blob = new Blob([zip[glbName]], { type: "model/gltf-binary" });
+                        const blobUrl = URL.createObjectURL(blob);
+                        const loader = new GLTFLoader();
+                        const draco = new DRACOLoader();
+                        draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+                        loader.setDRACOLoader(draco);
+                        loader.load(
+                            blobUrl,
+                            (gltf) => setLoaded(gltf),
+                            undefined,
+                            (err) => console.error("GLTF load error:", err?.message || err)
+                        );
+                    })
+                    .catch((e) => {
+                        const msg = e?.message || String(e);
+                        console.error("Zip load error:", msg, e);
+                    });
+            } else {
+                const loader = new GLTFLoader();
+                const draco = new DRACOLoader();
+                draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+                loader.setDRACOLoader(draco);
+                loader.load(
+                    item.url,
+                    (gltf) => setLoaded(gltf),
+                    undefined,
+                    (err) => console.error("GLTF load error:", err?.message || err)
+                );
+            }
+            return;
+        }
+
+        // No scene or URL, finalize with baseModel as-is
+        finalizeAdd(baseModel);
     } else {
         // non-model types (image/text/button/label) finalize immediately
         finalizeAdd(baseModel);
