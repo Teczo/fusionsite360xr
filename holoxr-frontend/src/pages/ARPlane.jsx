@@ -183,17 +183,10 @@ export default function ARPlane() {
                         }))
                     );
 
-                    // Support: model/image/text/button (labels/quiz later)
+                    // Supported item types to load into the AR scene
+                    const SUPPORTED_TYPES = ["model", "image", "text", "button", "label", "quiz"];
                     const supported = items.filter(
-                        (it) =>
-                            it?.visible !== false &&
-                            (it?.type === "model" || it?.type === "image" || it?.type === "text" || it?.type === "button")
-                                (it?.type === "model" ||
-                                    it?.type === "image" ||
-                                    it?.type === "text" ||
-                                    it?.type === "button" ||
-                                    it?.type === "label" ||
-                                    it?.type === "quiz")
+                        (it) => it?.visible !== false && SUPPORTED_TYPES.includes(it?.type)
                     );
 
                     let loaded = 0;
