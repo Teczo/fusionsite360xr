@@ -1,6 +1,7 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import {
   Box,
+  Folder,
   FolderPlus,
   MoreVertical,
   Plus,
@@ -54,7 +55,7 @@ async function createImageThumbnailBlob(file, { size = 512, format = 'image/webp
   const srcH = bitmap.height;
   const srcAspect = srcW / srcH;
 
-  let drawW, drawH, sx, sy, sWidth, sHeight;
+  let sx, sy, sWidth, sHeight;
   if (srcAspect > 1) {
     // wider than tall → crop sides
     sHeight = srcH;
@@ -304,9 +305,11 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
   const [items, setItems] = useState([]);
   const [trashedItems, setTrashedItems] = useState([]);
   const [openMenu, setOpenMenu] = useState(null);
-  const [isSketchfabOpen, setIsSketchfabOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
+  const [folders, setFolders] = useState([]);
+  const [activeFolderId, setActiveFolderId] = useState(null);
+  const [breadcrumb, setBreadcrumb] = useState([]);
 
   // Confirmation modal state
   const [confirm, setConfirm] = useState({
@@ -316,17 +319,18 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
   });
 
   // Fetchers
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async () => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/files`);
+      const folderParam = activeFolderId ? `?folder=${activeFolderId}` : '';
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/files${folderParam}`);
       const data = await res.json();
       setItems(data || []);
     } catch (err) {
       console.error('Failed to fetch items:', err);
     }
-  };
+  }, [activeFolderId]);
 
-  const fetchTrashedItems = async () => {
+  const fetchTrashedItems = useCallback(async () => {
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/files/trashed`);
       const data = await res.json();
@@ -334,17 +338,46 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
     } catch (err) {
       console.error('Failed to fetch trashed items:', err);
     }
-  };
+  }, []);
+
+  const fetchFolders = useCallback(async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/folders`);
+      const data = await res.json();
+      setFolders(data || []);
+    } catch (err) {
+      console.error('Failed to fetch folders:', err);
+    }
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
     fetchItems();
-  }, [isOpen]);
+  }, [isOpen, fetchItems]);
 
   useEffect(() => {
     if (!isOpen) return;
     if (activeTab === 'trash') fetchTrashedItems();
-  }, [isOpen, activeTab]);
+  }, [isOpen, activeTab, fetchTrashedItems]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    fetchFolders();
+  }, [isOpen, fetchFolders]);
+
+  useEffect(() => {
+    if (!activeFolderId) {
+      setBreadcrumb([]);
+      return;
+    }
+    const path = [];
+    let current = folders.find(f => f._id === activeFolderId);
+    while (current) {
+      path.unshift({ id: current._id, name: current.name });
+      current = current.parentId ? folders.find(f => f._id === current.parentId) : null;
+    }
+    setBreadcrumb(path);
+  }, [activeFolderId, folders]);
 
   // Upload handlers
   const handleModelClick = () => modelInputRef.current?.click();
@@ -357,6 +390,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('type', type);
+    if (activeFolderId) formData.append('folder', activeFolderId);
 
     try {
       if (type === 'image') {
@@ -385,6 +419,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
       if (response.ok) {
         toast.success('✅ Uploaded');
         fetchItems();
+        fetchFolders();
       } else {
         toast.error(result?.error || 'Upload failed');
       }
@@ -393,6 +428,54 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
       toast.error('Upload failed');
     } finally {
       e.target.value = ''; // allow re-uploading same filename
+    }
+  };
+
+  const handleNewFolder = async () => {
+    const name = prompt('Folder name?');
+    if (!name) return;
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/folders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, parent: currentFolder?._id || null }),
+      });
+      if (!res.ok) throw new Error('Failed to create folder');
+      await fetchFolders();
+    } catch (err) {
+      console.error('Failed to create folder:', err);
+      toast.error('Failed to create folder');
+    }
+  };
+
+  const handleRenameFolder = async (folder) => {
+    const name = prompt('Rename folder', folder.name);
+    if (!name) return;
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/folders/${folder._id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, parent: folder.parent || currentFolder?._id || null }),
+      });
+      if (!res.ok) throw new Error('Failed to rename folder');
+      await fetchFolders();
+    } catch (err) {
+      console.error('Failed to rename folder:', err);
+      toast.error('Failed to rename folder');
+    }
+  };
+
+  const handleDeleteFolder = async (folderId) => {
+    if (!confirm('Delete this folder?')) return;
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/folders/${folderId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to delete folder');
+      await fetchFolders();
+    } catch (err) {
+      console.error('Failed to delete folder:', err);
+      toast.error('Failed to delete folder');
     }
   };
 
@@ -407,6 +490,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
       if (res.ok) {
         toast.success('✅ File moved to trash.');
         fetchItems();
+        fetchFolders();
         setOpenMenu(null);
         if (selectedItem?._id === fileId) setSelectedItem(null);
       } else {
@@ -429,6 +513,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
         toast.success('✅ File restored');
         fetchTrashedItems();
         fetchItems();
+        fetchFolders();
       } else {
         toast.error('Failed to restore');
       }
@@ -446,6 +531,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
       if (res.ok) {
         toast.success('✅ File deleted permanently');
         fetchTrashedItems();
+        fetchFolders();
         if (selectedItem?._id === fileId) setSelectedItem(null);
       } else {
         toast.error('Failed to delete permanently');
@@ -477,7 +563,74 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
     return matchType && matchSearch;
   });
 
-  // Card component
+  const filteredFolders = folders.filter((f) =>
+    !search?.trim() || f.name?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // Card components
+
+  const FolderCard = ({ folder }) => {
+    const isMenuOpen = openMenu === `folder-${folder._id}`;
+
+    return (
+      <div className="relative rounded-xl overflow-hidden border border-gray-700 bg-[#1f2025] hover:bg-[#24252b] transition-colors">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpenMenu(isMenuOpen ? null : `folder-${folder._id}`);
+          }}
+          className="absolute top-2 right-2 z-20 p-1 rounded-md bg-[#2a2b2f] hover:bg-[#353741]"
+          title="More actions"
+        >
+          <MoreVertical size={16} />
+        </button>
+
+        <button
+          onClick={() => {
+            setCurrentFolder(folder);
+            setSelectedItem(null);
+          }}
+          className="w-full h-36 bg-[#2a2b2f] flex items-center justify-center"
+          title="Open folder"
+        >
+          <Folder size={32} />
+        </button>
+
+        <div className="p-3">
+          <div className="truncate text-sm text-white">{folder.name}</div>
+        </div>
+
+        {isMenuOpen && (
+          <div
+            className="absolute right-2 top-9 z-80 w-40 rounded-xl border border-gray-700 bg-[#1c1d22] shadow-2xl overflow-hidden"
+            onMouseLeave={() => setOpenMenu(null)}
+          >
+            <div className="py-1">
+              <button
+                className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2b2f]"
+                onClick={() => {
+                  handleRenameFolder(folder);
+                  setOpenMenu(null);
+                }}
+              >
+                Rename
+              </button>
+              <button
+                className="w-full text-left px-3 py-2 text-sm hover:bg-red-500/15 text-red-400"
+                onClick={() => {
+                  handleDeleteFolder(folder._id);
+                  setOpenMenu(null);
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const AssetCard = ({ item }) => {
     const isMenuOpen = openMenu === item._id;
 
@@ -600,7 +753,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
         </div>
         <div className="flex flex-1 min-h-0">
           {/* Sidebar */}
-          <aside className="w-56 h-full border-r border-gray-700 p-3 space-y-1">
+          <aside className="w-56 h-full border-r border-gray-700 p-3 space-y-1 overflow-y-auto">
             {sidebarItems.map((item) => (
               <button
                 key={item.key}
@@ -617,6 +770,37 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
                 {item.label}
               </button>
             ))}
+
+            <div className="mt-4">
+              <div className="text-xs uppercase text-gray-400 mb-2">Folders</div>
+              {breadcrumb.length > 0 && (
+                <button
+                  onClick={() => {
+                    setActiveFolderId(null);
+                    setSelectedItem(null);
+                  }}
+                  className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-[#222329]"
+                >
+                  Root
+                </button>
+              )}
+              {folders.filter(f => f.parentId === activeFolderId).map(folder => (
+                <button
+                  key={folder._id}
+                  onClick={() => {
+                    setActiveFolderId(folder._id);
+                    setSelectedItem(null);
+                  }}
+                  className={cx(
+                    'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm',
+                    activeFolderId === folder._id ? 'bg-[#2a2b2f] font-semibold' : 'hover:bg-[#222329]'
+                  )}
+                >
+                  <Folder size={16} />
+                  {folder.name}
+                </button>
+              ))}
+            </div>
           </aside>
 
           {/* Main */}
@@ -628,6 +812,20 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
                 {activeTab === 'trash' ? 'Trash' :
                   activeTab === 'sketchfab' ? 'Sketchfab' : 'Library'}
               </h2>
+
+              {activeTab !== 'trash' && activeTab !== 'sketchfab' && (
+                <div className="text-sm text-gray-400 ml-4 flex items-center">
+                  <button onClick={() => { setActiveFolderId(null); setSelectedItem(null); }} className="hover:underline">Root</button>
+                  {breadcrumb.map((b) => (
+                    <span key={b.id} className="flex items-center">
+                      <span className="mx-1">/</span>
+                      <button onClick={() => { setActiveFolderId(b.id); setSelectedItem(null); }} className="hover:underline">
+                        {b.name}
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
 
               {/* Search */}
               {activeTab !== 'sketchfab' && (
