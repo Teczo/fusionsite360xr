@@ -7,6 +7,7 @@ import { dirname } from 'path';
 import { BlobServiceClient } from '@azure/storage-blob';
 import File from '../models/File.js';
 import archiver from 'archiver';
+import fetch from 'node-fetch';
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -19,7 +20,11 @@ const upload = multer({ storage: multer.memoryStorage() });
 // GET: fetch all files
 router.get('/files', async (req, res) => {
     try {
-        const files = await File.find({ trashed: false }).sort({ uploadedAt: -1 });
+        const query = { trashed: false };
+        if (req.query.folder) {
+            query.folder = req.query.folder;
+        }
+        const files = await File.find(query).sort({ uploadedAt: -1 });
         res.json(files);
     } catch (err) {
         console.error('❌ Failed to fetch files:', err);
@@ -49,6 +54,7 @@ router.post(
         const file = req.files?.file?.[0];
         const thumb = req.files?.thumbnail?.[0];
         const declaredType = (req.body.type || '').toLowerCase(); // 'model' | 'image'
+        const folder = req.body.folder || null;
         if (!file) return res.status(400).json({ error: 'No file uploaded' });
 
         // Normalize names
@@ -89,6 +95,7 @@ router.post(
                     type: 'image',
                     url: uploadedUrl,
                     thumbnail: thumbUrl || null,
+                    folder,
                 });
 
                 return res.status(200).json({ message: "Image uploaded", file: newFile });
@@ -127,6 +134,7 @@ router.post(
                     type: 'model',
                     url: uploadedUrl,
                     thumbnail: thumbUrl || null, // ✅ save it
+                    folder,
                 });
 
                 // cleanup
@@ -143,6 +151,93 @@ router.post(
         }
     }
 );
+
+// POST: Import a model from a Sketchfab download URL
+router.post('/upload/sketchfab', async (req, res) => {
+    const { url, name } = req.body || {};
+    const AZURE_STORAGE_CONNECTION_STRING = process.env.AZURE_STORAGE_CONNECTION_STRING;
+
+    if (!url) return res.status(400).json({ error: 'No URL provided' });
+    if (!AZURE_STORAGE_CONNECTION_STRING)
+        return res.status(500).json({ error: 'Azure config missing' });
+
+    try {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error('Failed to download model');
+        const arrayBuffer = await resp.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        const blobServiceClient = BlobServiceClient.fromConnectionString(
+            AZURE_STORAGE_CONNECTION_STRING
+        );
+        const containerClient = blobServiceClient.getContainerClient('uploads');
+
+        const urlObj = new URL(url);
+        const pathname = urlObj.pathname;
+        let ext = path.extname(pathname).toLowerCase();
+        if (!ext) ext = '.glb';
+        const originalName = (name || path.basename(pathname)).replace(/\s/g, '_');
+        const baseName = path.basename(originalName, ext);
+        const timestamp = Date.now();
+
+        let uploadedUrl;
+        if (ext === '.zip') {
+            const blobName = `${timestamp}-${baseName}.zip`;
+            const blobClient = containerClient.getBlockBlobClient(blobName);
+            await blobClient.uploadData(buffer, {
+                blobHTTPHeaders: { blobContentType: 'application/zip' },
+            });
+            uploadedUrl = blobClient.url;
+        } else if (ext === '.glb' || ext === '.gltf') {
+            const tempDir = path.join(__dirname, '..', 'uploads');
+            fs.mkdirSync(tempDir, { recursive: true });
+
+            const tempModelPath = path.join(tempDir, `${timestamp}-${originalName}`);
+            const tempZipPath = path.join(tempDir, `${timestamp}-${baseName}.zip`);
+
+            fs.writeFileSync(tempModelPath, buffer);
+
+            await new Promise((resolve, reject) => {
+                const output = fs.createWriteStream(tempZipPath);
+                const archive = archiver('zip');
+                output.on('close', resolve);
+                archive.on('error', reject);
+                archive.pipe(output);
+                archive.file(tempModelPath, { name: originalName });
+                archive.finalize();
+            });
+
+            const zipBuffer = fs.readFileSync(tempZipPath);
+            const blobClient = containerClient.getBlockBlobClient(
+                `${timestamp}-${baseName}.zip`
+            );
+            await blobClient.uploadData(zipBuffer, {
+                blobHTTPHeaders: { blobContentType: 'application/zip' },
+            });
+            uploadedUrl = blobClient.url;
+
+            fs.unlinkSync(tempModelPath);
+            fs.unlinkSync(tempZipPath);
+        } else {
+            return res
+                .status(400)
+                .json({ error: 'Unsupported file type. Use a GLB/GLTF/ZIP URL.' });
+        }
+
+        const fileDoc = await File.create({
+            name: originalName,
+            type: 'model',
+            url: uploadedUrl,
+        });
+
+        res.json({ message: 'Model imported', file: fileDoc });
+    } catch (err) {
+        console.error('❌ Sketchfab import failed:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
 
 
 function guessImageMime(ext) {
@@ -184,6 +279,25 @@ router.patch(
         }
     }
 );
+
+
+
+// Move file to a different folder
+router.patch('/files/:id/move', async (req, res) => {
+    try {
+        const file = await File.findByIdAndUpdate(
+            req.params.id,
+            { folder: req.body.folder || null },
+            { new: true }
+        );
+        if (!file) return res.status(404).json({ error: 'File not found' });
+        res.json({ message: 'File moved', file });
+    } catch (err) {
+        console.error('❌ Move file failed:', err);
+        res.status(500).json({ error: 'Failed to move file' });
+    }
+});
+
 
 
 

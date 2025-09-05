@@ -6,6 +6,7 @@ const fileSchema = new mongoose.Schema({
   url: String,
   thumbnail: { type: String }, // ✅ added thumbnail support
   uploadedAt: { type: Date, default: Date.now },
+  folder: { type: mongoose.Schema.Types.ObjectId, ref: 'Folder', default: null },
   trashed: { type: Boolean, default: false },
   position: {
     x: { type: Number, default: 0 },

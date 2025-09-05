@@ -14,6 +14,7 @@ import { dirname } from 'path';
 import authRoutes from './routes/auth.js';
 import projectRoutes from './routes/project.js';
 import fileRoutes from './routes/file.js';
+import folderRoutes from './routes/folder.js';
 import File from './models/File.js';
 import profileRouter from './routes/profile.js';
 import analyticsRoutes from "./routes/analytics.js";
@@ -97,6 +98,7 @@ app.get('/blobs', async (req, res) => {
 app.use('/api', authRoutes);
 app.use('/api', projectRoutes);
 app.use('/api', fileRoutes);
+app.use('/api', folderRoutes);
 app.use('/api/profile', profileRouter);
 app.use("/api/analytics", analyticsRoutes);
 app.use('/api', animationRoutes);
