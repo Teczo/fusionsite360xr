@@ -180,7 +180,7 @@ export default function StudioPage() {
             <QRCodeModal
                 isOpen={showQRModal}
                 onClose={() => setShowQRModal(false)}
-                url={`https://holoxr.onrender.com/ar/${projectId}`}
+                url={`https://holoxr.teczo.co/ar-select/${projectId}`}
                 projectTitle={projectName || "Untitled Project"}
             />
 

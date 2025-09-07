@@ -33,7 +33,7 @@ export default function ImagePlane({ url, id, name, transform, selectedModelId, 
                 <meshBasicMaterial map={texture} />
             </mesh>
 
-            {selectedModelId === id && transformMode !== 'none' && ref.current && (
+            {selectedModelId === id && transformMode !== 'none' && ref.current?.parent && (
                 <TransformControls
                     object={ref.current}
                     mode={transformMode}

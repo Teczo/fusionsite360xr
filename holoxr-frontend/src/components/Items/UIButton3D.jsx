@@ -46,7 +46,7 @@ export default function UIButton3D({
                 </Text>
             </group>
 
-            {selectedModelId === id && transformMode !== 'none' && ref.current && !isPreviewing && (
+            {selectedModelId === id && transformMode !== 'none' && ref.current?.parent && !isPreviewing && (
                 <TransformControls
                     object={ref.current}
                     mode={transformMode}

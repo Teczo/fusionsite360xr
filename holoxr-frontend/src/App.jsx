@@ -9,6 +9,7 @@ import { Toaster } from 'react-hot-toast';
 import ARViewer from './components/viewer/ARViewer';
 import ARPlane from './pages/ARPlane';
 import ARImageTracker from './pages/ARImageTracker';
+import ARModeSelect from './components/viewer/ARModeSelect';
 
 const RequireAuth = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -22,8 +23,8 @@ export default function App() {
         {/* Public routes */}
         <Route path="/signup" element={<SignUpPage />} />
         <Route path="/signin" element={<SignInPage />} />
+        <Route path="/ar-select/:id" element={<ARModeSelect />} />
         <Route path="/ar/:id" element={<ARViewer />} />
-        <Route path="/ar-marker/:id" element={<ARMarkerViewer />} />
         <Route path="/ar-plane/:id" element={<ARPlane />} />
         <Route path="/ar-image/:id" element={<ARImageTracker />} />
         {/* Auth-protected */}

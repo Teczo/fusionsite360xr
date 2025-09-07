@@ -111,7 +111,7 @@ export default function GLBModel({
             <primitive
                 ref={ref}
                 object={scene}
-                onClick={(e) => {
+                onPointerDown={(e) => {
                     e.stopPropagation();
                     setSelectedModelId(id);
                 }}
@@ -120,7 +120,7 @@ export default function GLBModel({
                     handleFocusObject(ref);
                 }}
             />
-            {selectedModelId === id && transformMode !== 'none' && ref.current && (
+            {selectedModelId === id && transformMode !== 'none' && ref.current?.parent && (
                 <TransformControls
                     object={ref.current}
                     mode={transformMode}

@@ -51,7 +51,7 @@ export default function TextItem({ id, name, content, fontSize, color, transform
                 {content}
             </Text>
 
-            {selectedModelId === id && transformMode !== 'none' && ref.current && (
+            {selectedModelId === id && transformMode !== 'none' && ref.current?.parent && (
                 <TransformControls object={ref.current} mode={transformMode} />
             )}
         </>

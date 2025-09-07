@@ -149,7 +149,7 @@ export default function UILabel3D({
             </group>
 
             {/* Editor only: transform gizmo */}
-            {isSelected && transformMode !== "none" && !isPreviewing && (
+            {isSelected && transformMode !== "none" && !isPreviewing && groupRef.current?.parent && (
                 <TransformControls
                     object={groupRef.current}
                     mode={transformMode}

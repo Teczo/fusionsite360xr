@@ -131,7 +131,7 @@ export function ModelWithAnimation({
             {isSelected && ref.current && (
                 <primitive object={new BoxHelper(ref.current, new THREE.Color("skyblue"))} />
             )}
-            {isSelected && transformMode !== "none" && (
+            {isSelected && transformMode !== "none" && ref.current?.parent && (
                 <TransformControls
                     object={ref.current}
                     mode={transformMode}

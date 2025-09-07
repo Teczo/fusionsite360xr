@@ -300,6 +300,7 @@ function renderUiPresets({ onSelectItem, onClose }) {
 export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
   const modelInputRef = useRef(null);
   const imageInputRef = useRef(null);
+  const [confirmFolder, setConfirmFolder] = useState({ open: false, folderId: null });
 
   const [activeTab, setActiveTab] = useState('all'); // keys from sidebarItems
   const [items, setItems] = useState([]);
@@ -309,6 +310,9 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
   const [selectedItem, setSelectedItem] = useState(null);
   const [folders, setFolders] = useState([]);
   const [activeFolderId, setActiveFolderId] = useState(null);
+  const currentFolder = activeFolderId
+    ? folders.find(f => f._id === activeFolderId)
+    : null;
   const [breadcrumb, setBreadcrumb] = useState([]);
 
   // Confirmation modal state
@@ -342,7 +346,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
 
   const fetchFolders = useCallback(async () => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/folders`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/folders?all=1`);
       const data = await res.json();
       setFolders(data || []);
     } catch (err) {
@@ -353,7 +357,8 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
   useEffect(() => {
     if (!isOpen) return;
     fetchItems();
-  }, [isOpen, fetchItems]);
+    fetchFolders();
+  }, [isOpen, currentFolder]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -371,13 +376,13 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
       return;
     }
     const path = [];
-    let current = folders.find(f => f._id === activeFolderId);
+    let current = currentFolder;
     while (current) {
       path.unshift({ id: current._id, name: current.name });
-      current = current.parentId ? folders.find(f => f._id === current.parentId) : null;
+      current = current.parent ? folders.find(f => f._id === current.parent) : null;
     }
     setBreadcrumb(path);
-  }, [activeFolderId, folders]);
+  }, [activeFolderId, folders, currentFolder]);
 
   // Upload handlers
   const handleModelClick = () => modelInputRef.current?.click();
@@ -438,7 +443,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/folders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, parent: currentFolder?._id || null }),
+        body: JSON.stringify({ name, parent: activeFolderId || null }),
       });
       if (!res.ok) throw new Error('Failed to create folder');
       await fetchFolders();
@@ -455,7 +460,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/folders/${folder._id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, parent: folder.parent || currentFolder?._id || null }),
+        body: JSON.stringify({ name, parent: folder.parent ?? activeFolderId ?? null }),
       });
       if (!res.ok) throw new Error('Failed to rename folder');
       await fetchFolders();
@@ -476,6 +481,26 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
     } catch (err) {
       console.error('Failed to delete folder:', err);
       toast.error('Failed to delete folder');
+    }
+  };
+
+  const [moveDlg, setMoveDlg] = useState({ open: false, item: null, target: null });
+
+  const handleMoveFile = async (fileId, targetFolderId) => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/files/${fileId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folder: targetFolderId || null }),
+      });
+      if (!res.ok) throw new Error('Move failed');
+      toast.success('✅ Moved');
+      setMoveDlg({ open: false, item: null, target: null });
+      fetchItems();
+      fetchFolders();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to move');
     }
   };
 
@@ -587,7 +612,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
 
         <button
           onClick={() => {
-            setCurrentFolder(folder);
+            setActiveFolderId(folder._id);
             setSelectedItem(null);
           }}
           className="w-full h-36 bg-[#2a2b2f] flex items-center justify-center"
@@ -618,7 +643,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
               <button
                 className="w-full text-left px-3 py-2 text-sm hover:bg-red-500/15 text-red-400"
                 onClick={() => {
-                  handleDeleteFolder(folder._id);
+                  setConfirmFolder({ open: true, folderId: folder._id });
                   setOpenMenu(null);
                 }}
               >
@@ -704,7 +729,15 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
               </div>
             </div>
             <div className="py-1">
-              <button className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2b2f]">📁 Move to folder</button>
+              <button
+                className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2b2f]"
+                onClick={() => {
+                  setMoveDlg({ open: true, item, target: activeFolderId ?? null });
+                  setOpenMenu(null);
+                }}
+              >
+                📁 Move to folder
+              </button>
               <button className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2b2f]">🏷️ Add tags</button>
               <button className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2b2f]">🧪 Check compatibility</button>
               <button className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2b2f]">⬇️ Download</button>
@@ -784,7 +817,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
                   Root
                 </button>
               )}
-              {folders.filter(f => f.parentId === activeFolderId).map(folder => (
+              {folders.filter(f => f.parent === activeFolderId).map(folder => (
                 <button
                   key={folder._id}
                   onClick={() => {
@@ -885,7 +918,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
               {activeTab !== 'trash' && activeTab !== 'sketchfab' && (
                 <button
                   className="flex items-center gap-2 bg-[#2a2b2f] hover:bg-[#2f3139] px-3 py-2 rounded-lg text-sm border border-gray-700"
-                  title="Coming soon"
+                  onClick={handleNewFolder}
                 >
                   <FolderPlus size={16} />
                   New Folder
@@ -1051,7 +1084,10 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
                       </button>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      <button className="bg-[#2a2b2f] hover:bg-[#33353e] border border-gray-700 rounded-md py-1.5 text-sm">
+                      <button
+                        className="bg-[#2a2b2f] hover:bg-[#33353e] border border-gray-700 rounded-md py-1.5 text-sm"
+                        onClick={() => setMoveDlg({ open: true, item: selectedItem, target: activeFolderId ?? null })}
+                      >
                         Move
                       </button>
                       <button
@@ -1082,6 +1118,81 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
         confirmTone={confirm.type === 'permadelete' ? 'red' : 'blue'}
         onCancel={() => setConfirm({ open: false, type: null, item: null })}
         onConfirm={onConfirm}
+      />
+
+      {moveDlg.open && (
+        <div className="fixed inset-0 z-[70] bg-black/60 flex items-center justify-center">
+          <div className="w-[420px] rounded-2xl border border-gray-700 bg-[#18191e] p-4">
+            <div className="text-white font-semibold mb-2">Move “{moveDlg.item?.name}”</div>
+
+            <div className="text-xs text-gray-400 mb-2">Choose destination folder</div>
+
+            <div className="max-h-64 overflow-auto space-y-1 mb-3">
+              <button
+                className={cx(
+                  'w-full text-left px-3 py-2 rounded-lg text-sm',
+                  moveDlg.target == null ? 'bg-[#2a2b2f]' : 'hover:bg-[#222329]'
+                )}
+                onClick={() => setMoveDlg((d) => ({ ...d, target: null }))}
+              >
+                ⤴️ Root
+              </button>
+
+              {folders.map((f) => (
+                <button
+                  key={f._id}
+                  className={cx(
+                    'w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2',
+                    moveDlg.target === f._id ? 'bg-[#2a2b2f]' : 'hover:bg-[#222329]'
+                  )}
+                  onClick={() => setMoveDlg((d) => ({ ...d, target: f._id }))}
+                >
+                  <Folder size={16} />
+                  {f.name}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setMoveDlg({ open: false, item: null, target: null })}
+                className="px-3 py-1.5 text-sm rounded-md bg-gray-600 hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleMoveFile(moveDlg.item._id, moveDlg.target)}
+                className="px-3 py-1.5 text-sm rounded-md bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+              >
+                Move here
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={confirmFolder.open}
+        title="Delete folder?"
+        description="Contents will not be deleted, but will appear at Root unless your backend cascades."
+        confirmText="Delete"
+        confirmTone="red"
+        onCancel={() => setConfirmFolder({ open: false, folderId: null })}
+        onConfirm={async () => {
+          const id = confirmFolder.folderId;
+          setConfirmFolder({ open: false, folderId: null });
+          try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/folders/${id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error();
+            // If you were inside the deleted folder, pop to Root
+            if (activeFolderId === id) setActiveFolderId(null);
+            await fetchFolders();
+            await fetchItems();
+            toast.success('✅ Folder deleted');
+          } catch {
+            toast.error('Failed to delete folder');
+          }
+        }}
       />
     </div>
   );
