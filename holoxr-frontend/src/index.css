@@ -1,5 +1,40 @@
 @import "tailwindcss";
 
+/* 1) Theme tokens (top-level, NOT inside :root) */
+@theme {
+  --color-brand: #2c95d2;
+  --color-brand-600: #00E676;
+
+  --color-appbg: #121212;
+  --color-surface: #1E1E1E;
+
+  --color-textpri: #FFFFFF;
+  --color-textsec: #B0BEC5;
+}
+
+/* 2) Custom utilities using @utility (ensures correct expansion order) */
+@utility btn-primary {
+  @apply bg-brand text-black hover:bg-brand-600 rounded-2xl font-semibold px-4 py-2 shadow;
+}
+
+@utility card {
+  @apply bg-surface rounded-2xl shadow-md overflow-hidden;
+}
+
+@utility card-hover {
+  @apply transition ring-0 hover:ring-2 hover:ring-brand/30 hover:shadow-lg;
+}
+
+@utility text-title {
+  @apply text-textpri;
+}
+
+@utility text-subtle {
+  @apply text-textsec;
+}
+
+/* --- keep your existing font-face, :root, body, etc. below this line --- */
+
 @font-face {
   font-family: 'Lato';
   src: url('/fonts/Lato/Lato-Regular.ttf') format('truetype');
