@@ -6,8 +6,8 @@ const router = express.Router();
 
 // GET /api/folders - list folders optionally filtered by parent
 router.get('/folders', async (req, res) => {
-    const { parent } = req.query;
-    const query = parent ? { parent } : { parent: null };
+    const { parent, all } = req.query;
+    const query = all ? {} : (parent ? { parent } : { parent: null });
     try {
         const folders = await Folder.find(query).sort({ createdAt: -1 });
         res.json(folders);

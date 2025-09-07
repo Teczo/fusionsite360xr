@@ -298,6 +298,23 @@ router.patch('/files/:id/move', async (req, res) => {
     }
 });
 
+// PATCH /api/files/:id  — update file (e.g., move to folder, rename)
+router.patch('/files/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const update = {};
+        if ('folder' in req.body) update.folder = req.body.folder ?? null; // move/unmove
+        if ('name' in req.body) update.name = req.body.name;               // optional rename
+
+        const doc = await File.findByIdAndUpdate(id, update, { new: true });
+        if (!doc) return res.status(404).json({ error: 'File not found' });
+        res.json(doc);
+    } catch (err) {
+        console.error('❌ Failed to update file:', err);
+        res.status(500).json({ error: 'Failed to update file' });
+    }
+});
+
 
 
 
