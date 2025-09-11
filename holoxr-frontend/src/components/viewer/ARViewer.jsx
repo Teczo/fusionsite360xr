@@ -9,6 +9,7 @@ import { ModelItem, ImageItem, ButtonItem, TextItem } from "./ARViewerComponents
 import { ARGestureControls } from "./ARGestureControls";
 import { ARPlacementController } from "./ARPlacement";
 import useAnalytics from "../hooks/useAnalytics";
+import * as THREE from "three";
 
 function runActions(actions, setSceneData, navigateToProject, track, navigateToScene) {
     (actions || []).forEach((act) => {
