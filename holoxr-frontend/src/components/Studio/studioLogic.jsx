@@ -338,9 +338,10 @@ export function runButtonActions(buttonItem, setSceneModels) {
                 })
             );
         }
-        if (act.type === "changeProject" && act.projectId) {
+        if (act.type === "NAVIGATE_SCENE" && act.projectId) {
             // Studio preview: don't navigate
-            toast(`(Preview) Would load project: ${act.projectId}`);
+            toast(`(Preview) Would navigate to project ${act.projectId}${act.sceneId ? " / scene " + act.sceneId : ""}`);
+
         }
     });
 }

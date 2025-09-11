@@ -10,7 +10,7 @@ import { ARGestureControls } from "./ARGestureControls";
 import { ARPlacementController } from "./ARPlacement";
 import useAnalytics from "../hooks/useAnalytics";
 
-function runActions(actions, setSceneData, navigateToProject, track) {
+function runActions(actions, setSceneData, navigateToProject, track, navigateToScene) {
     (actions || []).forEach((act) => {
         // optional: high-level event per action
         track?.("button_action", {
@@ -37,6 +37,18 @@ function runActions(actions, setSceneData, navigateToProject, track) {
             track?.("navigate_project", { toProjectId: act.projectId });
             navigateToProject(act.projectId);
         }
+        if (act.type === 'NAVIGATE_SCENE' && act.projectId) {
+            track?.("navigate_scene", {
+                toProjectId: act.projectId,
+                toSceneId: act.sceneId || null
+            });
+            navigateToScene({
+                projectId: act.projectId,
+                sceneId: act.sceneId || null,
+                transition: act.transition || { type: 'fade', durationMs: 400 },
+                preload: act.preload ?? true
+            });
+        }
         if (act.type === 'openClosePanel' && act.targetId) {
             const mode = act.mode || 'toggle';
             setSceneData(prev => prev.map(o => {
@@ -56,6 +68,7 @@ export default function ARViewer() {
     const { id } = useParams();
     const [sceneData, setSceneData] = useState([]);
     const [isAR, setIsAR] = useState(false);
+    const [isTransitioning, setIsTransitioning] = useState(false);
     const userGroupRef = useRef();
     const { track, sessionId } = useAnalytics({ projectId: id });
 
@@ -64,9 +77,62 @@ export default function ARViewer() {
     const currentAnchorRef = useRef(null); // XRAnchor
     const fallbackPoseMatrixRef = useRef(null); // Float32Array (when anchors unsupported)
 
+    // lightweight texture preloader (images); ModelItem will load GLBs on mount
+    const preloadAssets = useCallback(async (items = []) => {
+        const loader = new THREE.TextureLoader();
+        await Promise.all(items.filter(it => it.type === 'image' && it.url).map(it => new Promise((res) => {
+            loader.load(it.url, () => res(), () => res()); // ignore errors here
+        })));
+    }, []);
+
     const navigateToProject = (projectId) => {
         window.location.href = `/ar/${projectId}`;
     };
+
+    // Hot-swap navigator: keeps XR session & anchor, swaps content only
+    const navigateToScene = useCallback(async ({ projectId, sceneId, transition, preload }) => {
+        try {
+            setIsTransitioning(transition?.type === 'fade');
+            // 1) fetch published scene (try sceneId param if backend supports it)
+            const url = sceneId
+                ? `${import.meta.env.VITE_API_URL}/api/published/${projectId}?sceneId=${encodeURIComponent(sceneId)}`
+                : `${import.meta.env.VITE_API_URL}/api/published/${projectId}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            if (!res.ok || !data.publishedScene) throw new Error(data?.error || 'Failed to load target scene');
+            const nextItems = data.publishedScene;
+
+            // 2) optional preload
+            if (preload) {
+                await preloadAssets(nextItems);
+            }
+
+            // 3) fade out
+            if (transition?.type === 'fade') {
+                await new Promise(r => setTimeout(r, transition.durationMs ?? 400));
+            }
+
+            // 4) replace items (keep anchor pose/session)
+            setSceneData(nextItems);
+
+            // 5) fade in
+            if (transition?.type === 'fade') {
+                // small delay to let new items mount before fading back
+                await new Promise(r => requestAnimationFrame(r));
+                setIsTransitioning(false);
+            }
+
+            // 6) update URL (shareability) without reload
+            const u = new URL(window.location.href);
+            u.pathname = `/ar/${projectId}`;
+            if (sceneId) u.searchParams.set('scene', sceneId); else u.searchParams.delete('scene');
+            history.pushState({}, '', u);
+        } catch (e) {
+            console.error('navigateToScene error:', e);
+            setIsTransitioning(false);
+            alert(e?.message || 'Failed to navigate to scene');
+        }
+    }, [preloadAssets]);
 
     useEffect(() => {
         const fetchScene = async () => {
@@ -256,7 +322,7 @@ export default function ARViewer() {
                                     <ButtonItem
                                         key={item.id}
                                         item={item}
-                                        onPress={(btn) => runActions(btn.interactions, setSceneData, navigateToProject, track)}
+                                        onPress={(btn) => runActions(btn.interactions, setSceneData, navigateToProject, track, navigateToScene)}
                                     />
                                 );
                             } else if (item.type === 'label') {
@@ -302,6 +368,11 @@ export default function ARViewer() {
                     </group>
                 </group>
             </Canvas>
+            {/* Fade overlay */}
+            <div
+                className="pointer-events-none fixed inset-0 bg-black transition-opacity duration-300"
+                style={{ opacity: isTransitioning ? 0.85 : 0 }}
+            />
         </div>
     );
 }
