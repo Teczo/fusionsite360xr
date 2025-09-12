@@ -8,6 +8,7 @@ import {
     NotepadTextDashed,
     ChartArea,
     Trash2,
+    CreditCard,
 } from "lucide-react";
 
 export default function Sidebar({
@@ -27,6 +28,7 @@ export default function Sidebar({
         { icon: Users2, label: "Team", key: "team" },
         { icon: NotepadTextDashed, label: "Experiences", key: "experiences" },
         { icon: ChartArea, label: "Analytics", key: "analytics" },
+        { icon: CreditCard, label: "Billing", key: "billing" },
         { icon: Trash2, label: "Trash", key: "trash" },
     ];
 

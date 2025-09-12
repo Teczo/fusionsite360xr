@@ -19,6 +19,7 @@ import File from './models/File.js';
 import profileRouter from './routes/profile.js';
 import analyticsRoutes from "./routes/analytics.js";
 import animationRoutes from './routes/animation.js';
+import billingRoutes from './routes/billing.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -103,6 +104,7 @@ app.use('/api/profile', profileRouter);
 app.use("/api/analytics", analyticsRoutes);
 app.use('/api', animationRoutes);
 app.use('/api/animations', animationRoutes);
+app.use('/api/billing', billingRoutes);
 
 // Start
 app.listen(PORT, () => {

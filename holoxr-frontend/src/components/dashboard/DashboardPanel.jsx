@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import ProfileEdit from '../../pages/ProfilePage';
 import ProfileView from '../../pages/ProfileView';
 import AnalyticsDashboard from '../analytics/AnalyticsDashboard';
+import BillingPricing from '../billing/BillingPricing';
 
 export default function DashboardPanel({
     activeView,
@@ -211,6 +212,10 @@ export default function DashboardPanel({
 
                 {activeView === 'analytics' && (
                     <AnalyticsDashboard projects={projects.map((p) => ({ id: p.id || p._id, name: p.name }))} />
+                )}
+
+                {activeView === 'billing' && (
+                    <BillingPricing />
                 )}
             </div>
         </div>
