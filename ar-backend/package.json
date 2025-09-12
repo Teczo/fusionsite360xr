@@ -27,6 +27,7 @@
     "multer": "^1.4.5-lts.2",
     "node-fetch": "^3.3.2",
     "puppeteer": "^24.9.0",
+    "stripe": "^18.5.0",
     "three": "^0.177.0"
   },
   "devDependencies": {

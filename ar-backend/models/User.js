@@ -30,11 +30,24 @@ const profileSchema = new mongoose.Schema({
     notifications: notificationSchema
 }, { _id: false });
 
+const billingSchema = new mongoose.Schema({
+    stripeCustomerId: String,
+    stripeSubscriptionId: String,
+    priceId: String,
+    planKey: String,                 // 'SINGLE' | 'FOUNDING' (optional)
+    status: String,                  // active, trialing, past_due, canceled, etc.
+    currentPeriodEnd: Date,
+    cancelAtPeriodEnd: { type: Boolean, default: false },
+}, { _id: false });
+
 const userSchema = new mongoose.Schema({
     name: { type: String, required: true },               // already present
     email: { type: String, required: true, unique: true },// already present
     passwordHash: { type: String, required: true },       // already present
-    profile: profileSchema
+    profile: profileSchema,
+    billing: billingSchema
 }, { timestamps: true });
+
+
 
 export default mongoose.model('User', userSchema);

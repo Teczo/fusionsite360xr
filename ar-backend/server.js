@@ -20,6 +20,7 @@ import profileRouter from './routes/profile.js';
 import analyticsRoutes from "./routes/analytics.js";
 import animationRoutes from './routes/animation.js';
 import billingRoutes from './routes/billing.js';
+import billingWebhook from './routes/billing.webhook.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -104,8 +105,12 @@ app.use('/api/profile', profileRouter);
 app.use("/api/analytics", analyticsRoutes);
 app.use('/api', animationRoutes);
 app.use('/api/animations', animationRoutes);
-app.use('/api/billing', billingRoutes);
 
+app.use('/api/billing', billingWebhook);
+app.use(express.json());
+app.use(express.text({ type: 'text/plain' }));
+
+app.use('/api/billing', billingRoutes);
 // Start
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
