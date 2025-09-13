@@ -24,20 +24,25 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
                 const session = event.data.object;
                 const subscriptionId = session.subscription;
                 const customerId = session.customer;
-                // Look up the subscription to get price and period end
+
                 const sub = await stripe.subscriptions.retrieve(subscriptionId);
                 const priceId = sub.items.data[0]?.price?.id;
                 const status = sub.status;
                 const currentPeriodEnd = new Date(sub.current_period_end * 1000);
-                let planKey;
-                if (priceId === process.env.VITE_STRIPE_PRICE_SINGLE) planKey = 'SINGLE';
-                if (priceId === process.env.VITE_STRIPE_PRICE_FOUNDING) planKey = 'FOUNDING';
 
-                // Find user by email or by a stored mapping you maintain.
-                // If you included userId in metadata, fetch it that way instead.
-                const email = session.customer_details?.email || session.customer_email;
-                const user = await User.findOne({ email });
+                // 1) find by customer id first
+                let user = await User.findOne({ 'billing.stripeCustomerId': customerId });
+                // 2) fallback to email if needed
+                if (!user) {
+                    const email = session.customer_details?.email || session.customer_email;
+                    if (email) user = await User.findOne({ email });
+                }
                 if (!user) break;
+
+                // derive readable plan
+                let planKey;
+                if (priceId === process.env.STRIPE_PRICE_SINGLE) planKey = 'SINGLE';
+                if (priceId === process.env.STRIPE_PRICE_FOUNDING) planKey = 'FOUNDING';
 
                 user.billing = {
                     ...(user.billing || {}),
@@ -56,18 +61,23 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
             case 'customer.subscription.deleted': {
                 const sub = event.data.object;
                 const customerId = sub.customer;
-                const priceId = sub.items.data[0]?.price?.id;
+                const priceId = sub.items?.data?.[0]?.price?.id;
                 const status = sub.status;
                 const currentPeriodEnd = new Date(sub.current_period_end * 1000);
 
-                const user = await User.findOne({ 'billing.stripeCustomerId': customerId });
-                if (!user) break;
+                let user = await User.findOne({ 'billing.stripeCustomerId': customerId });
+                if (!user) { console.warn('[webhook] no user for subscription.*', { customerId }); break; }
+
+                let planKey;
+                if (priceId === process.env.STRIPE_PRICE_SINGLE) planKey = 'SINGLE';
+                if (priceId === process.env.STRIPE_PRICE_FOUNDING) planKey = 'FOUNDING';
 
                 user.billing = {
                     ...(user.billing || {}),
                     stripeCustomerId: customerId,
                     stripeSubscriptionId: sub.id,
                     priceId,
+                    planKey, // ← keep plan synced here too
                     status,
                     currentPeriodEnd,
                     cancelAtPeriodEnd: sub.cancel_at_period_end || false,

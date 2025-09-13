@@ -7,8 +7,8 @@ const router = express.Router();
 
 function mapPlanKeyToPrice(planKey) {
     const key = String(planKey || '').toUpperCase();
-    if (key === 'FOUNDING') return process.env.VITE_STRIPE_PRICE_FOUNDING;
-    if (key === 'SINGLE') return process.env.VITE_STRIPE_PRICE_SINGLE;
+    if (key === 'FOUNDING') return process.env.STRIPE_PRICE_FOUNDING;
+    if (key === 'SINGLE') return process.env.STRIPE_PRICE_SINGLE;
     return null;
 }
 
