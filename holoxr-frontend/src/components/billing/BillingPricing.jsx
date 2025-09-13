@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CheckIcon } from '@heroicons/react/20/solid'
+import CurrentPlanBanner from './CurrentPlanBanner';
 
 // Two plans mapped to your Stripe Price IDs (from Vite env)
 const PLANS = [
@@ -64,6 +65,7 @@ export default function BillingPricing() {
 
     return (
         <div className="relative isolate px-4 py-10 sm:py-12 lg:px-8 text-white">
+            <CurrentPlanBanner />
             {/* Soft gradient blobs (contained so they don’t break your dashboard) */}
             <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 -top-10 -z-10 overflow-hidden blur-3xl">
                 <div
