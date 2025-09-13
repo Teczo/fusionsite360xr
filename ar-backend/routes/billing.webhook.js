@@ -29,6 +29,9 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
                 const priceId = sub.items.data[0]?.price?.id;
                 const status = sub.status;
                 const currentPeriodEnd = new Date(sub.current_period_end * 1000);
+                let planKey;
+                if (priceId === process.env.VITE_STRIPE_PRICE_SINGLE) planKey = 'SINGLE';
+                if (priceId === process.env.VITE_STRIPE_PRICE_FOUNDING) planKey = 'FOUNDING';
 
                 // Find user by email or by a stored mapping you maintain.
                 // If you included userId in metadata, fetch it that way instead.
@@ -41,6 +44,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
                     stripeCustomerId: customerId,
                     stripeSubscriptionId: subscriptionId,
                     priceId,
+                    planKey,
                     status,
                     currentPeriodEnd,
                     cancelAtPeriodEnd: sub.cancel_at_period_end || false,

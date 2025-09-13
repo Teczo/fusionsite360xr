@@ -22,6 +22,9 @@ import animationRoutes from './routes/animation.js';
 import billingRoutes from './routes/billing.js';
 import billingWebhook from './routes/billing.webhook.js';
 
+import requireActiveSubscription from './middleware/requireActiveSubscription.js';
+import authMiddleware from './middleware/authMiddleware.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -42,19 +45,17 @@ const corsOptions = {
     return cb(new Error('Not allowed by CORS'));
   },
   credentials: true,
-  // ✅ include PATCH (and HEAD is nice to have)
   methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   maxAge: 86400,
 };
 app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions)); // handles preflight
 
-// 3) EITHER delete this line entirely (CORS will still add headers):
-// app.options('*', cors(corsOptions));
-// OR, if you want an explicit preflight handler for all routes, use regex:
-app.options(/.*/, cors(corsOptions)); // avoids the "*" path-to-regexp error
+// Stripe webhook MUST come before body parsers
+app.use('/api/billing', billingWebhook);
 
-// Body parsers
+// Body parsers for the rest of the routes
 app.use(express.json());
 app.use(express.text({ type: 'text/plain' }));
 
@@ -66,19 +67,21 @@ mongoose.connect(process.env.MONGODB_URI)
   .catch((err) => console.error(err));
 
 // Azure
-const blobServiceClient = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
+const blobServiceClient = BlobServiceClient.fromConnectionString(
+  process.env.AZURE_STORAGE_CONNECTION_STRING
+);
 const containerClient = blobServiceClient.getContainerClient('uploads');
 
 // Multer
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Files
+// Files (example public endpoint)
 app.get('/files', async (req, res) => {
   const files = await File.find().sort({ uploadedAt: -1 });
   res.json(files);
 });
 
-// Blobs
+// Blobs (example public endpoint)
 app.get('/blobs', async (req, res) => {
   try {
     const blobs = [];
@@ -102,15 +105,17 @@ app.use('/api', projectRoutes);
 app.use('/api', fileRoutes);
 app.use('/api', folderRoutes);
 app.use('/api/profile', profileRouter);
-app.use("/api/analytics", analyticsRoutes);
+
+// You can gate analytics with subscription if needed:
+app.use('/api/analytics', authMiddleware, requireActiveSubscription, analyticsRoutes);
+
+// If you want animations behind subscription too, wrap it the same way
 app.use('/api', animationRoutes);
 app.use('/api/animations', animationRoutes);
 
-app.use('/api/billing', billingWebhook);
-app.use(express.json());
-app.use(express.text({ type: 'text/plain' }));
-
+// Billing (after webhook + parsers)
 app.use('/api/billing', billingRoutes);
+
 // Start
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);

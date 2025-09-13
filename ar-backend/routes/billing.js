@@ -37,7 +37,7 @@ router.post('/create-checkout-session', authMiddleware, async (req, res) => {
             mode: 'subscription',
             customer: customerId,
             line_items: [{ price, quantity: 1 }],
-            success_url: `${process.env.APP_URL}/dashboard?billing=success`,
+            success_url: `${process.env.APP_URL}/dashboard?billing=success&session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${process.env.APP_URL}/dashboard?billing=cancelled`,
             allow_promotion_codes: true,
             automatic_tax: { enabled: false },
@@ -71,5 +71,49 @@ router.get('/status', authMiddleware, async (req, res) => {
     const user = await User.findById(req.userId).select('billing');
     res.json(user?.billing || {});
 });
+
+router.get('/confirm', async (req, res) => {
+    try {
+        const { session_id } = req.query;
+        if (!session_id) return res.status(400).json({ error: 'Missing session_id' });
+
+        const session = await stripe.checkout.sessions.retrieve(session_id);
+        if (!session?.customer || !session?.subscription) {
+            return res.status(400).json({ error: 'Invalid session' });
+        }
+
+        const sub = await stripe.subscriptions.retrieve(session.subscription);
+        const email = session.customer_details?.email || session.customer_email;
+        const user = await User.findOne({ email });
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        const priceId = sub.items.data[0]?.price?.id;
+        const status = sub.status;
+        const currentPeriodEnd = new Date(sub.current_period_end * 1000);
+
+        // Optional: derive planKey from priceId
+        let planKey = undefined;
+        if (priceId === process.env.STRIPE_PRICE_SINGLE) planKey = 'SINGLE';
+        if (priceId === process.env.STRIPE_PRICE_FOUNDING) planKey = 'FOUNDING';
+
+        user.billing = {
+            ...(user.billing || {}),
+            stripeCustomerId: session.customer,
+            stripeSubscriptionId: sub.id,
+            priceId,
+            planKey,
+            status,
+            currentPeriodEnd,
+            cancelAtPeriodEnd: sub.cancel_at_period_end || false,
+        };
+        await user.save();
+
+        res.json({ ok: true, status, planKey, currentPeriodEnd });
+    } catch (e) {
+        console.error('confirm error:', e);
+        res.status(500).json({ error: 'Confirm failed' });
+    }
+});
+
 
 export default router;
