@@ -13,6 +13,10 @@
 }
 
 /* 2) Custom utilities using @utility (ensures correct expansion order) */
+@utility btn-gradient-primary {
+  @apply bg-gradient-to-r from-[#2c95d2] to-[#72c267] text-white transition hover:opacity-90;
+}
+
 @utility btn-primary {
   @apply bg-brand text-black hover:bg-brand-600 rounded-2xl font-semibold px-4 py-2 shadow;
 }
@@ -32,6 +36,8 @@
 @utility text-subtle {
   @apply text-textsec;
 }
+
+
 
 /* --- keep your existing font-face, :root, body, etc. below this line --- */
 
@@ -72,12 +78,12 @@
 
 a {
   font-weight: 500;
-  color: #646cff;
+  /* color: #646cff;  <-- Remove or comment out this line */
   text-decoration: inherit;
 }
 
 a:hover {
-  color: #535bf2;
+  /*color: #535bf2;*/
 }
 
 body {

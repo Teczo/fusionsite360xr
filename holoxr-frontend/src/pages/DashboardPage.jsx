@@ -1,14 +1,15 @@
 import { useEffect, useState, useMemo } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import Sidebar from '../components/dashboard/Sidebar';
 import DashboardHeader from '../components/dashboard/DashboardHeader';
 import DashboardPanel from '../components/dashboard/DashboardPanel';
 
 export default function DashboardPage() {
+    const { panel } = useParams(); // e.g., 'profile', 'billing', etc.
     const [projects, setProjects] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [form, setForm] = useState({ name: '', description: '' });
-    const [activeView, setActiveView] = useState('your-designs');
+    const [activeView, setActiveView] = useState(panel || 'your-designs');
     const [openMenuId, setOpenMenuId] = useState(null);
     const [trashedProjects, setTrashedProjects] = useState([]);
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -27,6 +28,18 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
 
     const location = useLocation();
+
+    // keep state in sync if URL changes (back/forward, manual edits)
+    useEffect(() => {
+        const next = panel || 'your-designs';
+        if (next !== activeView) setActiveView(next);
+    }, [panel]);
+
+    // single source of truth for changing panels
+    const go = (view) => {
+        setActiveView(view);
+        navigate(`/dashboard/${view}`);
+    };
 
     // Keep <html> class in sync with theme
     useEffect(() => {
@@ -60,7 +73,7 @@ export default function DashboardPage() {
             isCollapsed,
             setIsCollapsed,
             activeView,
-            setActiveView,
+            setActiveView: go,
             searchQuery,
             setSearchQuery,
             theme,
@@ -127,9 +140,9 @@ export default function DashboardPage() {
             <Sidebar
                 isCollapsed={isCollapsed}
                 setIsCollapsed={setIsCollapsed}
-                activeView={activeView}
-                setActiveView={setActiveView}
                 setShowModal={setShowModal}
+                userName={user?.name || 'User'}
+                billingTier={user?.billing?.tier || user?.plan || 'Pro'}
             />
 
 
@@ -138,8 +151,8 @@ export default function DashboardPage() {
                 <div className="flex flex-col h-full">
 
                     {/* Top Header (sits above glass panel). z-50 prevents overlap issues */}
-                    <div className={"flex pr-6 pt-4 z-50 mb-4"}>
-                        <DashboardHeader searchQuery={searchQuery} setSearchQuery={setSearchQuery} theme={theme} setTheme={setTheme} user={user} setActiveView={setActiveView} />
+                    <div className={"flex  pt-4 z-50 mb-4"}>
+                        <DashboardHeader searchQuery={searchQuery} setSearchQuery={setSearchQuery} theme={theme} setTheme={setTheme} user={user} setActiveView={go} />
                     </div>
 
 
@@ -154,7 +167,7 @@ export default function DashboardPage() {
                         handleCreate={handleCreate}
                         setProjects={setProjects}
                         setTrashedProjects={setTrashedProjects}
-                        setActiveView={setActiveView}
+                        setActiveView={go}
                     />
                 </div>
             </div>

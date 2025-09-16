@@ -29,7 +29,10 @@ export default function App() {
         <Route path="/ar-image/:id" element={<ARImageTracker />} />
         {/* Auth-protected */}
 
-        <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />
+        <Route path="/dashboard/:panel?" element={<RequireAuth><DashboardPage /></RequireAuth>} />
+        {/* Optional aliases so you can share simple links */}
+        <Route path="/billing" element={<Navigate to="/dashboard/billing" replace />} />
+        <Route path="/profile" element={<Navigate to="/dashboard/profile" replace />} />
         <Route path="/studio" element={<RequireAuth><StudioPage /></RequireAuth>} />
 
         {/* Catch-all */}
