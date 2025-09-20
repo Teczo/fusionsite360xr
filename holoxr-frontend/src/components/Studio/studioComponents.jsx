@@ -313,6 +313,7 @@ export function BehaviorRunner({ targetRef, behaviors = [], getObjectRefById, pa
                 s.dps = b.degreesPerSecond ?? 0;
                 s.maxAngleDeg = Math.max(0, b.maxAngleDeg || 0);
                 s.accumDeg = 0; // travel since start (for once/pingpong)
+                s.angleDeg = 0;
             }
 
             if (b.type === 'orbit') {
@@ -360,12 +361,21 @@ export function BehaviorRunner({ targetRef, behaviors = [], getObjectRefById, pa
             const s = stateRef.current[i];
             if (!s.enabled) continue;
 
-            // handle initial delay / hold-at-ends
-            if (s.delayLeftMs > 0) { s.delayLeftMs = Math.max(0, s.delayLeftMs - delta * 1000); continue; }
-            if (s.holdingLeftMs > 0) { s.holdingLeftMs = Math.max(0, s.holdingLeftMs - delta * 1000); continue; }
+            if (s.delayLeftMs > 0) {
+                s.delayLeftMs = Math.max(0, s.delayLeftMs - delta * 1000);
+                continue;
+            }
+
+            const holding = s.holdingLeftMs > 0;
+            if (holding) {
+                s.holdingLeftMs = Math.max(0, s.holdingLeftMs - delta * 1000);
+                if (s.type !== 'rotateSelf') {
+                    continue;
+                }
+            }
 
             if (s.type === 'rotateSelf') {
-                const step = (s.dps || 0) * delta * s.dir;
+                const step = holding ? 0 : (s.dps || 0) * delta * s.dir;
                 // if capped by pingpong/once
                 const mode = s.playbackMode;
                 if ((mode === 'pingpong' || mode === 'once') && s.maxAngleDeg > 0) {
@@ -386,10 +396,9 @@ export function BehaviorRunner({ targetRef, behaviors = [], getObjectRefById, pa
                             s.holdingLeftMs = s.holdMs;
                         }
                     }
-                    const deltaDeg = next - s.accumDeg;
                     s.accumDeg = next;
 
-                    _quat.setFromAxisAngle(s.axis, THREE.MathUtils.degToRad(deltaDeg));
+                    _quat.setFromAxisAngle(s.axis, THREE.MathUtils.degToRad(s.accumDeg));
                     obj.quaternion.multiply(_quat);
 
                     // stop when once completed
@@ -398,7 +407,10 @@ export function BehaviorRunner({ targetRef, behaviors = [], getObjectRefById, pa
                     }
                 } else {
                     // free spin (loop mode or no cap)
-                    _quat.setFromAxisAngle(s.axis, THREE.MathUtils.degToRad(step));
+                    s.angleDeg = (s.angleDeg + step) % 360;
+                    if (s.angleDeg < 0) s.angleDeg += 360;
+
+                    _quat.setFromAxisAngle(s.axis, THREE.MathUtils.degToRad(s.angleDeg));
                     obj.quaternion.multiply(_quat);
                 }
             }
