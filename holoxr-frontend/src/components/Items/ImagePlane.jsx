@@ -2,53 +2,96 @@ import { useEffect, useRef } from 'react';
 import { useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 import { TransformControls } from '@react-three/drei';
+import { BehaviorRunner } from '../Studio/studioComponents';
 
-export default function ImagePlane({ url, id, name, transform, selectedModelId, setSelectedModelId, transformMode, updateModelTransform, handleFocusObject }) {
+export default function ImagePlane({
+    url,
+    id,
+    name,
+    transform,
+    selectedModelId,
+    setSelectedModelId,
+    transformMode,
+    updateModelTransform,
+    handleFocusObject,
+
+    // NEW for behaviors/orbit
+    behaviors = [],
+    isPaused = false,
+    registerRef,
+    getObjectRefById,
+
+    // optional
+    width = 3,
+    height = 3,
+    opacity = 1,
+}) {
     const texture = useLoader(THREE.TextureLoader, url);
-    const ref = useRef();
+    const containerRef = useRef();
 
     useEffect(() => {
-        if (ref.current) {
-            const { x, y, z, rx, ry, rz, sx, sy, sz } = transform;
-            ref.current.position.set(x, y, z);
-            ref.current.rotation.set(rx, ry, rz);
-            ref.current.scale.set(sx, sy, sz);
-        }
+        // register/unregister for orbit target lookup
+        registerRef?.(id, containerRef);
+        return () => registerRef?.(id, null);
+    }, [id, registerRef]);
+
+    useEffect(() => {
+        if (!containerRef.current) return;
+        const { x, y, z, rx, ry, rz, sx, sy, sz } = transform;
+        containerRef.current.position.set(x, y, z);
+        containerRef.current.rotation.set(rx, ry, rz);
+        containerRef.current.scale.set(sx, sy, sz);
     }, [transform]);
 
     return (
         <>
-            <mesh
-                ref={ref}
+            <group
+                ref={containerRef}
                 onClick={(e) => {
                     e.stopPropagation();
                     setSelectedModelId(id);
                 }}
                 onDoubleClick={(e) => {
                     e.stopPropagation();
-                    handleFocusObject(ref);
+                    handleFocusObject(containerRef);
                 }}
             >
-                <planeGeometry args={[3, 3]} />
-                <meshBasicMaterial map={texture} />
-            </mesh>
+                <mesh>
+                    <planeGeometry args={[width, height]} />
+                    <meshBasicMaterial
+                        map={texture}
+                        transparent={true}
+                        alphaTest={0.5}
+                        depthWrite={false}
+                        side={THREE.DoubleSide}
+                    />
+                </mesh>
 
-            {selectedModelId === id && transformMode !== 'none' && ref.current?.parent && (
+                {/* Run rotate/orbit/translate behaviors in Studio */}
+                <BehaviorRunner
+                    targetRef={containerRef}
+                    behaviors={behaviors}
+                    getObjectRefById={getObjectRefById}
+                    paused={isPaused}
+                />
+            </group>
+
+            {selectedModelId === id && transformMode !== 'none' && containerRef.current?.parent && (
                 <TransformControls
-                    object={ref.current}
+                    object={containerRef.current}
                     mode={transformMode}
                     onMouseUp={() => {
-                        if (!ref.current) return;
+                        if (!containerRef.current) return;
                         updateModelTransform(id, {
-                            x: ref.current.position.x,
-                            y: ref.current.position.y,
-                            z: ref.current.position.z,
-                            rx: ref.current.rotation.x,
-                            ry: ref.current.rotation.y,
-                            rz: ref.current.rotation.z,
-                            sx: ref.current.scale.x,
-                            sy: ref.current.scale.y,
-                            sz: ref.current.scale.z,
+                            x: containerRef.current.position.x,
+                            y: containerRef.current.position.y,
+                            z: containerRef.current.position.z,
+                            rx: containerRef.current.rotation.x,
+                            ry: containerRef.current.rotation.y,
+                            rz: containerRef.current.rotation.z,
+                            sx: containerRef.current.scale.x,
+                            sy: containerRef.current.scale.y,
+                            sz: containerRef.current.scale.z,
                         });
                     }}
                 />

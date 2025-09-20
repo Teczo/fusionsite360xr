@@ -224,39 +224,27 @@ export default function ARViewer() {
     return (
         <div className="w-screen h-screen touch-none select-none">
             <Canvas
-                camera={{ position: [0, 1.6, 10], fov: 70 }}  // push desktop preview camera back
-                onCreated={({ gl }) => {
+                gl={{ antialias: true, alpha: true, premultipliedAlpha: true }}
+                camera={{ position: [0, 1.6, 10], fov: 70 }}
+                onCreated={({ gl /*, scene */ }) => {
                     gl.xr.enabled = true;
 
-                    // Prevent browser pinch-to-zoom / scroll on canvas
-                    gl.domElement.style.touchAction = 'none';
+                    // Transparent clears so camera feed shows through in AR
+                    gl.setClearColor(0x000000, 0);       // <— alpha = 0 is key
+                    gl.setClearAlpha?.(0);               // some builds prefer this too
+                    gl.domElement.style.background = 'transparent';
 
-                    // Prefer floor-aligned coordinates if available
+                    gl.domElement.style.touchAction = 'none';
                     try { gl.xr.setReferenceSpaceType?.('local-floor'); } catch { }
 
-                    gl.xr.addEventListener('sessionstart', () => {
-                        setIsAR(true);
-                        track("ar_session_start", { projectId: id, sessionId });
-                    });
-                    gl.xr.addEventListener('sessionend', () => {
-                        setIsAR(false);
-                        // Reset anchor state on AR exit
-                        if (currentAnchorRef.current) {
-                            try { currentAnchorRef.current.delete?.(); } catch { }
-                            currentAnchorRef.current = null;
-                        }
-                        fallbackPoseMatrixRef.current = null;
-                        track("ar_session_end", { projectId: id, sessionId });
-                    });
+                    gl.xr.addEventListener('sessionstart', () => { /* ... */ });
+                    gl.xr.addEventListener('sessionend', () => { /* ... */ });
 
-                    // Create AR button with the right features
                     const button = ARButton.createButton(gl, {
                         requiredFeatures: ['hit-test'],
                         optionalFeatures: ['anchors', 'local-floor', 'dom-overlay'],
                         domOverlay: { root: document.body }
                     });
-
-                    // Avoid adding multiple buttons across HMR or re-mounts
                     const existing = document.querySelector('.webxr-ar-button');
                     if (!existing) {
                         button.classList.add('webxr-ar-button');
@@ -306,8 +294,20 @@ export default function ARViewer() {
                                         getObjectRefById={getObjectRefById}
                                     />
                                 );
-                            } else if (item.type === 'image') {
-                                return <ImageItem key={item.id} url={item.url} transform={item.transform} />;
+                            } if (item.type === 'image') {
+                                return (
+                                    <ImageItem
+                                        key={item.id}
+                                        id={item.id}
+                                        url={item.url}
+                                        transform={item.transform}
+                                        isPaused={item.isPaused}
+                                        behaviors={item.behaviors || []}
+                                        registerRef={registerRef}
+                                        getObjectRefById={getObjectRefById}
+                                    // (optional) width={item.width} height={item.height} opacity={item.opacity}
+                                    />
+                                );
                             } else if (item.type === 'text') {
                                 return (
                                     <TextItem

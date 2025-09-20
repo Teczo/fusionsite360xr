@@ -1,3 +1,4 @@
+// ARViewerComponents.jsx
 import { useEffect, useRef } from "react";
 import { useState } from "react";
 import { useFrame } from "@react-three/fiber";
@@ -16,16 +17,15 @@ export function ModelItem({
     autoplay = false,
     isPaused = false,
     behaviors = [],
-    registerRef,          // new
-    getObjectRefById      // new
+    registerRef,
+    getObjectRefById
 }) {
-    const containerRef = useRef();          // new: wrapper node to be animated
+    const containerRef = useRef();
     const mixerRef = useRef();
     const [scene, setScene] = useState(null);
     const [animations, setAnimations] = useState([]);
 
     useEffect(() => {
-        // register/unregister this object for orbit targets
         registerRef?.(id, containerRef);
         return () => registerRef?.(id, null);
     }, [id, registerRef]);
@@ -86,14 +86,13 @@ export function ModelItem({
     const t = transform || {};
     return (
         <group
-            ref={containerRef}                               // animate this wrapper
+            ref={containerRef}
             position={[t.x || 0, t.y || 0, t.z || 0]}
             rotation={[t.rx || 0, t.ry || 0, t.rz || 0]}
             scale={[t.sx || 1, t.sy || 1, t.sz || 1]}
         >
             <primitive object={scene} />
 
-            {/* 🔥 Add behavior runner so this model can rotate/orbit/translate in AR */}
             <BehaviorRunner
                 targetRef={containerRef}
                 behaviors={behaviors}
@@ -104,22 +103,54 @@ export function ModelItem({
     );
 }
 
-export function ImageItem({ url, transform = {} }) {
+// ⬇️ UPDATED: ImageItem now supports behaviors just like ModelItem
+export function ImageItem({
+    id,
+    url,
+    transform = {},
+    width = 3,
+    height = 3,
+    opacity = 1,
+    isPaused = false,
+    behaviors = [],
+    registerRef,
+    getObjectRefById,
+}) {
+    const containerRef = useRef();
     const texture = new THREE.TextureLoader().load(url);
-    const ref = useRef();
+
     useEffect(() => {
-        if (ref.current) {
-            const { x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1 } = transform;
-            ref.current.position.set(x, y, z);
-            ref.current.rotation.set(rx, ry, rz);
-            ref.current.scale.set(sx, sy, sz);
-        }
-    }, [transform]);
+        registerRef?.(id, containerRef);
+        return () => registerRef?.(id, null);
+    }, [id, registerRef]);
+
+    const t = transform || {};
     return (
-        <mesh ref={ref}>
-            <planeGeometry args={[3, 3]} />
-            <meshBasicMaterial map={texture} />
-        </mesh>
+        <group
+            ref={containerRef}
+            position={[t.x || 0, t.y || 0, t.z || 0]}
+            rotation={[t.rx || 0, t.ry || 0, t.rz || 0]}
+            scale={[t.sx || 1, t.sy || 1, t.sz || 1]}
+        >
+            <mesh>
+                <planeGeometry args={[width, height]} />
+                <meshBasicMaterial
+                    map={texture}
+                    transparent={true}
+                    alphaTest={0.5}
+                    side={THREE.DoubleSide}
+                    depthWrite={false}
+                />
+            </mesh>
+
+            {/* Behaviors now apply to images too */}
+            <BehaviorRunner
+                targetRef={containerRef}
+                behaviors={behaviors}
+                getObjectRefById={getObjectRefById}
+                paused={isPaused}
+            />
+        </group>
     );
 }
 

@@ -262,17 +262,27 @@ export default function StudioPage() {
                             <ImagePlane
                                 key={item.id}
                                 id={item.id}
-                                name={item.name}
                                 url={item.url}
+                                name={item.name}
                                 transform={item.transform}
                                 selectedModelId={selectedModelId}
                                 setSelectedModelId={setSelectedModelId}
                                 transformMode={transformMode}
                                 updateModelTransform={onUpdateTransform}
                                 handleFocusObject={handleFocusOnObject(cameraRef)}
+                                // 👇 behaviors + refs so Studio animates like AR
+                                behaviors={animByObject[item.id]?.behaviors || []}
+                                isPaused={item.isPaused}
+                                registerRef={registerRef}
+                                getObjectRefById={getObjectRefById}
+                                // optional sizing/appearance
+                                width={item.width ?? 3}
+                                height={item.height ?? 3}
+                                opacity={item.opacity ?? 1}
                             />
                         );
                     }
+
 
                     if (item.type === "text") {
                         return (

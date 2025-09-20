@@ -112,3 +112,10 @@ h1 {
     background-color: #727272;
   }
 }
+
+html,
+body,
+#root,
+canvas {
+  background: transparent !important;
+}

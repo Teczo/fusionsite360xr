@@ -31,6 +31,8 @@ export default function PropertyPanel({
 
   };
 
+  const BEHAVIOR_TYPES = new Set(['model', 'image']);
+
   const handleChange = (field, value) => {
     const parsed = parseFloat(value);
     if (!isNaN(parsed)) {
@@ -106,11 +108,11 @@ export default function PropertyPanel({
       />
 
       {/* Backend Behaviors (rotateSelf / orbit / translatePath) */}
-      {model.type === 'model' && (
+      {BEHAVIOR_TYPES.has(model.type) && (
         <BehaviorEditor
           modelId={model.id}
           behaviors={objectBehaviors}
-          models={models}
+          models={models} // will replace below
           onSave={handleSaveBehaviors}
           onBehaviorsSaved={onBehaviorsSaved}
         />

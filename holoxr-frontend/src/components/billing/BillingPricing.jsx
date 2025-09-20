@@ -75,7 +75,6 @@ export default function BillingPricing() {
             </div>
 
             <div className="mx-auto max-w-4xl text-center">
-                <h2 className="text-sm font-semibold tracking-wide text-indigo-400">Pricing</h2>
                 <p className="mt-2 text-4xl font-semibold tracking-tight text-balance sm:text-5xl">Choose the right plan for you</p>
                 <p className="mx-auto mt-4 max-w-2xl text-base text-gray-300">
                     Choose an affordable plan packed with the essentials for building and sharing AR experiences.
@@ -126,7 +125,7 @@ export default function BillingPricing() {
                             className={classNames(
                                 'mt-8 block w-full rounded-md px-3.5 py-2.5 text-center text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 sm:mt-10 transition',
                                 tier.featured
-                                    ? 'bg-indigo-500 text-white hover:bg-indigo-400 focus-visible:outline-indigo-500'
+                                    ? 'w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold btn-gradient-primary'
                                     : 'bg-white/10 text-white ring-1 ring-white/10 hover:bg-white/20 focus-visible:outline-white/75'
                             )}
                         >
@@ -140,25 +139,6 @@ export default function BillingPricing() {
                         )}
                     </div>
                 ))}
-            </div>
-            <div className="mt-12 text-center">
-                <button
-                    onClick={async () => {
-                        const token = localStorage.getItem('token')
-                        const r = await fetch(`${import.meta.env.VITE_API_URL}/api/billing/create-portal-session`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                Authorization: `Bearer ${token}`,
-                            },
-                        })
-                        const { url } = await r.json()
-                        if (url) window.location.href = url
-                    }}
-                    className="rounded-md bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-500"
-                >
-                    Manage Billing
-                </button>
             </div>
         </div>
     )
