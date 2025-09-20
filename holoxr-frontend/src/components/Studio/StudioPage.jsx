@@ -225,6 +225,8 @@ export default function StudioPage() {
 
                 {/* Render models, images, text, buttons, labels */}
                 {sceneModels.map((item) => {
+                    const effectiveTransformMode = isPreviewing ? "none" : transformMode;
+                    const paused = !isPreviewing || !!item.isPaused;
                     if (item.visible === false) return null;
 
                     if (item.type === "model" && item.scene) {
@@ -236,9 +238,9 @@ export default function StudioPage() {
                                 animations={item.animations}
                                 selectedAnimationIndex={item.selectedAnimationIndex}
                                 playAnimationKey={item.playAnimationKey}
-                                isPaused={item.isPaused}
+                                isPaused={paused}
                                 behaviors={animByObject[item.id]?.behaviors || []}
-                                transformMode={transformMode}
+                                transformMode={effectiveTransformMode}
                                 isSelected={item.id === selectedModelId}
                                 transform={item.transform}
                                 orbitRef={orbitRef}
@@ -267,12 +269,12 @@ export default function StudioPage() {
                                 transform={item.transform}
                                 selectedModelId={selectedModelId}
                                 setSelectedModelId={setSelectedModelId}
-                                transformMode={transformMode}
+                                transformMode={effectiveTransformMode}
                                 updateModelTransform={onUpdateTransform}
                                 handleFocusObject={handleFocusOnObject(cameraRef)}
                                 // 👇 behaviors + refs so Studio animates like AR
                                 behaviors={animByObject[item.id]?.behaviors || []}
-                                isPaused={item.isPaused}
+                                isPaused={paused}
                                 registerRef={registerRef}
                                 getObjectRefById={getObjectRefById}
                                 // optional sizing/appearance

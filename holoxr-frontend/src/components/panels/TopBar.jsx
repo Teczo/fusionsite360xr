@@ -38,8 +38,13 @@ export default function TopBar({
 
         <button
           onClick={onTogglePreview}
-          className="w-9 h-9 flex items-center justify-center rounded-full bg-transparent hover:bg-gray-300 transition"
-          title="Preview"
+          className={
+            "w-9 h-9 flex items-center justify-center rounded-full transition " +
+            (isPreviewing
+              ? "bg-emerald-600 hover:bg-emerald-500"
+              : "bg-transparent hover:bg-gray-300")
+          }
+          title={isPreviewing ? "Stop Preview" : "Preview"}
         >
           <Eye size={16} className="text-white" />
         </button>

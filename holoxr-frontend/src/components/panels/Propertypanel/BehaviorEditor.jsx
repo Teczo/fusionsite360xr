@@ -7,14 +7,19 @@ export default function BehaviorEditor({
     onSave,
     onBehaviorsSaved,
 }) {
+
     const emptyRotateSelf = () => ({
         type: 'rotateSelf',
         enabled: true,
         axis: [0, 1, 0],
         degreesPerSecond: 45,
-        loop: true,
+        // NEW
+        playbackMode: 'loop',   // 'loop' | 'once' | 'pingpong'
+        holdMs: 0,
+        maxAngleDeg: 0,         // 0 disables pingpong bounds; needed for 'once'/'pingpong'
         startDelayMs: 0,
     });
+
     const emptyOrbit = () => ({
         type: 'orbit',
         enabled: true,
@@ -23,9 +28,13 @@ export default function BehaviorEditor({
         degreesPerSecond: 30,
         radius: 1.5,
         initialAngleDeg: 0,
-        loop: true,
+        // NEW
+        endAngleDeg: 180,       // used by 'once'/'pingpong'
+        playbackMode: 'loop',
+        holdMs: 0,
         startDelayMs: 0,
     });
+
     const emptyTranslatePath = () => ({
         type: 'translatePath',
         enabled: true,
@@ -34,9 +43,13 @@ export default function BehaviorEditor({
             [1, 0, 0],
         ],
         durationMs: 3000,
+        easing: 'linear',
+        // keep existing flags for back-compat, but prefer playbackMode if set
         loop: true,
         closed: false,
-        easing: 'linear',
+        // NEW
+        playbackMode: 'loop',
+        holdMs: 0,
         startDelayMs: 0,
     });
 
@@ -97,6 +110,8 @@ export default function BehaviorEditor({
         }
     };
 
+
+
     return (
         <div className="space-y-3 pt-3 border-t border-gray-700">
             <div className="flex items-center justify-between">
@@ -156,39 +171,44 @@ export default function BehaviorEditor({
                         </button>
                     </div>
 
-                    {/* Common: startDelayMs */}
-                    <div className="grid grid-cols-2 gap-2">
+                    {/* Common: startDelayMs + playback */}
+                    <div className="grid grid-cols-3 gap-2">
                         <div>
-                            <label className="block text-xs text-gray-400 mb-1">
-                                startDelayMs
-                            </label>
+                            <label className="block text-xs text-gray-400 mb-1">startDelayMs</label>
                             <input
                                 type="number"
                                 value={b.startDelayMs ?? 0}
-                                onChange={(e) =>
-                                    updateBehavior(idx, {
-                                        startDelayMs: Math.max(0, parseNumber(e.target.value, 0)),
-                                    })
-                                }
+                                onChange={(e) => updateBehavior(idx, {
+                                    startDelayMs: Math.max(0, parseNumber(e.target.value, 0)),
+                                })}
                                 className="w-full rounded-md bg-[#2a2b2f] text-white p-1 text-sm border border-gray-600"
                             />
                         </div>
-                        {b.type !== 'translatePath' && (
-                            <div>
-                                <label className="block text-xs text-gray-400 mb-1">loop</label>
-                                <select
-                                    value={b.loop ? 'true' : 'false'}
-                                    onChange={(e) =>
-                                        updateBehavior(idx, { loop: e.target.value === 'true' })
-                                    }
-                                    className="w-full rounded-md bg-[#2a2b2f] text-white p-1 text-sm border border-gray-600"
-                                >
-                                    <option value="true">true</option>
-                                    <option value="false">false</option>
-                                </select>
-                            </div>
-                        )}
+
+                        <div>
+                            <label className="block text-xs text-gray-400 mb-1">playbackMode</label>
+                            <select
+                                value={b.playbackMode || (b.loop ? 'loop' : 'once')}
+                                onChange={(e) => updateBehavior(idx, { playbackMode: e.target.value })}
+                                className="w-full rounded-md bg-[#2a2b2f] text-white p-1 text-sm border border-gray-600"
+                            >
+                                <option value="loop">loop</option>
+                                <option value="once">once</option>
+                                <option value="pingpong">pingpong</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs text-gray-400 mb-1">holdMs (at ends)</label>
+                            <input
+                                type="number"
+                                value={b.holdMs ?? 0}
+                                onChange={(e) => updateBehavior(idx, { holdMs: Math.max(0, parseNumber(e.target.value, 0)) })}
+                                className="w-full rounded-md bg-[#2a2b2f] text-white p-1 text-sm border border-gray-600"
+                            />
+                        </div>
                     </div>
+
 
                     {/* Type-specific fields */}
                     {b.type === 'rotateSelf' && (
@@ -216,19 +236,16 @@ export default function BehaviorEditor({
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                    <label className="block text-xs text-gray-400 mb-1">
-                                        degreesPerSecond
-                                    </label>
+                                    <label className="block text-xs text-gray-400 mb-1">maxAngleDeg</label>
                                     <input
                                         type="number"
-                                        value={b.degreesPerSecond ?? 0}
-                                        onChange={(e) =>
-                                            updateBehavior(idx, {
-                                                degreesPerSecond: parseNumber(e.target.value, 0),
-                                            })
-                                        }
+                                        value={b.maxAngleDeg ?? 0}
+                                        onChange={(e) => updateBehavior(idx, { maxAngleDeg: Math.max(0, parseNumber(e.target.value, 0)) })}
                                         className="w-full rounded-md bg-[#2a2b2f] text-white p-1 text-sm border border-gray-600"
                                     />
+                                    <p className="text-[10px] text-gray-500 mt-1">
+                                        Used when playbackMode is <em>once</em> or <em>pingpong</em>.
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -321,6 +338,15 @@ export default function BehaviorEditor({
                                                 initialAngleDeg: parseNumber(e.target.value, 0),
                                             })
                                         }
+                                        className="w-full rounded-md bg-[#2a2b2f] text-white p-1 text-sm border border-gray-600"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs text-gray-400 mb-1">endAngleDeg</label>
+                                    <input
+                                        type="number"
+                                        value={b.endAngleDeg ?? 180}
+                                        onChange={(e) => updateBehavior(idx, { endAngleDeg: parseNumber(e.target.value, 180) })}
                                         className="w-full rounded-md bg-[#2a2b2f] text-white p-1 text-sm border border-gray-600"
                                     />
                                 </div>
