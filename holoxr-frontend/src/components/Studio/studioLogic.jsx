@@ -4,6 +4,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { unzipSync } from "fflate";
 import toast from "react-hot-toast";
+import { loadIfcMesh } from "../../utils/ifcLoader";
 
 // ---------- Helpers ----------
 function buildCleanScene(sceneModels) {
@@ -94,9 +95,34 @@ export async function loadProjectData(projectId, token, setSceneModels, setProje
  */
 export function initializeModelLoading(sceneModels, setSceneModels) {
     sceneModels.forEach((model) => {
-        if (model.type !== "model") return;
         if (model.scene) return;
         if (!model.url) return;
+
+        if (model.type === "ifc") {
+            loadIfcMesh(model.url)
+                .then(({ scene, ifcModel }) => {
+                    setSceneModels((prev) =>
+                        prev.map((m) =>
+                            m.id === model.id
+                                ? {
+                                    ...m,
+                                    scene,
+                                    ifcModel,
+                                    animations: Array.isArray(m.animations) ? m.animations : [],
+                                    playAnimationKey: Date.now(),
+                                }
+                                : m
+                        )
+                    );
+                })
+                .catch((err) => {
+                    console.error("IFC load error:", err?.message || err);
+                });
+            return;
+        }
+
+        if (model.type !== "model") return;
+
 
         const setLoaded = (gltf) => {
             setSceneModels((prev) =>

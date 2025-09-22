@@ -2,7 +2,7 @@
 // - Captures current R3F canvas as WebP on Save/Publish
 // - Uploads to /api/projects/:id/thumbnail (PATCH, multipart, field: "thumbnail")
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Grid, OrbitControls } from "@react-three/drei";
 
@@ -69,6 +69,8 @@ async function uploadProjectThumbnail(projectId, token, canvasEl) {
 
 export default function StudioPage() {
     const [sceneModels, setSceneModels] = useState([]);
+    const [undoStack, setUndoStack] = useState([]);   // 👈 add
+    const [redoStack, setRedoStack] = useState([]);
     const [animByObject, setAnimByObject] = useState({});
     const [selectedModelId, setSelectedModelId] = useState(null);
     const [transformMode, setTransformMode] = useState("translate");
@@ -88,6 +90,87 @@ export default function StudioPage() {
 
     // Keep a ref to the actual canvas element for thumbnail capture
     const canvasRef = useRef(null);
+
+    // Keep history JSON-safe (strip live THREE objects/functions)
+    const pruneForHistory = (models) =>
+        models.map((m) => ({
+            id: m.id,
+            name: m.name,
+            type: m.type,           // "model" | "image" | "text" | "button" | "label" | "quiz"
+            url: m.url ?? null,
+            // DO NOT keep m.scene / m.animations / any functions
+            transform: m.transform,
+            autoplay: !!m.autoplay,
+            isPaused: !!m.isPaused,
+            selectedAnimationIndex: m.selectedAnimationIndex ?? 0,
+            playAnimationKey: m.playAnimationKey ?? 0, // harmless scalar
+            // UI/data fields for non-models
+            content: m.content,
+            fontSize: m.fontSize,
+            color: m.color,
+            visible: m.visible !== false,
+            uiKind: m.uiKind,
+            appearance: m.appearance,
+            interactions: m.interactions,
+            // label/linking
+            targetId: m.targetId ?? null,
+            lineMode: m.lineMode ?? "none",
+            anchorPoint: m.anchorPoint ?? null,
+            // quiz payload (if present)
+            ...(m.quiz ? { quiz: m.quiz } : {}),
+        }));
+
+    // History-aware setter: record *user* changes only (JSON-safe)
+    const setScene = useCallback((updater, { record = true } = {}) => {
+        setSceneModels((prev) => {
+            const next = typeof updater === "function" ? updater(prev) : updater;
+            if (record) {
+                setUndoStack((s) => [...s, pruneForHistory(prev)]);
+                setRedoStack([]);
+            }
+            return next;
+        });
+    }, []);
+
+    // Undo / Redo handlers
+    const handleUndo = useCallback(() => {
+        setUndoStack(stack => {
+            if (!stack.length) return stack;
+            const prevState = stack[stack.length - 1];
+            // push current to redo, restore prevState
+            setRedoStack((r) => [...r, pruneForHistory(sceneModels)]);
+            setSceneModels(prevState); // restoring should NOT record
+            return stack.slice(0, -1);
+        });
+    }, [sceneModels]);
+
+    const handleRedo = useCallback(() => {
+        setRedoStack(stack => {
+            if (!stack.length) return stack;
+            const nextState = stack[stack.length - 1];
+            // push current to undo, apply nextState
+            setUndoStack((u) => [...u, pruneForHistory(sceneModels)]);
+            setSceneModels(nextState); // restoring should NOT record
+            return stack.slice(0, -1);
+        });
+    }, [sceneModels]);
+
+    // Keyboard shortcuts: Cmd/Ctrl+Z (undo), Cmd/Ctrl+Shift+Z (redo)
+    useEffect(() => {
+        const onKey = (e) => {
+            const meta = e.metaKey || e.ctrlKey;
+            if (!meta) return;
+            if (e.key.toLowerCase() === "z") {
+                if (e.shiftKey) {
+                    e.preventDefault(); handleRedo();
+                } else {
+                    e.preventDefault(); handleUndo();
+                }
+            }
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [handleUndo, handleRedo]);
 
     // Load project on mount
     useEffect(() => {
@@ -117,9 +200,9 @@ export default function StudioPage() {
     };
     const getObjectRefById = (id) => objectRefs.current.get(id);
 
-    const onUpdateTransform = (id, updates) => updateXform(setSceneModels, id, updates);
-    const onUpdateProps = (id, updatesOrFn) => updateProps(setSceneModels, id, updatesOrFn);
-    const onUpdateText = (id, updates) => updateText(setSceneModels, id, updates);
+    const onUpdateTransform = (id, updates) => updateXform(setScene, id, updates);
+    const onUpdateProps = (id, updatesOrFn) => updateProps(setScene, id, updatesOrFn);
+    const onUpdateText = (id, updates) => updateText(setScene, id, updates);
     const onRunButtonActions = (buttonItem) => runActions(buttonItem, setSceneModels);
     const startAnchorPick = (labelId) => setPickingAnchorLabelId(labelId);
 
@@ -139,6 +222,9 @@ export default function StudioPage() {
         }
     };
 
+    const canUndo = undoStack.length > 0;
+    const canRedo = redoStack.length > 0;
+
     const onSave = async () => {
         const ok = await saveProject(projectId, sceneModels);
         if (ok) {
@@ -154,7 +240,8 @@ export default function StudioPage() {
         }
     };
 
-    const onSelectLibraryItem = (item) => addFromLibrary(item, setSceneModels, setSelectedModelId);
+    // (Optional) you can keep this, but to capture adds in history use setScene instead:
+    const onSelectLibraryItem = (item) => addFromLibrary(item, setScene, setSelectedModelId);
 
     const selectedModel = sceneModels.find((m) => m.id === selectedModelId);
 
@@ -164,6 +251,10 @@ export default function StudioPage() {
                 transformMode={transformMode}
                 setTransformMode={setTransformMode}
                 onResetView={() => setResetSignal((prev) => prev + 1)}
+                onUndo={handleUndo}
+                onRedo={handleRedo}
+                canUndo={canUndo}
+                canRedo={canRedo}
             />
 
             <TopBar
@@ -189,7 +280,7 @@ export default function StudioPage() {
                 selectedModelId={selectedModelId}
                 setSelectedModelId={setSelectedModelId}
                 onDeleteModel={(id) => {
-                    setSceneModels((prev) => prev.filter((m) => m.id !== id));
+                    setScene((prev) => prev.filter((m) => m.id !== id));
                     if (selectedModelId === id) setSelectedModelId(null);
                 }}
             />
@@ -229,7 +320,7 @@ export default function StudioPage() {
                     const paused = !isPreviewing || !!item.isPaused;
                     if (item.visible === false) return null;
 
-                    if (item.type === "model" && item.scene) {
+                    if ((item.type === "model" || item.type === "ifc") && item.scene) {
                         return (
                             <ModelWithAnimation
                                 key={item.id}
@@ -421,7 +512,7 @@ export default function StudioPage() {
             <LibraryModal
                 isOpen={isLibraryOpen}
                 onClose={() => setIsLibraryOpen(false)}
-                onSelectItem={onSelectLibraryItem}
+                onSelectItem={(item) => addFromLibrary(item, setScene, setSelectedModelId)}
             />
         </div>
     );

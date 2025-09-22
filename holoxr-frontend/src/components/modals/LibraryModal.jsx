@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import {
   Box,
+  Building2,
   Folder,
   FolderPlus,
   MoreVertical,
@@ -30,6 +31,7 @@ const cx = (...args) => args.filter(Boolean).join(' ');
 const sidebarItems = [
   { key: 'all', label: 'All assets', icon: <Box size={16} /> },
   { key: 'model', label: '3D models', icon: <FilePlus size={16} /> },
+  { key: 'ifc', label: 'IFC', icon: <Building2 size={16} /> },
   { key: 'image', label: 'Images', icon: <ImagePlus size={16} /> },
   { key: 'text', label: 'Text', icon: <TextQuote size={16} /> },
   { key: 'ui', label: 'UI', icon: <Box size={16} /> },
@@ -299,6 +301,7 @@ function renderUiPresets({ onSelectItem, onClose }) {
 
 export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
   const modelInputRef = useRef(null);
+  const ifcInputRef = useRef(null);
   const imageInputRef = useRef(null);
   const [confirmFolder, setConfirmFolder] = useState({ open: false, folderId: null });
 
@@ -386,6 +389,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
 
   // Upload handlers
   const handleModelClick = () => modelInputRef.current?.click();
+  const handleIfcClick = () => ifcInputRef.current?.click();
   const handleImageClick = () => imageInputRef.current?.click();
 
   const handleFileChange = async (e, type) => {
@@ -572,13 +576,14 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
     const matchType =
       activeTab === 'all' ? true :
         activeTab === 'ui' ? i.type === 'ui' :
-          activeTab === 'text' ? i.type === 'text' :
-            activeTab === 'qrcode' ? i.type === 'qrcode' :
-              activeTab === 'model' ? i.type === 'model' :
-                activeTab === 'image' ? i.type === 'image' :
-                  activeTab === 'sketchfab' ? false : // Sketchfab handled separately
-                    activeTab === 'trash' ? false : // separate list
-                      true;
+          activeTab === 'ifc' ? i.type === 'ifc' :
+            activeTab === 'text' ? i.type === 'text' :
+              activeTab === 'qrcode' ? i.type === 'qrcode' :
+                activeTab === 'model' ? i.type === 'model' :
+                  activeTab === 'image' ? i.type === 'image' :
+                    activeTab === 'sketchfab' ? false : // Sketchfab handled separately
+                      activeTab === 'trash' ? false : // separate list
+                        true;
 
     const matchSearch =
       !search?.trim() ||
@@ -656,8 +661,18 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
     );
   };
 
+  const typeMeta = {
+    model: { label: 'Model', icon: <FilePlus size={12} /> },
+    ifc: { label: 'IFC', icon: <Building2 size={12} /> },
+    image: { label: 'Image', icon: <ImagePlus size={12} /> },
+    text: { label: 'Text', icon: <TextQuote size={12} /> },
+    ui: { label: 'UI', icon: <Box size={12} /> },
+    qrcode: { label: 'QR Code', icon: <QrCode size={12} /> },
+  };
+
   const AssetCard = ({ item }) => {
     const isMenuOpen = openMenu === item._id;
+    const meta = typeMeta[item.type] ?? { label: item.type, icon: <Box size={12} /> };
 
     return (
       <div
@@ -692,8 +707,10 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
         <div className="p-3">
           <div className="flex items-center justify-between gap-2">
             <div className="truncate text-sm text-white">{item.name}</div>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#33353d] text-gray-300 uppercase">
-              {item.type}
+
+            <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-[#33353d] text-gray-300 uppercase">
+              {meta.icon}
+              {meta.label}
             </span>
           </div>
           <div className="text-[11px] text-gray-400 mt-1">
@@ -895,6 +912,12 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
                       3D Model (.glb/.gltf)
                     </button>
                     <button
+                      onClick={handleIfcClick}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2b2f]"
+                    >
+                      IFC (.ifc)
+                    </button>
+                    <button
                       onClick={handleImageClick}
                       className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2b2f]"
                     >
@@ -938,6 +961,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
 
               {/* hidden inputs */}
               <input type="file" accept=".glb,.gltf,.zip" ref={modelInputRef} className="hidden" onChange={(e) => handleFileChange(e, 'model')} />
+              <input type="file" accept=".ifc" ref={ifcInputRef} className="hidden" onChange={(e) => handleFileChange(e, 'ifc')} />
 
               <input
                 type="file"

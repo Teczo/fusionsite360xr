@@ -5,7 +5,7 @@ import { OrbitControls } from '@react-three/drei';
 import { ARButton } from 'three/examples/jsm/webxr/ARButton';
 import UILabel3D from "../Items/UILabel3D";
 import Quiz3D from '../Items/Quiz3D';
-import { ModelItem, ImageItem, ButtonItem, TextItem } from "./ARViewerComponents";
+import { ModelItem, ImageItem, ButtonItem, TextItem, IfcItem } from "./ARViewerComponents";
 import { ARGestureControls } from "./ARGestureControls";
 import { ARPlacementController } from "./ARPlacement";
 import useAnalytics from "../hooks/useAnalytics";
@@ -288,6 +288,19 @@ export default function ARViewer() {
                                         transform={item.transform}
                                         selectedAnimationIndex={item.selectedAnimationIndex}
                                         autoplay={item.autoplay}
+                                        isPaused={item.isPaused}
+                                        behaviors={item.behaviors || []}
+                                        registerRef={registerRef}
+                                        getObjectRefById={getObjectRefById}
+                                    />
+                                );
+                            } if (item.type === 'ifc') {
+                                return (
+                                    <IfcItem
+                                        key={item.id}
+                                        id={item.id}
+                                        url={item.url}
+                                        transform={item.transform}
                                         isPaused={item.isPaused}
                                         behaviors={item.behaviors || []}
                                         registerRef={registerRef}

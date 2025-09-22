@@ -8,6 +8,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { Text } from '@react-three/drei';
 import { BehaviorRunner } from "../Studio/studioComponents";
+import { loadIfcAsset } from "../../utils/ifcLoader";
 
 export function ModelItem({
     id,
@@ -92,6 +93,83 @@ export function ModelItem({
             scale={[t.sx || 1, t.sy || 1, t.sz || 1]}
         >
             <primitive object={scene} />
+
+            <BehaviorRunner
+                targetRef={containerRef}
+                behaviors={behaviors}
+                getObjectRefById={getObjectRefById}
+                paused={isPaused}
+            />
+        </group>
+    );
+}
+
+export function IfcItem({
+    id,
+    url,
+    transform,
+    isPaused = false,
+    behaviors = [],
+    registerRef,
+    getObjectRefById,
+}) {
+    const containerRef = useRef();
+    const [mesh, setMesh] = useState(null);
+    const cleanupRef = useRef(null);
+
+    useEffect(() => {
+        registerRef?.(id, containerRef);
+        return () => registerRef?.(id, null);
+    }, [id, registerRef]);
+
+    useEffect(() => {
+        let cancelled = false;
+        if (!url) return undefined;
+
+        (async () => {
+            try {
+                const { ifcModel, cleanup } = await loadIfcAsset(url);
+                if (cancelled) {
+                    cleanup?.();
+                    return;
+                }
+                cleanupRef.current = () => {
+                    cleanup?.();
+                    ifcModel.mesh?.geometry?.dispose?.();
+                    const material = ifcModel.mesh?.material;
+                    if (Array.isArray(material)) {
+                        material.forEach((m) => m?.dispose?.());
+                    } else {
+                        material?.dispose?.();
+                    }
+                };
+                setMesh(ifcModel.mesh);
+            } catch (error) {
+                const message = error?.message || String(error);
+                console.error('❌ IFC load error:', message, error);
+                alert(`IFC load error: ${message}`);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+            cleanupRef.current?.();
+            cleanupRef.current = null;
+            setMesh(null);
+        };
+    }, [url]);
+
+    if (!mesh) return null;
+
+    const t = transform || {};
+    return (
+        <group
+            ref={containerRef}
+            position={[t.x || 0, t.y || 0, t.z || 0]}
+            rotation={[t.rx || 0, t.ry || 0, t.rz || 0]}
+            scale={[t.sx || 1, t.sy || 1, t.sz || 1]}
+        >
+            <primitive object={mesh} />
 
             <BehaviorRunner
                 targetRef={containerRef}
