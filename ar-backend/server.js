@@ -107,7 +107,8 @@ app.use('/api', folderRoutes);
 app.use('/api/profile', profileRouter);
 
 // You can gate analytics with subscription if needed:
-app.use('/api/analytics', authMiddleware, requireActiveSubscription, analyticsRoutes);
+app.use('/api/analytics', analyticsRoutes);
+//app.use('/api/analytics', authMiddleware, requireActiveSubscription, analyticsRoutes);
 
 // If you want animations behind subscription too, wrap it the same way
 app.use('/api', animationRoutes);

@@ -2,9 +2,11 @@ import mongoose from 'mongoose';
 
 const fileSchema = new mongoose.Schema({
   name: String,
-  type: String, // "model" or "image"
+  type: String, // "model" or "image"or "ifc"
   url: String,
   thumbnail: { type: String }, // ✅ added thumbnail support
+  size: { type: Number, default: null },
+  mimeType: { type: String, default: null },
   uploadedAt: { type: Date, default: Date.now },
   folder: { type: mongoose.Schema.Types.ObjectId, ref: 'Folder', default: null },
   trashed: { type: Boolean, default: false },

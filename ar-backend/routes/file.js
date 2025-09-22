@@ -64,9 +64,15 @@ router.post(
         const timestamp = Date.now();
 
         // Heuristic for type if not declared
-        const isImage = declaredType === 'image' || /^image\//.test(file.mimetype) || ['.png', '.jpg', '.jpeg', '.webp'].includes(ext);
+        const isImage =
+            declaredType === 'image' ||
+            /^image\//.test(file.mimetype) ||
+            ['.png', '.jpg', '.jpeg', '.webp'].includes(ext);
         const isModel = declaredType === 'model' || ['.glb', '.gltf'].includes(ext);
-
+        const isIfc =
+            declaredType === 'ifc' ||
+            ext === '.ifc' ||
+            /ifc/i.test(file.mimetype || '');
         let uploadedUrl = null;
         let thumbUrl = null;
 
@@ -96,6 +102,8 @@ router.post(
                     url: uploadedUrl,
                     thumbnail: thumbUrl || null,
                     folder,
+                    size: file.size ?? null,
+                    mimeType: file.mimetype || null,
                 });
 
                 return res.status(200).json({ message: "Image uploaded", file: newFile });
@@ -135,6 +143,8 @@ router.post(
                     url: uploadedUrl,
                     thumbnail: thumbUrl || null, // ✅ save it
                     folder,
+                    size: file.size ?? null,
+                    mimeType: file.mimetype || null,
                 });
 
                 // cleanup
@@ -144,7 +154,37 @@ router.post(
                 return res.status(200).json({ message: "Model uploaded and zipped", file: newFile });
             }
 
-            return res.status(400).json({ error: 'Unsupported file type. Use .glb/.gltf for models or image formats for images.' });
+            if (isIfc) {
+                const blobName = `${timestamp}-${originalName}`;
+                const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+                const ifcContentType =
+                    file.mimetype && file.mimetype !== 'application/octet-stream'
+                        ? file.mimetype
+                        : 'application/vnd.ifc';
+                await blockBlobClient.uploadData(file.buffer, {
+                    blobHTTPHeaders: { blobContentType: ifcContentType },
+                });
+                uploadedUrl = blockBlobClient.url;
+
+                const newFile = await File.create({
+                    name: originalName,
+                    type: 'ifc',
+                    url: uploadedUrl,
+                    size: file.size ?? null,
+                    mimeType: file.mimetype || null,
+                    folder,
+                    thumbnail: null,
+                });
+
+                return res.status(200).json({ message: 'IFC uploaded', file: newFile });
+            }
+
+            return res
+                .status(400)
+                .json({
+                    error:
+                        'Unsupported file type. Use .glb/.gltf for models, IFC for BIM files, or standard image formats.',
+                });
         } catch (err) {
             console.error('❌ Upload failed:', err);
             return res.status(500).json({ error: err.message });
