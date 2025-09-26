@@ -7,18 +7,20 @@ import ProfileEdit from '../../pages/ProfilePage';
 import ProfileView from '../../pages/ProfileView';
 import AnalyticsDashboard from '../analytics/AnalyticsDashboard';
 import BillingPricing from '../billing/BillingPricing';
+import ShareProjectModal from '../team/ShareProjectModal';
 
 export default function DashboardPanel({
     activeView,
     projects,
+    sharedProjects,              // NEW
     trashedProjects,
     openMenuId,
     setOpenMenuId,
-    handleChange,
-    handleCreate,
     setProjects,
     setTrashedProjects,
     setActiveView,
+    onOpenShare,                 // NEW: (proj) => void
+    userPlan = 'Free',
 }) {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -114,10 +116,7 @@ export default function DashboardPanel({
             key={key}
             onClick={() => setTab(key)}
             className={`px-3 py-1.5 rounded-lg text-sm transition
-        ${designsTab === key
-                    ? 'bg-brand/10 text-brand border border-brand/30'
-                    : 'text-textsec hover:bg-surface/70 hover:text-textpri'
-                }`}
+      ${designsTab === key ? 'bg-brand/10 text-brand border border-brand/30' : 'text-textsec hover:bg-surface/70 hover:text-textpri'}`}
             role="tab"
             aria-selected={designsTab === key}
         >
@@ -126,96 +125,92 @@ export default function DashboardPanel({
         </button>
     );
 
+
+
     return (
         <div className="flex-1 overflow-hidden">
-            {/* Glass panel kept exactly as requested */}
             <div className="h-full bg-black/30 backdrop-blur-lg border border-white/10 rounded-2xl p-6 overflow-y-auto">
-                {/* ========== YOUR DESIGNS with Tabs ========== */}
                 {activeView === 'your-designs' && (
                     <>
-                        {/* Tab Bar */}
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2" role="tablist" aria-label="Designs tabs">
                                 {tabBtn('active', 'Active', projects.length)}
+                                {tabBtn('shared', 'Shared', sharedProjects.length)}  {/* NEW */}
                                 {tabBtn('trash', 'Trash', trashedProjects.length)}
                             </div>
-                            {/* (optional future) actions on the right */}
+
+                            {/* Plan-aware hint (Free only) */}
+                            {userPlan === 'Free' && (
+                                <div className="text-xs text-textsec/80">
+                                    Free plan: 1 active shared project • Published scenes show watermark
+                                </div>
+                            )}
                         </div>
 
-                        {/* ACTIVE grid */}
+                        {/* ACTIVE */}
                         {designsTab === 'active' && (
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                                 {projects.map((proj) => (
-                                    <div
-                                        key={proj._id}
-                                        className="relative bg-surface/80 border border-white/10 rounded-xl shadow-lg transition-all duration-300 group hover:scale-[1.02] hover:ring-2 hover:ring-brand/30"
-                                    >
-                                        {/* Card menu button */}
+                                    <div key={proj._id} className="relative bg-surface/80 border border-white/10 rounded-xl shadow-lg transition-all duration-300 group hover:scale-[1.02] hover:ring-2 hover:ring-brand/30">
+                                        {/* menu */}
                                         <button
                                             onClick={() => setOpenMenuId(openMenuId === proj._id ? null : proj._id)}
-                                            className="absolute top-2 left-2 z-20 rounded-full p-1.5 bg-black/50 hover:bg-black/70 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+                                            className="absolute top-2 left-2 z-20 rounded-full p-1.5 bg-black/50 hover:bg-black/70"
                                             aria-label="Project menu"
                                         >
-                                            <MoreHorizontal className="w-4 h-4 text-title" />
+                                            ⋯
                                         </button>
 
-                                        {/* Thumbnail + Meta */}
                                         <div onClick={() => navigate(`/studio?id=${proj._id}`)} className="cursor-pointer">
                                             <div className="h-36 bg-black/20">
-                                                <img
-                                                    src={proj.thumbnail || '/placeholder.png'}
-                                                    alt="thumbnail"
-                                                    className="w-full h-full object-cover"
-                                                />
+                                                <img src={proj.thumbnail || '/placeholder.png'} alt="thumbnail" className="w-full h-full object-cover" />
                                             </div>
                                             <div className="p-3">
                                                 <div className="font-semibold truncate text-title">{proj.name}</div>
                                                 <div className="text-xs truncate text-subtle">{proj.description}</div>
-                                                <div className="text-xs mt-1 text-textsec/80">
-                                                    {new Date(proj.updatedAt).toLocaleDateString()}
-                                                </div>
+                                                <div className="text-xs mt-1 text-textsec/80">{new Date(proj.updatedAt).toLocaleDateString()}</div>
                                             </div>
                                         </div>
 
-                                        {/* Popover menu */}
                                         {openMenuId === proj._id && (
                                             <div className="absolute top-10 left-2 w-60 bg-surface/95 border border-white/10 rounded-xl shadow-2xl z-30 text-sm">
                                                 <div className="p-3 border-b border-white/10">
                                                     <div className="truncate font-medium text-title">{proj.name}</div>
-                                                    <div className="text-textsec text-xs mt-1">
-                                                        Created by You<br />
-                                                        {new Date(proj.createdAt).toLocaleDateString()}
-                                                    </div>
+                                                    <div className="text-textsec text-xs mt-1">Created by You<br />{new Date(proj.createdAt).toLocaleDateString()}</div>
                                                 </div>
                                                 <div className="p-2 space-y-1">
-                                                    <button
-                                                        className="w-full text-left px-3 py-1.5 rounded hover:bg-white/10 flex items-center gap-2 text-title"
-                                                        onClick={() => window.open(`/studio?id=${proj._id}`, '_blank')}
-                                                    >
-                                                        🔗 Open in New Tab
-                                                    </button>
-                                                    <button
-                                                        className="w-full text-left px-3 py-1.5 rounded hover:bg-white/10 flex items-center gap-2 text-title"
-                                                        onClick={() =>
-                                                            navigator.clipboard.writeText(`${window.location.origin}/studio?id=${proj._id}`)
-                                                        }
-                                                    >
-                                                        📤 Share
-                                                    </button>
-                                                    <button
-                                                        className="w-full text-left px-3 py-1.5 rounded flex items-center gap-2 text-red-400 hover:bg-red-500/15"
-                                                        onClick={() => handleDeleteProject(proj._id)}
-                                                    >
-                                                        🗑 Move to Trash
-                                                    </button>
+                                                    <button className="w-full text-left px-3 py-1.5 rounded hover:bg-white/10" onClick={() => window.open(`/studio?id=${proj._id}`, '_blank')}>🔗 Open in New Tab</button>
+                                                    <button className="w-full text-left px-3 py-1.5 rounded hover:bg-white/10" onClick={() => onOpenShare(proj)}>👥 Share</button> {/* NEW */}
+                                                    <button className="w-full text-left px-3 py-1.5 rounded text-red-400 hover:bg-red-500/15" onClick={() => handleDeleteProject(proj._id)}>🗑 Move to Trash</button>
                                                 </div>
                                             </div>
                                         )}
                                     </div>
                                 ))}
-                                {projects.length === 0 && (
-                                    <p className="text-textsec col-span-full text-center mt-10">No projects yet.</p>
-                                )}
+                                {projects.length === 0 && <p className="text-textsec col-span-full text-center mt-10">No projects yet.</p>}
+                            </div>
+                        )}
+
+                        {/* SHARED (NEW) */}
+                        {designsTab === 'shared' && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                                {sharedProjects.map((proj) => (
+                                    <div key={proj._id} className="relative bg-surface/80 border border-white/10 rounded-xl shadow-lg">
+                                        <div onClick={() => navigate(`/studio?id=${proj._id}`)} className="cursor-pointer">
+                                            <div className="h-36 bg-black/20">
+                                                <img src={proj.thumbnail || '/placeholder.png'} alt="thumbnail" className="w-full h-full object-cover" />
+                                            </div>
+                                            <div className="p-3">
+                                                <div className="font-semibold truncate text-title">{proj.name}</div>
+                                                <div className="text-xs text-textsec/80">Owner: {proj.owner?.name || '—'}</div>
+                                                <div className="text-[11px] inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded bg-white/5 border border-white/10">
+                                                    {proj.myPermission === 'edit' ? 'Can edit' : 'View-only'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                                {sharedProjects.length === 0 && <p className="text-textsec col-span-full text-center mt-10">Projects shared with you will appear here.</p>}
                             </div>
                         )}
 
@@ -271,6 +266,8 @@ export default function DashboardPanel({
                         </div>
                     )}
 
+                {activeView === 'team' && <TeamPanel userPlan={userPlan} />}
+
                 {activeView === 'profile' && <ProfileView setActiveView={setActiveView} />}
 
                 {activeView === 'profileedit' && <ProfileEdit setActiveView={setActiveView} />}
@@ -280,6 +277,8 @@ export default function DashboardPanel({
                 )}
 
                 {activeView === 'billing' && <BillingPricing />}
+
+
             </div>
         </div>
     );

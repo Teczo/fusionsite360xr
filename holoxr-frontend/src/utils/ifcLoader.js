@@ -10,8 +10,8 @@ const IFC_LOADER_MODULE_ID = 'web-ifc-three/IFCLoader.js';
 // 'bundle' packs deps (web-ifc, three-mesh-bvh, etc.) inside one file.
 // target keeps syntax modern for Vite/dev browsers.
 const IFC_LOADER_CDNS = [
-    'https://esm.sh/web-ifc-three@0.0.126/IFCLoader?target=es2021&external=three,three/examples/jsm/utils/BufferGeometryUtils',
-    'https://esm.sh/web-ifc-three@latest/IFCLoader?target=es2021&external=three,three/examples/jsm/utils/BufferGeometryUtils',
+    'https://esm.sh/web-ifc-three@0.0.126/IFCLoader?target=es2021&external=three,three/examples/jsm/utils/BufferGeometryUtils.js',
+    'https://esm.sh/web-ifc-three@latest/IFCLoader?target=es2021&external=three,three/examples/jsm/utils/BufferGeometryUtils.js',
     // (optional fallbacks)
     'https://esm.run/web-ifc-three@0.0.126/IFCLoader?bundle',
     'https://esm.run/web-ifc-three@latest/IFCLoader?bundle',

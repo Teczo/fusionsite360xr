@@ -20,8 +20,8 @@ export default function Sidebar({
     isCollapsed,
     setIsCollapsed,
     setShowModal,
-    userName = "Jayagaren",
-    billingTier = "Plus",
+    userName = "User",
+    billingTier = "Free",
     avatarUrl,
 }) {
     const navigate = useNavigate();

@@ -1,45 +1,54 @@
+// src/pages/DashboardPage.jsx
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import Sidebar from '../components/dashboard/Sidebar';
 import DashboardHeader from '../components/dashboard/DashboardHeader';
 import DashboardPanel from '../components/dashboard/DashboardPanel';
 
+// NEW: Phase 1 Team feature components
+import TeamPanel from '../components/team/TeamPanel';
+import ShareProjectModal from '../components/team/ShareProjectModal';
+import useUserPlan from '../components/hooks/useUserPlan';
+
 export default function DashboardPage() {
-    const { panel } = useParams(); // e.g., 'profile', 'billing', etc.
+    const { panel } = useParams(); // e.g., 'your-designs' | 'team' | 'billing' ...
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    // ---- Core state ----
     const [projects, setProjects] = useState([]);
-    const [showModal, setShowModal] = useState(false);
-    const [form, setForm] = useState({ name: '', description: '' });
+    const [trashedProjects, setTrashedProjects] = useState([]);
+    const [sharedProjects, setSharedProjects] = useState([]); // NEW
+
     const [activeView, setActiveView] = useState(panel || 'your-designs');
     const [openMenuId, setOpenMenuId] = useState(null);
-    const [trashedProjects, setTrashedProjects] = useState([]);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
-    const [showCreateModal, setShowCreateModal] = useState(false);
-    const [projectName, setProjectName] = useState('');
-    const [isCreating, setIsCreating] = useState(false);
-    const token = localStorage.getItem('token');
-    const navigate = useNavigate();
 
-    const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+    // Create project modal (existing flow)
+    const [showModal, setShowModal] = useState(false);
+    const [form, setForm] = useState({ name: '', description: '' });
 
-
-    const [user, setUser] = useState({ name: "Alex Johnson" });
+    // Profile / plan
+    const [user, setUser] = useState({ name: 'User' });
     const [loading, setLoading] = useState(true);
+    const token = localStorage.getItem('token');
 
-    const location = useLocation();
+    // ---- Share modal state (NEW) ----
+    const [shareOpen, setShareOpen] = useState(false);
+    const [shareProject, setShareProject] = useState(null);
 
-    // keep state in sync if URL changes (back/forward, manual edits)
-    useEffect(() => {
-        const next = panel || 'your-designs';
-        if (next !== activeView) setActiveView(next);
-    }, [panel]);
+    const { loading: planLoading, plan, capabilitiesTier, limits, profile } = useUserPlan();
+    const defaultLimits = { sharedProjects: { max: 1 }, teamMembers: { max: 3 }, uploadSizeMB: 25, watermark: true };
 
-    // single source of truth for changing panels
-    const go = (view) => {
-        setActiveView(view);
-        navigate(`/dashboard/${view}`);
-    };
+    // Derived
+    const billingLabel = (plan === 'FOUNDING') ? 'Founding'
+        : (plan === 'SINGLE') ? 'Single'
+            : 'Free';
+
+    // ---- Helpers ----
+    const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
     // Keep <html> class in sync with theme
     useEffect(() => {
@@ -47,15 +56,30 @@ export default function DashboardPage() {
         localStorage.setItem('theme', theme);
     }, [theme]);
 
+    // Sync view when URL changes (back/forward)
     useEffect(() => {
-        const token = localStorage.getItem('token'); // matches your existing auth usage
+        const next = panel || 'your-designs';
+        if (next !== activeView) setActiveView(next);
+    }, [panel]);
+
+    // Single source of truth for changing panels (push to URL)
+    const go = (view) => {
+        setActiveView(view);
+        navigate(`/dashboard/${view}`);
+    };
+
+    // Profile (plan/limits)
+    useEffect(() => {
+        const tk = localStorage.getItem('token');
+        if (!tk) return navigate('/signin');
+
         (async () => {
             try {
                 const res = await fetch(`${import.meta.env.VITE_API_URL}/api/profile`, {
-                    headers: { Authorization: `Bearer ${token}` },
+                    headers: { Authorization: `Bearer ${tk}` },
                 });
                 const data = await res.json();
-                setUser(data);
+                if (res.ok) setUser(data || {});
             } catch (e) {
                 console.error(e);
             } finally {
@@ -64,37 +88,17 @@ export default function DashboardPage() {
         })();
     }, []);
 
-    // Adjust left padding to account for fixed sidebar width
-    const contentPaddingLeft = isCollapsed ? 'pl-24' : 'pl-72'; // 6rem vs 18rem
-
-    // Outlet context so children (DashboardPage etc.) can read state
-    const outletCtx = useMemo(
-        () => ({
-            isCollapsed,
-            setIsCollapsed,
-            activeView,
-            setActiveView: go,
-            searchQuery,
-            setSearchQuery,
-            theme,
-            setTheme,
-            user,
-            navigate,
-        }),
-        [isCollapsed, activeView, searchQuery, theme, user, navigate]
-    );
-
-
-
-
+    // ---- Data fetchers ----
     const fetchProjects = async () => {
         try {
             const res = await fetch(`${import.meta.env.VITE_API_URL}/api/projects`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const data = await res.json();
-            if (res.ok) setProjects(data);
-        } catch (err) { console.error(err); }
+            if (res.ok) setProjects(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error(err);
+        }
     };
 
     const fetchTrashedProjects = async () => {
@@ -103,10 +107,34 @@ export default function DashboardPage() {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const data = await res.json();
-            if (res.ok) setTrashedProjects(data);
-        } catch (err) { console.error(err); }
+            if (res.ok) setTrashedProjects(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error(err);
+        }
     };
 
+    // NEW: shared projects (shared with me)
+    const fetchSharedProjects = async () => {
+        try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/projects/shared`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = await res.json();
+            if (res.ok) setSharedProjects(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    // Initial data
+    useEffect(() => {
+        if (!token) return navigate('/signin');
+        fetchProjects();
+        fetchTrashedProjects();
+        fetchSharedProjects(); // NEW
+    }, [token]);
+
+    // ---- Create project ----
     const handleCreate = async () => {
         if (!form.name || !form.description) return;
         try {
@@ -119,19 +147,121 @@ export default function DashboardPage() {
                 body: JSON.stringify(form),
             });
             const data = await res.json();
-            if (!res.ok) return alert(data.error || 'Failed to create project');
-            setProjects((prev) => [...prev, data]);
+            if (!res.ok) {
+                alert(data?.error || 'Failed to create project');
+                return;
+            }
+            setProjects((prev) => [data, ...prev]);
             setShowModal(false);
             navigate(`/studio?id=${data._id}`);
-        } catch (err) { console.error(err); alert('Network error'); }
+        } catch (err) {
+            console.error(err);
+            alert('Network error');
+        }
     };
 
-    useEffect(() => {
-        if (!token) return navigate('/signin');
-        fetchProjects();
-        fetchTrashedProjects();
-    }, [token]);
+    // ---- Share modal handlers (open/close) ----
+    const onOpenShare = (proj) => {
+        setShareProject(proj);
+        setShareOpen(true);
+        setOpenMenuId(null);
+    };
 
+    // ===========================
+    //   TEAM API (Phase 1 stubs)
+    // ===========================
+    const fetchTeam = async () => {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/team`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return [];
+        return res.json(); // [{id, name, email, role, status}]
+    };
+
+    const inviteUser = async (email) => {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/team/invite`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ email }),
+        });
+        if (!res.ok) return null;
+        return res.json(); // { id, name, email, role:'Member', status:'Pending' }
+    };
+
+    const updateRole = async (memberId, role) => {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/team/${memberId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ role }),
+        });
+        return res.ok;
+    };
+
+    const removeMember = async (memberId) => {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/team/${memberId}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        return res.ok;
+    };
+
+    // ================================
+    //   SHARE MODAL API (Phase 1 stubs)
+    // ================================
+    const loadAccessList = async () => {
+        if (!shareProject?._id) return [];
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/projects/${shareProject._id}/access`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return [];
+        return res.json(); // [{id, name, email, permission:'view'|'edit', fromTeam, status}]
+    };
+
+    const searchTeam = async (q) => {
+        if (!q) return [];
+        const res = await fetch(
+            `${import.meta.env.VITE_API_URL}/api/team/search?q=${encodeURIComponent(q)}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (!res.ok) return [];
+        return res.json(); // [{id, name, email}]
+    };
+
+    const inviteToProject = async (emailOrUserId, permission) => {
+        if (!shareProject?._id) return null;
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/projects/${shareProject._id}/share`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ target: emailOrUserId, permission }),
+        });
+        if (!res.ok) return null;
+        const row = await res.json();
+        // refresh "Shared" list for me (if needed)
+        fetchSharedProjects();
+        return row;
+    };
+
+    const updatePermission = async (userId, permission) => {
+        if (!shareProject?._id) return false;
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/projects/${shareProject._id}/access/${userId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ permission }),
+        });
+        return res.ok;
+    };
+
+    const removeAccess = async (userId) => {
+        if (!shareProject?._id) return false;
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/projects/${shareProject._id}/access/${userId}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) fetchSharedProjects();
+        return res.ok;
+    };
+
+    // ---- Layout ----
     return (
         <div
             className="flex h-screen text-white bg-cover bg-center bg-[#18191e]"
@@ -142,35 +272,60 @@ export default function DashboardPage() {
                 setIsCollapsed={setIsCollapsed}
                 setShowModal={setShowModal}
                 userName={user?.name || 'User'}
-                billingTier={user?.billing?.tier || user?.plan || 'Pro'}
+                billingTier={billingLabel}
             />
-
-
 
             <div className={`flex-1 transition-all duration-300 ${isCollapsed ? 'pl-29' : 'pl-72'} pt-4 pr-4 pb-4`}>
                 <div className="flex flex-col h-full">
-
-                    {/* Top Header (sits above glass panel). z-50 prevents overlap issues */}
-                    <div className={"flex  pt-4 z-50 mb-4"}>
-                        <DashboardHeader searchQuery={searchQuery} setSearchQuery={setSearchQuery} theme={theme} setTheme={setTheme} user={user} setActiveView={go} />
+                    {/* Top Header */}
+                    <div className="flex pt-4 z-50 mb-4">
+                        <DashboardHeader
+                            searchQuery={searchQuery}
+                            setSearchQuery={setSearchQuery}
+                            theme={theme}
+                            setTheme={setTheme}
+                            user={user}
+                            setActiveView={go}
+                        />
                     </div>
 
+                    {/* Main panel: Designs (Active/Shared/Trash) */}
+                    {activeView !== 'team' && (
+                        <DashboardPanel
+                            activeView={activeView}
+                            projects={projects}
+                            sharedProjects={sharedProjects}          // NEW
+                            trashedProjects={trashedProjects}
+                            openMenuId={openMenuId}
+                            setOpenMenuId={setOpenMenuId}
+                            handleChange={handleChange}
+                            handleCreate={handleCreate}
+                            setProjects={setProjects}
+                            setTrashedProjects={setTrashedProjects}
+                            setActiveView={go}
+                            onOpenShare={onOpenShare}                // NEW
+                            userPlan={capabilitiesTier}
+                            planLimits={limits}                   // NEW (plan-aware UI)
+                        />
+                    )}
 
-
-                    <DashboardPanel
-                        activeView={activeView}
-                        projects={projects}
-                        trashedProjects={trashedProjects}
-                        openMenuId={openMenuId}
-                        setOpenMenuId={setOpenMenuId}
-                        handleChange={handleChange}
-                        handleCreate={handleCreate}
-                        setProjects={setProjects}
-                        setTrashedProjects={setTrashedProjects}
-                        setActiveView={go}
-                    />
+                    {/* Team panel */}
+                    {activeView === 'team' && (
+                        <div className="mt-[-16px]">
+                            <TeamPanel
+                                userPlan={capabilitiesTier}
+                                planLimits={limits || defaultLimits}
+                                fetchTeam={fetchTeam}
+                                inviteUser={inviteUser}
+                                updateRole={updateRole}
+                                removeMember={removeMember}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
+
+            {/* Create Project Modal */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 backdrop-blur-sm">
                     <div className="bg-[#2c2e3a] border border-white/20 p-6 rounded-lg w-full max-w-md shadow-2xl text-white">
@@ -207,6 +362,20 @@ export default function DashboardPage() {
                 </div>
             )}
 
+            {/* Share Project Modal (Phase 1) */}
+            <ShareProjectModal
+                open={shareOpen}
+                onClose={() => setShareOpen(false)}
+                project={shareProject}
+                loadAccessList={loadAccessList}
+                searchTeam={searchTeam}
+                inviteToProject={inviteToProject}
+                updatePermission={updatePermission}
+                removeAccess={removeAccess}
+                userPlan={capabilitiesTier}
+                sharedCount={sharedProjects?.length || 0}
+                planLimits={limits || defaultLimits}
+            />
         </div>
     );
 }
