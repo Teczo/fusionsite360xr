@@ -21,6 +21,7 @@ import analyticsRoutes from "./routes/analytics.js";
 import animationRoutes from './routes/animation.js';
 import billingRoutes from './routes/billing.js';
 import billingWebhook from './routes/billing.webhook.js';
+import teamRouter from './routes/team.js';
 
 import requireActiveSubscription from './middleware/requireActiveSubscription.js';
 import authMiddleware from './middleware/authMiddleware.js';
@@ -105,6 +106,7 @@ app.use('/api', projectRoutes);
 app.use('/api', fileRoutes);
 app.use('/api', folderRoutes);
 app.use('/api/profile', profileRouter);
+app.use('/api/team', teamRouter);
 
 // You can gate analytics with subscription if needed:
 app.use('/api/analytics', analyticsRoutes);

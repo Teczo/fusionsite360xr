@@ -69,6 +69,7 @@ router.get('/projects/:id', auth, async (req, res) => {
     }
 });
 
+
 // Update project scene
 router.put('/projects/:id', auth, async (req, res) => {
     try {
@@ -187,6 +188,37 @@ router.delete('/projects/:id/permanent', auth, async (req, res) => {
     } catch (err) {
         console.error('❌ Failed to permanently delete project:', err);
         res.status(500).json({ error: 'Server error during delete' });
+    }
+});
+
+
+router.get('/projects/shared', auth, async (req, res) => {
+    try {
+        const uid = req.userId;
+        if (!uid) return res.status(401).json({ error: 'Unauthorized' });
+
+        // If your schema DOESN'T have access, return empty for now (prevents 500)
+        // const hasAccessField = true; // flip to false if needed
+        // if (!hasAccessField) return res.json([]);
+
+        const docs = await Project.find({ 'access.user': uid })
+            .select('_id name thumbnail updatedAt owner access')
+            .populate('owner', 'name')
+            .lean();
+
+        const list = (docs || []).map(d => ({
+            _id: String(d._id),
+            name: d.name,
+            thumbnail: d.thumbnail || null,
+            updatedAt: d.updatedAt,
+            owner: d.owner ? { id: String(d.owner._id), name: d.owner.name } : null,
+            myPermission: (d.access || []).find(a => String(a.user) === String(uid))?.permission || 'view'
+        }));
+
+        res.json(list);
+    } catch (e) {
+        console.error('GET /api/projects/shared failed:', e);
+        res.status(200).json([]); // Return empty instead of 500 so the UI stays stable in MVP
     }
 });
 
