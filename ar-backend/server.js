@@ -35,8 +35,7 @@ const PORT = process.env.PORT || 4000;
 // 1) Define allowlist FIRST
 const allowlist = [
   'http://localhost:5173',
-  'https://holoxr.teczo.co',
-  'https://holoxr.onrender.com',
+  'https://holoxr-exfq.onrender.com',
 ];
 
 // 2) Single CORS middleware (no second app.use(cors()))
