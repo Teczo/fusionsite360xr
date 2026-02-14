@@ -11,6 +11,7 @@ import ARPlane from './pages/ARPlane';
 import ARImageTracker from './pages/ARImageTracker';
 import ARModeSelect from './components/viewer/ARModeSelect';
 import DigitalTwinDashboard from "./pages/DigitalTwinDashboard";
+import { RoleProvider } from './components/hooks/useRole';
 
 const RequireAuth = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -19,7 +20,7 @@ const RequireAuth = ({ children }) => {
 
 export default function App() {
   return (
-    <>
+    <RoleProvider>
       <Routes>
         {/* Public routes */}
         <Route path="/signup" element={<SignUpPage />} />
@@ -48,6 +49,6 @@ export default function App() {
           style: { background: '#18191e', color: 'white', borderRadius: '8px', fontSize: '14px' },
         }}
       />
-    </>
+    </RoleProvider>
   );
 }

@@ -41,9 +41,14 @@ const billingSchema = new mongoose.Schema({
 }, { _id: false });
 
 const userSchema = new mongoose.Schema({
-    name: { type: String, required: true },               // already present
-    email: { type: String, required: true, unique: true },// already present
-    passwordHash: { type: String, required: true },       // already present
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    passwordHash: { type: String, required: true },
+    role: {
+        type: String,
+        enum: ['admin', 'engineer', 'contractor'],
+        default: 'admin',
+    },
     profile: profileSchema,
     billing: billingSchema
 }, { timestamps: true });

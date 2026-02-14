@@ -5,10 +5,18 @@ import Sidebar from '../components/dashboard/Sidebar';
 import DashboardHeader from '../components/dashboard/DashboardHeader';
 import DashboardPanel from '../components/dashboard/DashboardPanel';
 
-// NEW: Phase 1 Team feature components
+// Phase 1 Team feature components
 import TeamPanel from '../components/team/TeamPanel';
 import ShareProjectModal from '../components/team/ShareProjectModal';
 import useUserPlan from '../components/hooks/useUserPlan';
+
+// Digital Twin Dashboard Widgets
+import TimelineWidget from '../components/DashboardWidgets/TimelineWidget';
+import HSEWidget from '../components/DashboardWidgets/HSEWidget';
+import AlertsWidget from '../components/DashboardWidgets/AlertsWidget';
+import SCurveWidget from '../components/DashboardWidgets/SCurveWidget';
+import MediaWidget from '../components/DashboardWidgets/MediaWidget';
+import DigitalTwinPreviewWidget from '../components/DashboardWidgets/DigitalTwinPreviewWidget';
 
 export default function DashboardPage() {
     const { panel } = useParams(); // e.g., 'your-designs' | 'team' | 'billing' ...
@@ -289,12 +297,32 @@ export default function DashboardPage() {
                         />
                     </div>
 
+                    {/* Digital Twin Overview panel */}
+                    {activeView === 'digital-twin' && (
+                        <div className="flex-1 overflow-y-auto">
+                            <div className="h-full bg-black/30 backdrop-blur-lg border border-white/10 rounded-2xl p-6 overflow-y-auto">
+                                <h2 className="text-xl font-bold text-white mb-6">Digital Twin Operations</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                                    <TimelineWidget projects={projects} />
+                                    <HSEWidget projects={projects} />
+                                    <AlertsWidget projects={projects} />
+                                    <SCurveWidget projects={projects} />
+                                    <DigitalTwinPreviewWidget
+                                        projects={projects}
+                                        onOpen={(id) => navigate(`/digital-twin?id=${id}`)}
+                                    />
+                                    <MediaWidget projects={projects} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Main panel: Designs (Active/Shared/Trash) */}
-                    {activeView !== 'team' && (
+                    {activeView !== 'team' && activeView !== 'digital-twin' && (
                         <DashboardPanel
                             activeView={activeView}
                             projects={projects}
-                            sharedProjects={sharedProjects}          // NEW
+                            sharedProjects={sharedProjects}
                             trashedProjects={trashedProjects}
                             openMenuId={openMenuId}
                             setOpenMenuId={setOpenMenuId}
@@ -303,9 +331,9 @@ export default function DashboardPage() {
                             setProjects={setProjects}
                             setTrashedProjects={setTrashedProjects}
                             setActiveView={go}
-                            onOpenShare={onOpenShare}                // NEW
+                            onOpenShare={onOpenShare}
                             userPlan={capabilitiesTier}
-                            planLimits={limits}                   // NEW (plan-aware UI)
+                            planLimits={limits}
                         />
                     )}
 

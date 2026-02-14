@@ -12,6 +12,7 @@ import {
     ChartArea,
     User,
     CreditCard,
+    Boxes,
 } from "lucide-react";
 
 const STORAGE_KEY = "ui.sidebar.collapsed";
@@ -78,6 +79,7 @@ export default function Sidebar({
             title: "Browse",
             items: [
                 { label: "Your Designs", key: "your-designs", icon: LayoutGrid },
+                { label: "Digital Twin", key: "digital-twin", icon: Boxes },
                 { label: "Templates", key: "templates", icon: Copy },
                 { label: "MeshAI", key: "meshai", icon: Sparkles },
             ],
