@@ -22,6 +22,11 @@ import animationRoutes from './routes/animation.js';
 import billingRoutes from './routes/billing.js';
 import billingWebhook from './routes/billing.webhook.js';
 import teamRouter from './routes/team.js';
+import timelineRoutes from './routes/timeline.js';
+import hseRoutes from './routes/hse.js';
+import alertRoutes from './routes/alerts.js';
+import scurveRoutes from './routes/scurve.js';
+import mediaRoutes from './routes/media.js';
 
 import requireActiveSubscription from './middleware/requireActiveSubscription.js';
 import authMiddleware from './middleware/authMiddleware.js';
@@ -114,6 +119,13 @@ app.use('/api/analytics', analyticsRoutes);
 // If you want animations behind subscription too, wrap it the same way
 app.use('/api', animationRoutes);
 app.use('/api/animations', animationRoutes);
+
+// Digital Twin modules (Timeline, HSE, Alerts, S-Curve, Media)
+app.use('/api', timelineRoutes);
+app.use('/api', hseRoutes);
+app.use('/api', alertRoutes);
+app.use('/api', scurveRoutes);
+app.use('/api', mediaRoutes);
 
 // Billing (after webhook + parsers)
 app.use('/api/billing', billingRoutes);

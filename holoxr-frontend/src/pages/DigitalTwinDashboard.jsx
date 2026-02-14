@@ -2,6 +2,11 @@ import React, { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 
 import ScenePreviewCanvas from "./components/ScenePreviewCanvas";
+import TimelineList from "../components/ProjectModules/Timeline/TimelineList";
+import HSEList from "../components/ProjectModules/HSE/HSEList";
+import AlertsList from "../components/ProjectModules/Alerts/AlertsList";
+import SCurvePanel from "../components/ProjectModules/SCurve/SCurvePanel";
+import MediaGallery from "../components/ProjectModules/Media/MediaGallery";
 /**
  * Digital Twin Dashboard (Mock UI + Mock Data)
  * Tailwind-only. No tailwind.config theme required. No global CSS required.
@@ -134,28 +139,53 @@ export default function DigitalTwinDashboard() {
                             </div>
                         </div>
 
-                        {/* Bottom cards */}
-                        <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-4">
-                            {/* Facility Performance Comparison */}
-                            <Card title="Facility Performance Comparison" menu>
-                                <MockBars />
-                            </Card>
+                        {/* Project Modules (when projectId is present) */}
+                        {projectId && (
+                            <div className="mt-5 space-y-5">
+                                {/* S-Curve + Timeline row */}
+                                <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                                    <Card title="S-Curve Progress">
+                                        <SCurvePanel projectId={projectId} />
+                                    </Card>
+                                    <Card title="Project Timeline">
+                                        <TimelineList projectId={projectId} />
+                                    </Card>
+                                </div>
 
-                            {/* Resource Utilization */}
-                            <Card title="Resource Utilization (24h)" menu>
-                                <Utilization />
-                            </Card>
+                                {/* HSE + Alerts row */}
+                                <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                                    <Card title="HSE Overview">
+                                        <HSEList projectId={projectId} />
+                                    </Card>
+                                    <Card title="Alerts">
+                                        <AlertsList projectId={projectId} />
+                                    </Card>
+                                </div>
 
-                            {/* Alerts */}
-                            <Card title="Alerts & Incidents" menu>
-                                <Alerts />
-                            </Card>
+                                {/* Media Gallery */}
+                                <Card title="Media Gallery">
+                                    <MediaGallery projectId={projectId} />
+                                </Card>
+                            </div>
+                        )}
 
-                            {/* CCTV */}
-                            <Card title="CCTV Camera Thumbnail" menu>
-                                <CctvMock />
-                            </Card>
-                        </div>
+                        {/* Bottom cards (shown when no specific project is loaded) */}
+                        {!projectId && (
+                            <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-4">
+                                <Card title="Facility Performance Comparison" menu>
+                                    <MockBars />
+                                </Card>
+                                <Card title="Resource Utilization (24h)" menu>
+                                    <Utilization />
+                                </Card>
+                                <Card title="Alerts & Incidents" menu>
+                                    <Alerts />
+                                </Card>
+                                <Card title="CCTV Camera Thumbnail" menu>
+                                    <CctvMock />
+                                </Card>
+                            </div>
+                        )}
                     </div>
                     {isTwinFullscreen && (
                         <div
