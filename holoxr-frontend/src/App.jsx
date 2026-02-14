@@ -10,6 +10,7 @@ import ARViewer from './components/viewer/ARViewer';
 import ARPlane from './pages/ARPlane';
 import ARImageTracker from './pages/ARImageTracker';
 import ARModeSelect from './components/viewer/ARModeSelect';
+import DigitalTwinDashboard from "./pages/DigitalTwinDashboard";
 
 const RequireAuth = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -27,6 +28,7 @@ export default function App() {
         <Route path="/ar/:id" element={<ARViewer />} />
         <Route path="/ar-plane/:id" element={<ARPlane />} />
         <Route path="/ar-image/:id" element={<ARImageTracker />} />
+        <Route path="/digital-twin" element={<DigitalTwinDashboard />} />
         {/* Auth-protected */}
 
         <Route path="/dashboard/:panel?" element={<RequireAuth><DashboardPage /></RequireAuth>} />

@@ -1,13 +1,19 @@
 import express from 'express';
 import multer from 'multer';
+import mongoose from 'mongoose';
 import path from 'path';
+import cors from 'cors';
 import { BlobServiceClient } from '@azure/storage-blob';
+
 import Project from '../models/Project.js';
 import auth from '../middleware/authMiddleware.js';
-import cors from 'cors';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
+
+/* ---------------------------------------------------
+   CORS (specific endpoints)
+--------------------------------------------------- */
 
 router.options('/projects/:id/thumbnail', cors({
     origin: ['https://holoxr.teczo.co', 'https://holoxr.onrender.com', 'http://localhost:5173'],
@@ -16,29 +22,38 @@ router.options('/projects/:id/thumbnail', cors({
     credentials: true,
 }));
 
-// Create project
+/* ---------------------------------------------------
+   CREATE PROJECT
+--------------------------------------------------- */
+
 router.post('/projects', auth, async (req, res) => {
     try {
         const { name, description } = req.body;
 
-        const newProject = new Project({
+        const project = new Project({
             userId: req.userId,
             name,
             description,
         });
 
-        await newProject.save();
-        res.status(201).json(newProject);
+        await project.save();
+        res.status(201).json(project);
     } catch (err) {
-        console.error(err);
+        console.error('❌ Create project failed:', err);
         res.status(500).json({ error: 'Failed to create project' });
     }
 });
 
-// Get trashed projects (MUST come before /:id route)
+/* ---------------------------------------------------
+   TRASHED PROJECTS (STATIC ROUTES FIRST)
+--------------------------------------------------- */
+
 router.get('/projects/trashed', auth, async (req, res) => {
     try {
-        const projects = await Project.find({ userId: req.userId, trashed: true }).sort({ updatedAt: -1 });
+        const projects = await Project
+            .find({ userId: req.userId, trashed: true })
+            .sort({ updatedAt: -1 });
+
         res.json(projects);
     } catch (err) {
         console.error('❌ Failed to fetch trashed projects:', err);
@@ -46,160 +61,14 @@ router.get('/projects/trashed', auth, async (req, res) => {
     }
 });
 
-// Get all non-trashed projects
-router.get('/projects', auth, async (req, res) => {
-    try {
-        const projects = await Project.find({ userId: req.userId, trashed: false }).sort({ updatedAt: -1 });
-        res.json(projects);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Failed to load projects' });
-    }
-});
-
-// Get one project
-router.get('/projects/:id', auth, async (req, res) => {
-    try {
-        const project = await Project.findOne({ _id: req.params.id, userId: req.userId });
-        if (!project) return res.status(404).json({ error: 'Project not found' });
-        res.json(project);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Failed to fetch project' });
-    }
-});
-
-
-// Update project scene
-router.put('/projects/:id', auth, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { scene } = req.body;
-
-        const project = await Project.findOne({ _id: id, userId: req.userId });
-        if (!project) return res.status(404).json({ error: 'Project not found' });
-
-        project.scene = scene;
-        await project.save();
-
-        res.json({ message: 'Scene saved', project });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Failed to update project' });
-    }
-});
-
-// Publish a project
-router.put('/projects/:id/publish', auth, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { scene } = req.body;
-
-        const project = await Project.findOne({ _id: id, userId: req.userId });
-        if (!project) return res.status(404).json({ error: 'Project not found' });
-
-        project.published = true;
-        project.publishedAt = new Date();
-        project.publishedScene = scene;
-        await project.save();
-
-        res.json({ message: 'Published', shareUrl: `/ar/${project._id}` });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Failed to publish project' });
-    }
-});
-
-// Public route: Get published scene
-router.get('/published/:id', async (req, res) => {
-    try {
-        const project = await Project.findOne({ _id: req.params.id, published: true });
-        if (!project) return res.status(404).json({ error: 'Published scene not found' });
-        res.json(project);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Failed to load published scene' });
-    }
-});
-
-// Return first model from published project
-router.get('/published-model/:id', async (req, res) => {
-    try {
-        const project = await Project.findOne({ _id: req.params.id, published: true });
-
-        if (!project || !project.publishedScene) {
-            return res.status(404).json({ error: 'Published scene not found' });
-        }
-
-        const model = project.publishedScene.find((item) => item.type === 'model');
-
-        if (!model) {
-            return res.status(404).json({ error: 'No model found in scene' });
-        }
-
-        res.json({ url: model.url });
-    } catch (err) {
-        console.error('Failed to load published model', err);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
-// Soft delete (move to trash)
-router.delete('/projects/:id', auth, async (req, res) => {
-    try {
-        const project = await Project.findOne({ _id: req.params.id, userId: req.userId });
-        if (!project) return res.status(404).json({ error: 'Project not found' });
-
-        project.trashed = true;
-        await project.save();
-
-        res.json({ message: 'Project moved to trash' });
-    } catch (err) {
-        console.error('❌ Failed to move to trash:', err);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
-// Restore from trash
-router.patch('/projects/:id/restore', auth, async (req, res) => {
-    try {
-        const project = await Project.findOne({ _id: req.params.id, userId: req.userId });
-        if (!project) return res.status(404).json({ error: 'Project not found' });
-
-        project.trashed = false;
-        await project.save();
-
-        res.json({ message: 'Project restored successfully' });
-    } catch (err) {
-        console.error('❌ Failed to restore project:', err);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
-// Permanent delete
-router.delete('/projects/:id/permanent', auth, async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const deleted = await Project.findOneAndDelete({ _id: id, userId: req.userId });
-        if (!deleted) return res.status(404).json({ error: 'Project not found or not yours' });
-
-        res.status(200).json({ message: 'Project permanently deleted' });
-    } catch (err) {
-        console.error('❌ Failed to permanently delete project:', err);
-        res.status(500).json({ error: 'Server error during delete' });
-    }
-});
-
+/* ---------------------------------------------------
+   SHARED PROJECTS (MUST COME BEFORE :id)
+--------------------------------------------------- */
 
 router.get('/projects/shared', auth, async (req, res) => {
     try {
         const uid = req.userId;
         if (!uid) return res.status(401).json({ error: 'Unauthorized' });
-
-        // If your schema DOESN'T have access, return empty for now (prevents 500)
-        // const hasAccessField = true; // flip to false if needed
-        // if (!hasAccessField) return res.json([]);
 
         const docs = await Project.find({ 'access.user': uid })
             .select('_id name thumbnail updatedAt owner access')
@@ -211,16 +80,273 @@ router.get('/projects/shared', auth, async (req, res) => {
             name: d.name,
             thumbnail: d.thumbnail || null,
             updatedAt: d.updatedAt,
-            owner: d.owner ? { id: String(d.owner._id), name: d.owner.name } : null,
-            myPermission: (d.access || []).find(a => String(a.user) === String(uid))?.permission || 'view'
+            owner: d.owner
+                ? { id: String(d.owner._id), name: d.owner.name }
+                : null,
+            myPermission:
+                (d.access || []).find(a => String(a.user) === String(uid))?.permission || 'view'
         }));
 
         res.json(list);
-    } catch (e) {
-        console.error('GET /api/projects/shared failed:', e);
-        res.status(200).json([]); // Return empty instead of 500 so the UI stays stable in MVP
+    } catch (err) {
+        console.error('❌ Failed to load shared projects:', err);
+        res.json([]); // Never crash UI
     }
 });
+
+/* ---------------------------------------------------
+   ALL NON-TRASHED PROJECTS
+--------------------------------------------------- */
+
+router.get('/projects', auth, async (req, res) => {
+    try {
+        const projects = await Project
+            .find({ userId: req.userId, trashed: false })
+            .sort({ updatedAt: -1 });
+
+        res.json(projects);
+    } catch (err) {
+        console.error('❌ Failed to load projects:', err);
+        res.status(500).json({ error: 'Failed to load projects' });
+    }
+});
+
+/* ---------------------------------------------------
+   GET ONE PROJECT (SAFE)
+--------------------------------------------------- */
+
+router.get('/projects/:id', auth, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'Invalid project id' });
+        }
+
+        const project = await Project.findOne({
+            _id: id,
+            userId: req.userId
+        });
+
+        if (!project) {
+            return res.status(404).json({ error: 'Project not found' });
+        }
+
+        res.json(project);
+    } catch (err) {
+        console.error('❌ Failed to fetch project:', err);
+        res.status(500).json({ error: 'Failed to fetch project' });
+    }
+});
+
+/* ---------------------------------------------------
+   UPDATE PROJECT SCENE
+--------------------------------------------------- */
+
+router.put('/projects/:id', auth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { scene } = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'Invalid project id' });
+        }
+
+        const project = await Project.findOne({ _id: id, userId: req.userId });
+        if (!project) {
+            return res.status(404).json({ error: 'Project not found' });
+        }
+
+        project.scene = scene;
+        await project.save();
+
+        res.json({ message: 'Scene saved', project });
+    } catch (err) {
+        console.error('❌ Failed to update scene:', err);
+        res.status(500).json({ error: 'Failed to update project' });
+    }
+});
+
+/* ---------------------------------------------------
+   PUBLISH PROJECT
+--------------------------------------------------- */
+
+router.put('/projects/:id/publish', auth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { scene } = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'Invalid project id' });
+        }
+
+        const project = await Project.findOne({ _id: id, userId: req.userId });
+        if (!project) {
+            return res.status(404).json({ error: 'Project not found' });
+        }
+
+        project.published = true;
+        project.publishedAt = new Date();
+        project.publishedScene = scene;
+
+        await project.save();
+
+        res.json({
+            message: 'Published',
+            shareUrl: `/ar/${project._id}`
+        });
+    } catch (err) {
+        console.error('❌ Failed to publish project:', err);
+        res.status(500).json({ error: 'Failed to publish project' });
+    }
+});
+
+/* ---------------------------------------------------
+   PUBLIC: GET PUBLISHED SCENE (DIGITAL TWIN / AR)
+--------------------------------------------------- */
+
+router.get('/published/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'Invalid project id' });
+        }
+
+        const project = await Project.findOne({
+            _id: id,
+            published: true
+        });
+
+        if (!project) {
+            return res.status(404).json({ error: 'Published scene not found' });
+        }
+
+        res.json(project);
+    } catch (err) {
+        console.error('❌ Failed to load published scene:', err);
+        res.status(500).json({ error: 'Failed to load published scene' });
+    }
+});
+
+/* ---------------------------------------------------
+   PUBLIC: GET FIRST MODEL ONLY
+--------------------------------------------------- */
+
+router.get('/published-model/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'Invalid project id' });
+        }
+
+        const project = await Project.findOne({
+            _id: id,
+            published: true
+        });
+
+        if (!project || !Array.isArray(project.publishedScene)) {
+            return res.status(404).json({ error: 'Published scene not found' });
+        }
+
+        const model = project.publishedScene.find(i => i.type === 'model');
+        if (!model) {
+            return res.status(404).json({ error: 'No model found in scene' });
+        }
+
+        res.json(model);
+    } catch (err) {
+        console.error('❌ Failed to load published model:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+/* ---------------------------------------------------
+   SOFT DELETE
+--------------------------------------------------- */
+
+router.delete('/projects/:id', auth, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'Invalid project id' });
+        }
+
+        const project = await Project.findOne({ _id: id, userId: req.userId });
+        if (!project) {
+            return res.status(404).json({ error: 'Project not found' });
+        }
+
+        project.trashed = true;
+        await project.save();
+
+        res.json({ message: 'Project moved to trash' });
+    } catch (err) {
+        console.error('❌ Failed to move to trash:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+/* ---------------------------------------------------
+   RESTORE FROM TRASH
+--------------------------------------------------- */
+
+router.patch('/projects/:id/restore', auth, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'Invalid project id' });
+        }
+
+        const project = await Project.findOne({ _id: id, userId: req.userId });
+        if (!project) {
+            return res.status(404).json({ error: 'Project not found' });
+        }
+
+        project.trashed = false;
+        await project.save();
+
+        res.json({ message: 'Project restored successfully' });
+    } catch (err) {
+        console.error('❌ Failed to restore project:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+/* ---------------------------------------------------
+   PERMANENT DELETE
+--------------------------------------------------- */
+
+router.delete('/projects/:id/permanent', auth, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'Invalid project id' });
+        }
+
+        const deleted = await Project.findOneAndDelete({
+            _id: id,
+            userId: req.userId
+        });
+
+        if (!deleted) {
+            return res.status(404).json({ error: 'Project not found or not yours' });
+        }
+
+        res.json({ message: 'Project permanently deleted' });
+    } catch (err) {
+        console.error('❌ Failed to permanently delete project:', err);
+        res.status(500).json({ error: 'Server error during delete' });
+    }
+});
+
+/* ---------------------------------------------------
+   UPDATE THUMBNAIL
+--------------------------------------------------- */
 
 router.patch(
     '/projects/:id/thumbnail',
@@ -233,24 +359,36 @@ router.patch(
     upload.single('thumbnail'),
     async (req, res) => {
         try {
-            const project = await Project.findOne({ _id: req.params.id, userId: req.userId });
-            if (!project) return res.status(404).json({ error: 'Project not found' });
-            if (!req.file) return res.status(400).json({ error: 'No thumbnail provided' });
+            const { id } = req.params;
 
-            const AZURE_STORAGE_CONNECTION_STRING = process.env.AZURE_STORAGE_CONNECTION_STRING;
-            if (!AZURE_STORAGE_CONNECTION_STRING) {
+            if (!mongoose.Types.ObjectId.isValid(id)) {
+                return res.status(400).json({ error: 'Invalid project id' });
+            }
+
+            const project = await Project.findOne({ _id: id, userId: req.userId });
+            if (!project) {
+                return res.status(404).json({ error: 'Project not found' });
+            }
+
+            if (!req.file) {
+                return res.status(400).json({ error: 'No thumbnail provided' });
+            }
+
+            const conn = process.env.AZURE_STORAGE_CONNECTION_STRING;
+            if (!conn) {
                 return res.status(500).json({ error: 'Azure configuration missing' });
             }
 
-            const blobServiceClient = BlobServiceClient.fromConnectionString(AZURE_STORAGE_CONNECTION_STRING);
-            const containerClient = blobServiceClient.getContainerClient('uploads'); // same container you use for assets
+            const blobServiceClient = BlobServiceClient.fromConnectionString(conn);
+            const containerClient = blobServiceClient.getContainerClient('uploads');
 
-            const timestamp = Date.now();
-            const blobName = `thumbnails/projects/${project._id}-${timestamp}.webp`;
+            const blobName = `thumbnails/projects/${project._id}-${Date.now()}.webp`;
             const blockBlob = containerClient.getBlockBlobClient(blobName);
 
             await blockBlob.uploadData(req.file.buffer, {
-                blobHTTPHeaders: { blobContentType: req.file.mimetype || 'image/webp' },
+                blobHTTPHeaders: {
+                    blobContentType: req.file.mimetype || 'image/webp'
+                }
             });
 
             project.thumbnail = blockBlob.url;
@@ -258,9 +396,10 @@ router.patch(
 
             res.json({ message: 'Thumbnail updated', project });
         } catch (err) {
-            console.error('❌ Failed to update project thumbnail:', err);
+            console.error('❌ Failed to update thumbnail:', err);
             res.status(500).json({ error: 'Failed to update project thumbnail' });
         }
-    });
+    }
+);
 
 export default router;

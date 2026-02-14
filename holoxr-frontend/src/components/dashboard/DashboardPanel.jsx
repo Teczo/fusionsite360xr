@@ -161,7 +161,7 @@ export default function DashboardPanel({
                                             ⋯
                                         </button>
 
-                                        <div onClick={() => navigate(`/studio?id=${proj._id}`)} className="cursor-pointer">
+                                        <div onClick={() => navigate(`/digital-twin?id=${proj._id}`)} className="cursor-pointer">
                                             <div className="h-36 bg-black/20">
                                                 <img src={proj.thumbnail || '/placeholder.png'} alt="thumbnail" className="w-full h-full object-cover" />
                                             </div>
@@ -179,7 +179,8 @@ export default function DashboardPanel({
                                                     <div className="text-textsec text-xs mt-1">Created by You<br />{new Date(proj.createdAt).toLocaleDateString()}</div>
                                                 </div>
                                                 <div className="p-2 space-y-1">
-                                                    <button className="w-full text-left px-3 py-1.5 rounded hover:bg-white/10" onClick={() => window.open(`/studio?id=${proj._id}`, '_blank')}>🔗 Open in New Tab</button>
+                                                    <button className="w-full text-left px-3 py-1.5 rounded hover:bg-white/10" onClick={() => window.open(`/digital-twin?id=${proj._id}`, '_blank')}>🔗 Open in New Tab</button>
+                                                    <button className="w-full text-left px-3 py-1.5 rounded hover:bg-white/10" onClick={() => navigate(`/studio?id=${proj._id}`)}>✏️ Edit</button>
                                                     <button className="w-full text-left px-3 py-1.5 rounded hover:bg-white/10" onClick={() => onOpenShare(proj)}>👥 Share</button> {/* NEW */}
                                                     <button className="w-full text-left px-3 py-1.5 rounded text-red-400 hover:bg-red-500/15" onClick={() => handleDeleteProject(proj._id)}>🗑 Move to Trash</button>
                                                 </div>
@@ -196,7 +197,7 @@ export default function DashboardPanel({
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                                 {sharedProjects.map((proj) => (
                                     <div key={proj._id} className="relative bg-surface/80 border border-white/10 rounded-xl shadow-lg">
-                                        <div onClick={() => navigate(`/studio?id=${proj._id}`)} className="cursor-pointer">
+                                        <div onClick={() => navigate(`/digital-twin?id=${proj._id}`)} className="cursor-pointer">
                                             <div className="h-36 bg-black/20">
                                                 <img src={proj.thumbnail || '/placeholder.png'} alt="thumbnail" className="w-full h-full object-cover" />
                                             </div>

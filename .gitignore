@@ -1,0 +1,51 @@
+# ===== OS / Editor =====
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ===== Logs =====
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ===== Dependencies =====
+node_modules/
+.pnpm-store/
+
+# ===== Builds / Outputs =====
+dist/
+build/
+out/
+
+# ===== Vite / tooling caches =====
+.vite/
+.cache/
+.eslintcache
+*.tsbuildinfo
+
+# ===== Environment files (SECRETS) =====
+.env
+.env.*
+!.env.example
+
+# ===== Optional: runtime / coverage =====
+coverage/
+*.pid
+*.seed
+*.pid.lock
+
+# ===== Mongo local data (if any) =====
+data/
+mongodb-data/
+
+# ===== Temp files =====
+*.swp
+*.tmp
+
+# ===== Uploads (choose based on your app design) =====
+# If your app stores user uploads locally, decide whether to ignore them.
+# uploads/
