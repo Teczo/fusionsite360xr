@@ -91,8 +91,30 @@ function ProjectCard({ proj, index, openMenuId, setOpenMenuId, onNavigate, onOpe
     const colorClass = PROJECT_COLORS[index % PROJECT_COLORS.length];
     const initial = (proj.name || 'P').charAt(0).toUpperCase();
 
+
+    const isMenuOpen = openMenuId === proj._id;
+
     return (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.06)] p-5 flex flex-col gap-4 hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] transition-shadow relative group">
+        <div
+            onClick={() => onNavigate(`/digital-twin?id=${proj._id}`)}
+            className={`bg-white rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.06)] p-5 pt-3 flex flex-col gap-4 hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] transition-shadow relative group cursor-pointer ${isMenuOpen ? 'z-20' : 'z-0'}`}
+        >
+            {/* Thumbnail preview */}
+            <div className="w-full h-32 rounded-xl overflow-hidden bg-gray-100">
+                {proj.thumbnail ? (
+                    <img
+                        src={proj.thumbnail}
+                        alt={proj.name}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                    />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
+                        No preview
+                    </div>
+                )}
+            </div>
+
             {/* Top row: icon + name + menu */}
             <div className="flex items-start gap-3">
                 <div className={`w-10 h-10 rounded-xl ${colorClass} flex items-center justify-center text-white font-bold text-sm shrink-0`}>
@@ -107,38 +129,54 @@ function ProjectCard({ proj, index, openMenuId, setOpenMenuId, onNavigate, onOpe
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
-                            setOpenMenuId(openMenuId === proj._id ? null : proj._id);
+                            setOpenMenuId(isMenuOpen ? null : proj._id);
                         }}
-                        className="p-1.5 rounded-lg text-textsec hover:text-textpri hover:bg-gray-100 transition-colors opacity-0 group-hover:opacity-100"
+                        className="p-1.5 rounded-lg text-textsec hover:text-textpri hover:bg-gray-100 transition-colors opacity-0 group-hover:opacity-100 relative z-30"
                         aria-label="Project menu"
                     >
                         <MoreHorizontal className="w-4 h-4" />
                     </button>
 
-                    {openMenuId === proj._id && (
-                        <div className="absolute right-0 top-8 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-30 py-1.5 text-sm">
+                    {isMenuOpen && (
+                        <div
+                            className="absolute right-0 top-8 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1.5 text-sm"
+                            onClick={(e) => e.stopPropagation()}
+                        >
                             <button
                                 className="w-full text-left px-4 py-2 hover:bg-gray-50 text-textpri"
-                                onClick={() => window.open(`/digital-twin?id=${proj._id}`, '_blank')}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    window.open(`/digital-twin?id=${proj._id}`, '_blank');
+                                    setOpenMenuId(null);
+                                }}
                             >
                                 Open in New Tab
                             </button>
                             <button
                                 className="w-full text-left px-4 py-2 hover:bg-gray-50 text-textpri"
-                                onClick={() => onNavigate(`/studio?id=${proj._id}`)}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onNavigate(`/studio?id=${proj._id}`);
+                                }}
                             >
                                 Edit
                             </button>
                             <button
                                 className="w-full text-left px-4 py-2 hover:bg-gray-50 text-textpri"
-                                onClick={() => onOpenShare(proj)}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onOpenShare(proj);
+                                }}
                             >
                                 Share
                             </button>
                             <hr className="my-1 border-gray-100" />
                             <button
                                 className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600"
-                                onClick={() => onDelete(proj._id)}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDelete(proj._id);
+                                }}
                             >
                                 Move to Trash
                             </button>
@@ -168,14 +206,6 @@ function ProjectCard({ proj, index, openMenuId, setOpenMenuId, onNavigate, onOpe
                     />
                 </div>
             </div>
-
-            {/* Clickable overlay for navigation */}
-            <button
-                onClick={() => onNavigate(`/digital-twin?id=${proj._id}`)}
-                className="absolute inset-0 rounded-2xl z-0"
-                aria-label={`Open ${proj.name}`}
-                style={{ background: 'transparent' }}
-            />
         </div>
     );
 }
@@ -216,6 +246,12 @@ export default function DashboardPanel({
             navigate('/dashboard/your-designs?tab=trash', { replace: true });
         }
     }, [activeView, navigate]);
+
+    useEffect(() => {
+        const close = () => setOpenMenuId(null);
+        window.addEventListener('click', close);
+        return () => window.removeEventListener('click', close);
+    }, []);
 
     const setTab = (t) => {
         setDesignsTab(t);
@@ -295,8 +331,8 @@ export default function DashboardPanel({
             key={key}
             onClick={() => setTab(key)}
             className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${designsTab === key
-                    ? 'bg-brand-50 text-brand'
-                    : 'text-textsec hover:bg-gray-50 hover:text-textpri'
+                ? 'bg-brand-50 text-brand'
+                : 'text-textsec hover:bg-gray-50 hover:text-textpri'
                 }`}
             role="tab"
             aria-selected={designsTab === key}
