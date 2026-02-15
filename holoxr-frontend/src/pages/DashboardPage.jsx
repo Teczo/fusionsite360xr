@@ -281,19 +281,20 @@ export default function DashboardPage() {
             />
 
             <div className={`flex-1 transition-all duration-300 ${isCollapsed ? 'pl-[72px]' : 'pl-[260px]'}`}>
-                <div className="flex flex-col h-full px-7 py-5">
-                    {/* Top Header */}
-                    <div className="mb-6">
-                        <DashboardHeader
-                            searchQuery={searchQuery}
-                            setSearchQuery={setSearchQuery}
-                            theme={theme}
-                            setTheme={setTheme}
-                            user={user}
-                            setActiveView={go}
-                            setShowModal={setShowModal}
-                        />
-                    </div>
+                {/* Top Header */}
+                <div className="mb-6">
+                    <DashboardHeader
+                        searchQuery={searchQuery}
+                        setSearchQuery={setSearchQuery}
+                        theme={theme}
+                        setTheme={setTheme}
+                        user={user}
+                        setActiveView={go}
+                        setShowModal={setShowModal}
+                    />
+                </div>
+                <div className="flex flex-col h-full px-7 py-5 overflow-hidden">
+
 
                     {/* Page Title */}
                     <div className="mb-6">
@@ -318,6 +319,7 @@ export default function DashboardPage() {
                     {/* Digital Twin Overview panel */}
                     {activeView === 'digital-twin' && (
                         <div className="flex-1 overflow-y-auto">
+
                             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                                 <TimelineWidget projects={projects} />
                                 <HSEWidget projects={projects} />

@@ -344,7 +344,8 @@ export default function DashboardPanel({
 
     return (
         <div className="flex-1 overflow-hidden">
-            <div className="h-full overflow-y-auto">
+
+            <div className="h-full">
                 {activeView === 'your-designs' && (
                     <>
                         {/* ── KPI Summary Cards ── */}

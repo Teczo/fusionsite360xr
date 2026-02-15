@@ -7,6 +7,9 @@ import HSEList from "../components/ProjectModules/HSE/HSEList";
 import AlertsList from "../components/ProjectModules/Alerts/AlertsList";
 import SCurvePanel from "../components/ProjectModules/SCurve/SCurvePanel";
 import MediaGallery from "../components/ProjectModules/Media/MediaGallery";
+import Sidebar from "../components/dashboard/Sidebar";
+import TopBar from "../components/dashboard/DashboardHeader";
+
 /**
  * Digital Twin Dashboard (Mock UI + Mock Data)
  * Tailwind-only. No tailwind.config theme required. No global CSS required.
@@ -19,7 +22,10 @@ export default function DigitalTwinDashboard() {
     const location = useLocation();
     const params = new URLSearchParams(location.search);
     const projectId = params.get("id");
-
+    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [showModal, setShowModal] = useState(false);
+    const [user, setUser] = useState({ name: 'User' });
+    const [billingLabel, setBillingLabel] = useState('Free');
     const [captureRequest, setCaptureRequest] = useState({ nonce: 0 });
 
     const requestCapture = () => {
@@ -40,11 +46,17 @@ export default function DigitalTwinDashboard() {
     }, [isTwinFullscreen]);
 
     return (
-        <div className="min-h-dvh bg-[#F6F8FB] text-[#111827]">
-            <div className="flex min-h-dvh">
-                <Sidebar />
 
-                <main className="flex-1">
+        <div className="flex h-screen bg-[#F5F7FA]">
+            <Sidebar
+                isCollapsed={isCollapsed}
+                setIsCollapsed={setIsCollapsed}
+                setShowModal={setShowModal}
+                userName={user?.name || 'User'}
+                billingTier={billingLabel}
+            />
+            <div className={`flex-1 transition-all duration-300 ${isCollapsed ? 'pl-[72px]' : 'pl-[260px]'}`}>
+                <div className="flex flex-col h-full">
                     <TopBar />
 
                     <div className="mx-auto w-full px-10 py-5">
@@ -88,86 +100,93 @@ export default function DigitalTwinDashboard() {
                             />
                         </div>
 
-                        {/* 3D Digital Twin Panel */}
-                        <div className="mt-5 rounded-2xl border border-[#E6EAF0] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
-                            <div className="flex items-center gap-3">
 
-                                <div className="inline-flex items-center gap-2">
-                                    <div className="inline-flex items-center gap-2 rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] px-3 py-2">
-                                        <span className="text-sm font-semibold text-[#111827]">3D Digital Twin</span>
-                                        <span className="text-xs text-[#6B7280]">▼</span>
+                        {/* 3D Digital Twin + S-Curve (Side-by-side on desktop) */}
+                        <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+                            {/* S-Curve Panel */}
+                            <Card title="S-Curve Progress">
+                                <SCurvePanel projectId={projectId} />
+                            </Card>
+                            {/* 3D Digital Twin Panel */}
+                            <div className="rounded-2xl border border-[#E6EAF0] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
+                                <div className="flex items-center gap-3 p-4">
+                                    <div className="inline-flex items-center gap-2">
+                                        <div className="inline-flex items-center gap-2 rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] px-3 py-2">
+                                            <span className="text-sm font-semibold text-[#111827]">3D Digital Twin</span>
+                                            <span className="text-xs text-[#6B7280]">▼</span>
+                                        </div>
                                     </div>
+
+                                    <CameraPresetBar onPreset={requestCamera} />
+
+                                    <button
+                                        onClick={requestCapture}
+                                        className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-xs font-semibold text-[#374151] hover:bg-[#F9FAFB] transition focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
+                                        title="Capture View"
+                                    >
+                                        Capture View
+                                    </button>
+
+                                    <button
+                                        onClick={() => setIsTwinFullscreen(true)}
+                                        className="inline-flex items-center justify-center rounded-xl border border-[#E6EAF0] bg-white p-2 hover:bg-[#F9FAFB] transition"
+                                        aria-label="Expand"
+                                        title="Expand"
+                                    >
+                                        <IconExpand />
+                                    </button>
                                 </div>
 
-                                <CameraPresetBar onPreset={requestCamera} />
+                                <div className="relative h-[420px] overflow-hidden rounded-b-2xl bg-gradient-to-b from-[#F9FAFB] to-[#EEF2F7]">
+                                    <ScenePreviewCanvas
+                                        projectId={projectId}
+                                        cameraRequest={cameraRequest}
+                                        captureRequest={captureRequest}
+                                        onSelectAsset={setSelectedAsset}
+                                    />
 
-                                <button
-                                    onClick={requestCapture}
-                                    className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-xs font-semibold text-[#374151]
-             hover:bg-[#F9FAFB] transition focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
-                                    title="Capture View"
-                                >
-                                    Capture View
-                                </button>
+                                    <div className="absolute top-4 right-4 z-20">
+                                        <AssetInfoPanel asset={selectedAsset} onClear={() => setSelectedAsset(null)} />
+                                    </div>
 
-                                <button
-                                    onClick={() => setIsTwinFullscreen(true)}
-                                    className="inline-flex items-center justify-center rounded-xl border border-[#E6EAF0] bg-white p-2 hover:bg-[#F9FAFB] transition"
-                                    aria-label="Expand"
-                                    title="Expand"
-                                >
-                                    <IconExpand />
-                                </button>
-
-                            </div>
-
-                            <div className="relative h-[420px] overflow-hidden rounded-b-2xl bg-gradient-to-b from-[#F9FAFB] to-[#EEF2F7]">
-                                <ScenePreviewCanvas
-                                    projectId={projectId}
-                                    cameraRequest={cameraRequest}
-                                    captureRequest={captureRequest}
-                                    onSelectAsset={setSelectedAsset}
-                                />
-
-                                <div className="absolute top-4 right-4 z-20">
-                                    <AssetInfoPanel asset={selectedAsset} onClear={() => setSelectedAsset(null)} />
+                                    {/* subtle vignette */}
+                                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.0)_0%,rgba(0,0,0,0.05)_100%)]" />
                                 </div>
-
-
-                                {/* subtle vignette */}
-                                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.0)_0%,rgba(0,0,0,0.05)_100%)]" />
                             </div>
+
+
                         </div>
 
-                        {/* Project Modules (when projectId is present) */}
+                        {/* Timeline – Full Width Horizontal Panel */}
                         {projectId && (
-                            <div className="mt-5 space-y-5">
-                                {/* S-Curve + Timeline row */}
-                                <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-                                    <Card title="S-Curve Progress">
-                                        <SCurvePanel projectId={projectId} />
-                                    </Card>
-                                    <Card title="Project Timeline">
-                                        <TimelineList projectId={projectId} />
-                                    </Card>
-                                </div>
+                            <div className="mt-5">
+                                <Card title="Project Timeline">
+                                    <TimelineList projectId={projectId} />
+                                </Card>
+                            </div>
+                        )}
 
-                                {/* HSE + Alerts row */}
-                                <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-                                    <Card title="HSE Overview">
-                                        <HSEList projectId={projectId} />
-                                    </Card>
-                                    <Card title="Alerts">
-                                        <AlertsList projectId={projectId} />
-                                    </Card>
-                                </div>
+                        {/* HSE + Alerts row */}
+                        {projectId && (
+                            <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+                                <Card title="HSE Overview">
+                                    <HSEList projectId={projectId} />
+                                </Card>
+                                <Card title="Alerts">
+                                    <AlertsList projectId={projectId} />
+                                </Card>
+                            </div>
+                        )}
 
-                                {/* Media Gallery */}
+                        {/* Media Gallery */}
+                        {projectId && (
+                            <div className="mt-5">
                                 <Card title="Media Gallery">
                                     <MediaGallery projectId={projectId} />
                                 </Card>
                             </div>
                         )}
+
 
                         {/* Bottom cards (shown when no specific project is loaded) */}
                         {!projectId && (
@@ -255,7 +274,7 @@ export default function DigitalTwinDashboard() {
                         </div>
                     )}
 
-                </main>
+                </div>
             </div>
         </div>
     );
@@ -367,153 +386,7 @@ import {
     Settings,
 } from "lucide-react";
 
-export function Sidebar() {
-    const items = [
-        { label: "Dashboard", icon: LayoutDashboard, active: true },
-        { label: "Operations", icon: Wrench },
-        { label: "Digital Twin", icon: Boxes },
-        { label: "IoT & Assets", icon: Radio },
-        { label: "Analytics", icon: BarChart3 },
-        { label: "Quality & Safety", icon: ShieldCheck },
-    ];
 
-    return (
-        <aside className="w-[300px] bg-white border-r border-[#E6EAF0] flex flex-col">
-            {/* Header */}
-            <div className="h-16 flex items-center px-6 border-b border-[#EEF2F7]">
-                <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-[#EAF2FF] border border-[#D7E6FF] flex items-center justify-center">
-                        <span className="text-[#2563EB] font-semibold">A</span>
-                    </div>
-                    <div className="leading-tight">
-                        <div className="text-sm font-semibold text-[#111827]">Ansell</div>
-                        <div className="text-xs text-[#6B7280]">Digital Twin</div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Nav */}
-            <nav className="px-3 py-4 flex-1">
-                <div className="space-y-1">
-                    {items.map((it) => {
-                        const Icon = it.icon;
-                        return (
-                            <button
-                                key={it.label}
-                                className={[
-                                    "group relative w-full flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition",
-                                    "focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20",
-                                    it.active
-                                        ? "bg-[#EAF2FF] text-[#1D4ED8]"
-                                        : "text-[#374151] hover:bg-[#F3F4F6]",
-                                ].join(" ")}
-                            >
-                                {it.active && (
-                                    <span className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-full bg-[#2563EB]" />
-                                )}
-
-                                <span
-                                    className={[
-                                        "inline-flex h-9 w-9 items-center justify-center rounded-xl border transition",
-                                        it.active
-                                            ? "bg-white border-[#D7E6FF]"
-                                            : "bg-white border-transparent group-hover:border-[#E6EAF0]",
-                                    ].join(" ")}
-                                >
-                                    <Icon className="h-[18px] w-[18px]" />
-                                </span>
-
-                                <span className={it.active ? "font-semibold" : "font-medium"}>
-                                    {it.label}
-                                </span>
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {/* Bottom section (single Settings) */}
-                <div className="mt-6 px-2">
-                    <div className="text-xs text-[#9CA3AF] mb-2">System</div>
-
-                    <button className="group w-full flex items-center gap-3 rounded-xl px-4 py-3 text-sm text-[#374151] hover:bg-[#F3F4F6] transition focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20">
-                        <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white border border-transparent group-hover:border-[#E6EAF0] transition">
-                            <Settings className="h-[18px] w-[18px]" />
-                        </span>
-                        <span className="font-medium">Settings</span>
-                    </button>
-                </div>
-            </nav>
-        </aside>
-    );
-}
-
-
-/* ------------------------- TopBar ------------------------- */
-function TopBar() {
-    return (
-        <div className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-[#E6EAF0]">
-            <div className="mx-auto w-full px-1 h-16 grid grid-cols-[1fr_auto_1fr] items-center">
-
-
-
-                {/* CENTER ZONE — SEARCH */}
-                <div className="flex px-10 ">
-                    <div className="w-full max-w-[560px]">
-                        <div className="flex items-center gap-2 rounded-xl border border-[#E6EAF0] bg-white px-3 py-2
-                            shadow-[0_4px_14px_rgba(0,0,0,0.05)]">
-                            <IconSearch />
-                            <input
-                                className="w-full bg-transparent outline-none text-sm text-[#111827]
-                           placeholder:text-[#9CA3AF]"
-                                placeholder="Search modules, assets, alerts..."
-                            />
-                        </div>
-                    </div>
-                </div>
-                {/* LEFT ZONE (empty for now, keeps balance) */}
-                <div className="flex items-center gap-4">
-                    {/* Optional: page title or breadcrumbs later */}
-                </div>
-
-                {/* RIGHT ZONE */}
-                <div className="flex items-center justify-end gap-3">
-
-                    {/* Notifications */}
-                    <button
-                        className="relative inline-flex items-center justify-center rounded-xl border border-[#E6EAF0]
-                       bg-white p-2 hover:bg-[#F9FAFB] transition"
-                        aria-label="Notifications"
-                    >
-                        <IconBell />
-                        <span className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1 rounded-full
-                             bg-[#EF4444] text-white text-[11px] font-semibold
-                             flex items-center justify-center border-2 border-white">
-                            3
-                        </span>
-                    </button>
-
-                    {/* Date / Time */}
-                    <div className="hidden sm:flex flex-col leading-tight items-end">
-                        <div className="text-sm font-semibold text-[#111827]">23:56</div>
-                        <div className="text-xs text-[#6B7280]">Thu, Dec 11, 2025</div>
-                    </div>
-
-                    {/* User */}
-                    <div className="flex items-center gap-3 rounded-2xl border border-[#E6EAF0]
-                          bg-white px-3 py-2 shadow-[0_4px_14px_rgba(0,0,0,0.05)]">
-                        <div className="h-9 w-9 rounded-full bg-[#E5E7EB] border border-[#E6EAF0]" />
-                        <div className="hidden sm:block leading-tight">
-                            <div className="text-sm font-semibold text-[#111827]">Ahmad Hassan</div>
-                            <div className="text-xs text-[#6B7280]">Operations Manager</div>
-                        </div>
-                        <span className="text-xs text-[#6B7280]">▼</span>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-    );
-}
 
 /* ------------------------- KPI ------------------------- */
 

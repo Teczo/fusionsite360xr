@@ -13,9 +13,10 @@ export default function DashboardHeader({
     const [timeRange, setTimeRange] = useState("7d");
 
     return (
-        <header className="w-full">
+        <header className="w-full bg-white border-b border-gray-200 shadow-[0_2px_8px_rgba(0,0,0,0.04)] sticky top-0 z-40">
+
             {/* Top row: breadcrumb + controls */}
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center justify-between gap-4 px-6 py-4">
                 {/* Left: Breadcrumb */}
                 <div className="flex items-center gap-2 min-w-0">
                     <nav className="flex items-center gap-1.5 text-sm">
@@ -63,8 +64,8 @@ export default function DashboardHeader({
                         <button
                             onClick={() => setTimeRange("7d")}
                             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${timeRange === "7d"
-                                    ? "bg-white text-textpri shadow-sm"
-                                    : "text-textsec hover:text-textpri"
+                                ? "bg-white text-textpri shadow-sm"
+                                : "text-textsec hover:text-textpri"
                                 }`}
                         >
                             Last 7 days
@@ -72,8 +73,8 @@ export default function DashboardHeader({
                         <button
                             onClick={() => setTimeRange("30d")}
                             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${timeRange === "30d"
-                                    ? "bg-white text-textpri shadow-sm"
-                                    : "text-textsec hover:text-textpri"
+                                ? "bg-white text-textpri shadow-sm"
+                                : "text-textsec hover:text-textpri"
                                 }`}
                         >
                             Last 30 days
