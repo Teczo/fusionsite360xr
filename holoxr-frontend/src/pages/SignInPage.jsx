@@ -1,15 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FcGoogle } from 'react-icons/fc';
-import { FaFacebookF, FaMicrosoft } from 'react-icons/fa';
-import { useKeenSlider } from 'keen-slider/react';
-import 'keen-slider/keen-slider.min.css';
+import { FaFacebookF, FaMicrosoft, FaEye, FaEyeSlash, FaCheck } from 'react-icons/fa';
 
 export default function SignInPage() {
     const navigate = useNavigate();
     const [form, setForm] = useState({ email: '', password: '' });
     const [error, setError] = useState('');
-    const [currentSlide, setCurrentSlide] = useState(0);
+    const [showPassword, setShowPassword] = useState(false);
+    const [rememberMe, setRememberMe] = useState(false);
 
     const handleChange = (e) => {
         setForm({ ...form, [e.target.name]: e.target.value });
@@ -38,206 +37,235 @@ export default function SignInPage() {
         }
     };
 
-    const [sliderRef, instanceRef] = useKeenSlider({
-        loop: true,
-        slides: { perView: 1 },
-        slideChanged(slider) {
-            setCurrentSlide(slider.track.details.rel);
-        },
-    });
+    const features = [
+        'Create immersive AR & 3D learning experiences',
+        'Publish and share with AR view links',
+        'Real-time collaboration with educators & creators',
+        'Track engagement analytics and insights',
+    ];
 
-    const slides = [
-        {
-            title: 'Create AR Classroom',
-            description: 'Design immersive learning experiences for your students using 3D and AR content.',
-            image: '/images/slide1.png',
-        },
-        {
-            title: 'Publish and Share',
-            description: 'Easily share your creations with others using AR view links.',
-            image: '/images/slide2.png',
-        },
-        {
-            title: 'Collaborate with Creators',
-            description: 'Work together with other educators, designers, and students in real-time.',
-            image: '/images/slide3.png',
-        },
-        {
-            title: 'Analyze Engagement',
-            description: 'Track usage and insights on how learners interact with your AR content.',
-            image: '/images/slide4.png',
-        },
+    const stats = [
+        { value: '10K+', label: 'Users' },
+        { value: '50K+', label: 'Documents' },
+        { value: '99.9%', label: 'Uptime' },
     ];
 
     return (
         <div className="flex min-h-screen bg-white">
-            {/* Right Login Form */}
+            {/* ─── Left Panel: Login Form ─── */}
             <div
-                className="flex items-center justify-center p-4 sm:p-6 md:p-8"
-                style={{ width: `var(--right-panel-width, 50%)` }}
+                className="flex items-center justify-center w-full lg:w-1/2 p-6 sm:p-8 md:p-12"
             >
-                <div className="w-full max-w-md">
-                    <div className="flex justify-start mb-6">
-                        <img src="/holo-icon.png" alt="Holo Icon" className="h-16 sm:h-20 w-auto" />
+                <div className="w-full max-w-[450px] login-fade-in">
+                    {/* Logo & Brand */}
+                    <div className="flex items-center gap-3 mb-10">
+                        <img src="/holo-icon.png" alt="FusionSite 360" className="h-12 w-auto" />
+                        <span className="text-xl font-bold text-[#1A202C]">FusionSite 360</span>
                     </div>
-                    <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-left">Sign in to your account</h2>
 
-                    <p className="text-sm text-left text-gray-600 mb-12">
-                        Don't have an account yet?{' '}
-                        <button
-                            type="button"
-                            onClick={() => navigate('/signup')}
-                            className="text-[#2c95d2] hover:text-[#5eaedc] font-bold focus:outline-none focus:ring-2 focus:ring-[#4FC3F7]"
-                        >
-                            Sign up
-                        </button>
-                    </p>
+                    {/* Heading */}
+                    <h1 className="text-3xl font-bold text-[#1A202C] mb-2">Welcome back!</h1>
+                    <p className="text-[#718096] mb-8">Sign in to continue to your dashboard</p>
 
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+                    {/* Form */}
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                        {error && (
+                            <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl">
+                                {error}
+                            </div>
+                        )}
 
+                        {/* Email */}
                         <div>
-                            <label htmlFor="email" className="text-sm font-bold">
+                            <label htmlFor="email" className="login-label">
                                 Email address
                             </label>
-                            <input
-                                id="email"
-                                name="email"
-                                value={form.email}
-                                onChange={handleChange}
-                                placeholder="Enter your email address"
-                                type="email"
-                                required
-                                className="w-full border border-gray-300 px-4 py-2 rounded mt-1 focus:ring-2 focus:ring-blue-500"
-                            />
+                            <div className="relative">
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A0AEC0]">
+                                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                                    </svg>
+                                </span>
+                                <input
+                                    id="email"
+                                    name="email"
+                                    value={form.email}
+                                    onChange={handleChange}
+                                    placeholder="Enter your email address"
+                                    type="email"
+                                    required
+                                    className="login-input pl-11"
+                                />
+                            </div>
                         </div>
 
+                        {/* Password */}
                         <div>
-                            <label htmlFor="password" className="text-sm font-bold">
+                            <label htmlFor="password" className="login-label">
                                 Password
                             </label>
-                            <input
-                                id="password"
-                                name="password"
-                                value={form.password}
-                                onChange={handleChange}
-                                placeholder="Enter your password"
-                                type="password"
-                                required
-                                className="w-full border border-gray-300 px-4 py-2 rounded mt-1 focus:ring-2 focus:ring-blue-500"
-                            />
+                            <div className="relative">
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A0AEC0]">
+                                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                    </svg>
+                                </span>
+                                <input
+                                    id="password"
+                                    name="password"
+                                    value={form.password}
+                                    onChange={handleChange}
+                                    placeholder="Enter your password"
+                                    type={showPassword ? 'text' : 'password'}
+                                    required
+                                    className="login-input pl-11 pr-11"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A0AEC0] hover:text-[#718096] transition-colors focus:outline-none"
+                                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                >
+                                    {showPassword ? <FaEyeSlash size={16} /> : <FaEye size={16} />}
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="text-right text-sm font-bold">
+                        {/* Remember me + Forgot password */}
+                        <div className="flex items-center justify-between">
+                            <label className="flex items-center gap-2 cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={rememberMe}
+                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                    className="sr-only"
+                                />
+                                <span className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all duration-200 ${
+                                    rememberMe
+                                        ? 'bg-gradient-to-r from-[#2EA6D7] to-[#6CCF6A] border-transparent'
+                                        : 'border-[#CBD5E0] bg-white'
+                                }`}>
+                                    {rememberMe && <FaCheck size={10} className="text-white" />}
+                                </span>
+                                <span className="text-sm text-[#718096]">Remember me</span>
+                            </label>
                             <button
                                 type="button"
-                                className="hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="text-sm font-semibold text-[#2EA6D7] hover:text-[#2390BE] transition-colors focus:outline-none focus:ring-2 focus:ring-[#2EA6D7]/30 rounded"
                             >
-                                Forgot your password?
+                                Forgot password?
                             </button>
                         </div>
 
+                        {/* Sign In Button */}
                         <button
                             type="submit"
-                            className="w-full bg-[#2c95d2] text-white py-2 rounded-full font-semibold hover:bg-[#4FC3F7] focus:ring-2 focus:ring-blue-500  mb-6"
+                            className="btn-login-gradient btn-shimmer"
                         >
-                            Log in
+                            Sign In
                         </button>
                     </form>
 
+                    {/* Divider */}
                     <div className="flex items-center my-6">
-                        <div className="flex-1 h-px bg-gray-300" />
-                        <span className="mx-4 text-sm font-bold">Or Log in with</span>
-                        <div className="flex-1 h-px bg-gray-300" />
+                        <div className="flex-1 h-px bg-[#E2E8F0]" />
+                        <span className="mx-4 text-sm text-[#A0AEC0]">or continue with</span>
+                        <div className="flex-1 h-px bg-[#E2E8F0]" />
                     </div>
 
-                    <div className="flex justify-center gap-4 mb-4">
+                    {/* Social Logins */}
+                    <div className="flex justify-center gap-4 mb-6">
                         <button
                             aria-label="Log in with Google"
-                            className="p-2 rounded-full border hover:bg-gray-50 focus:ring-2 focus:ring-blue-500"
+                            className="w-12 h-12 flex items-center justify-center rounded-xl border border-[#E2E8F0] bg-white hover:bg-[#F7FAFC] hover:border-[#CBD5E0] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#2EA6D7]/30"
                         >
-                            <FcGoogle size={20} />
+                            <FcGoogle size={22} />
                         </button>
                         <button
                             aria-label="Log in with Microsoft"
-                            className="p-2 rounded-full border hover:bg-gray-50 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                            className="w-12 h-12 flex items-center justify-center rounded-xl border border-[#E2E8F0] bg-white hover:bg-[#F7FAFC] hover:border-[#CBD5E0] transition-all duration-200 text-[#00A4EF] focus:outline-none focus:ring-2 focus:ring-[#2EA6D7]/30"
                         >
                             <FaMicrosoft size={18} />
                         </button>
                         <button
                             aria-label="Log in with Facebook"
-                            className="p-2 rounded-full border hover:bg-gray-50 text-blue-700 focus:ring-2 focus:ring-blue-500"
+                            className="w-12 h-12 flex items-center justify-center rounded-xl border border-[#E2E8F0] bg-white hover:bg-[#F7FAFC] hover:border-[#CBD5E0] transition-all duration-200 text-[#1877F2] focus:outline-none focus:ring-2 focus:ring-[#2EA6D7]/30"
                         >
                             <FaFacebookF size={18} />
                         </button>
                     </div>
 
-
+                    {/* Sign Up Link */}
+                    <p className="text-center text-sm text-[#718096]">
+                        Don&apos;t have an account?{' '}
+                        <button
+                            type="button"
+                            onClick={() => navigate('/signup')}
+                            className="font-semibold text-[#2EA6D7] hover:text-[#2390BE] transition-colors focus:outline-none focus:ring-2 focus:ring-[#2EA6D7]/30 rounded"
+                        >
+                            Sign up
+                        </button>
+                    </p>
                 </div>
             </div>
-            {/* Left Carousel Panel */}
+
+            {/* ─── Right Panel: Marketing ─── */}
             <div
-                className="hidden lg:flex flex-col items-center justify-center p-6 relative"
+                className="hidden lg:flex flex-col items-center justify-center w-1/2 relative overflow-hidden"
                 style={{
-                    width: `var(--left-panel-width, 62%)`,
-                    backgroundImage: `url(${slides[currentSlide].image})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    backgroundRepeat: 'no-repeat',
+                    background: 'linear-gradient(135deg, #2EA6D7 0%, #4BB87E 50%, #6CCF6A 100%)',
                 }}
             >
-                {/* Overlay for black tint and blur */}
-                <div
-                    className="absolute inset-0 backdrop-blur-md"
-                    style={{ backgroundColor: 'rgba(0, 0, 0, 0.4)' }} // Adjust the opacity (0.4) for desired tint
-                ></div>
-                <div ref={sliderRef} className="keen-slider w-full max-w-2xl relative z-10">
-                    {slides.map((item, idx) => (
-                        <div
-                            key={idx}
-                            className="keen-slider__slide flex flex-col items-center justify-center text-center text-white px-6"
-                        >
-                            <img
-                                src={item.image}
-                                alt={item.title}
-                                className="w-full max-w-md h-120 object-cover rounded-xl shadow-[0_15px_20px_8px_rgba(0,0,0,0.7)] mb-6"
-                            />
-                            <h3 className="text-lg sm:text-xl font-bold mb-2">{item.title}</h3>
-                            <p className="text-sm sm:text-base max-w-md text-gray-400">{item.description}</p>
+                {/* Pattern overlay */}
+                <div className="absolute inset-0 login-pattern-bg" />
+
+                {/* Content */}
+                <div className="relative z-10 max-w-md px-8 login-fade-in-delay">
+                    {/* Logo */}
+                    <div className="flex items-center gap-3 mb-10">
+                        <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
+                            <img src="/holo-icon.png" alt="FusionSite 360" className="h-9 w-auto" />
                         </div>
-                    ))}
+                        <div>
+                            <h3 className="text-white text-lg font-bold leading-tight">FusionSite 360</h3>
+                            <p className="text-white/70 text-xs">XR Platform</p>
+                        </div>
+                    </div>
+
+                    {/* Headline */}
+                    <h2 className="text-3xl sm:text-4xl font-bold text-white leading-tight mb-4">
+                        Immersive 3D &amp; AR Experiences
+                    </h2>
+                    <p className="text-white/80 text-base leading-relaxed mb-8">
+                        Build, publish, and share interactive augmented reality content for education, training, and beyond.
+                    </p>
+
+                    {/* Feature list */}
+                    <ul className="space-y-4 mb-10">
+                        {features.map((feature, idx) => (
+                            <li key={idx} className="flex items-start gap-3">
+                                <span className="mt-0.5 w-6 h-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                                    <FaCheck size={10} className="text-white" />
+                                </span>
+                                <span className="text-white/90 text-sm leading-relaxed">{feature}</span>
+                            </li>
+                        ))}
+                    </ul>
+
+                    {/* KPI Stats */}
+                    <div className="flex gap-6 login-fade-in-delay-2">
+                        {stats.map((stat, idx) => (
+                            <div key={idx} className="text-center">
+                                <div className="text-2xl font-bold text-white">{stat.value}</div>
+                                <div className="text-white/60 text-xs mt-1">{stat.label}</div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
-                {/* Arrows */}
-                <div className="flex justify-between items-center w-full max-w-md mt-4 px-4 relative z-10">
-                    <button
-                        onClick={() => instanceRef.current?.prev()}
-                        aria-label="Previous slide"
-                        className="text-white text-2xl hover:text-gray-400 focus:outline-none focus:ring-2 focus:ring-white"
-                    >
-                        ←
-                    </button>
-                    <button
-                        onClick={() => instanceRef.current?.next()}
-                        aria-label="Next slide"
-                        className="text-white text-2xl hover:text-gray-400 focus:outline-none focus:ring-2 focus:ring-white"
-                    >
-                        →
-                    </button>
-                </div>
-
-                {/* Pagination Dots */}
-                <div className="flex justify-center mt-4 gap-2 relative z-10">
-                    {slides.map((_, idx) => (
-                        <button
-                            key={idx}
-                            onClick={() => instanceRef.current?.moveToIdx(idx)}
-                            aria-label={`Go to slide ${idx + 1}`}
-                            className={`w-3 h-3 rounded-full ${currentSlide === idx ? 'bg-white' : 'bg-gray-500'
-                                } focus:outline-none focus:ring-2 focus:ring-white`}
-                        />
-                    ))}
-                </div>
+                {/* Decorative circles */}
+                <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-white/5" />
+                <div className="absolute -bottom-32 -left-16 w-80 h-80 rounded-full bg-white/5" />
             </div>
         </div>
     );
