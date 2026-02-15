@@ -123,15 +123,6 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
 
     return (
         <div className="relative h-full w-full">
-            {showDoFDevTools && (
-                <DoFDevPanel
-                    enabled={dofEnabled}
-                    settings={dofSettings}
-                    setEnabled={setDofEnabled}
-                    setSettings={setDofSettings}
-                />
-            )}
-
             <Canvas
                 gl={{ preserveDrawingBuffer: true }}
                 camera={{ position: [0, 2, 8], fov: 45 }}
@@ -178,6 +169,14 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
                     screenSpacePanning
                 />
             </Canvas>
+            {showDoFDevTools && (
+                <DoFDevPanel
+                    enabled={dofEnabled}
+                    settings={dofSettings}
+                    setEnabled={setDofEnabled}
+                    setSettings={setDofSettings}
+                />
+            )}
 
         </div>
     );

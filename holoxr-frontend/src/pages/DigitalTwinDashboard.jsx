@@ -7,6 +7,7 @@ import HSEList from "../components/ProjectModules/HSE/HSEList";
 import AlertsList from "../components/ProjectModules/Alerts/AlertsList";
 import SCurvePanel from "../components/ProjectModules/SCurve/SCurvePanel";
 import MediaGallery from "../components/ProjectModules/Media/MediaGallery";
+import ProjectDocuments from "../components/ProjectModules/Documents/ProjectDocuments";
 import Sidebar from "../components/dashboard/Sidebar";
 import TopBar from "../components/dashboard/DashboardHeader";
 
@@ -104,7 +105,7 @@ export default function DigitalTwinDashboard() {
                         {/* 3D Digital Twin + S-Curve (Side-by-side on desktop) */}
                         <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
                             {/* S-Curve Panel */}
-                            <Card title="S-Curve Progress">
+                            <Card>
                                 <SCurvePanel projectId={projectId} />
                             </Card>
                             {/* 3D Digital Twin Panel */}
@@ -116,7 +117,7 @@ export default function DigitalTwinDashboard() {
                                                 const deepLink = `fusionxr://open?projectId=${projectId}`;
                                                 window.location.href = deepLink;
                                             }}
-                                            className="rounded-xl bg-[#2563EB] px-4 py-2 text-xs font-semibold text-white
+                                            className="rounded-xl btn-gradient-primary px-4 py-2 text-xs font-semibold text-white
                    hover:bg-[#1D4ED8] transition focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30"
                                             title="Open in AR (iOS App)"
                                         >
@@ -168,7 +169,7 @@ export default function DigitalTwinDashboard() {
                         {/* Timeline – Full Width Horizontal Panel */}
                         {projectId && (
                             <div className="mt-5">
-                                <Card title="Project Timeline">
+                                <Card>
                                     <TimelineList projectId={projectId} />
                                 </Card>
                             </div>
@@ -177,10 +178,10 @@ export default function DigitalTwinDashboard() {
                         {/* HSE + Alerts row */}
                         {projectId && (
                             <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
-                                <Card title="HSE Overview">
+                                <Card>
                                     <HSEList projectId={projectId} />
                                 </Card>
-                                <Card title="Alerts">
+                                <Card>
                                     <AlertsList projectId={projectId} />
                                 </Card>
                             </div>
@@ -189,8 +190,17 @@ export default function DigitalTwinDashboard() {
                         {/* Media Gallery */}
                         {projectId && (
                             <div className="mt-5">
-                                <Card title="Media Gallery">
+                                <Card>
                                     <MediaGallery projectId={projectId} />
+                                </Card>
+                            </div>
+                        )}
+
+                        {/* Project Documents */}
+                        {projectId && (
+                            <div className="mt-5">
+                                <Card>
+                                    <ProjectDocuments projectId={projectId} />
                                 </Card>
                             </div>
                         )}

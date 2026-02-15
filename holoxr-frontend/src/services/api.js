@@ -45,6 +45,15 @@ export const hseApi = {
     request(`/api/projects/${projectId}/hse/${hseId}`, {
       method: 'DELETE', headers: headers(),
     }),
+  importCsv: (projectId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request(`/api/projects/${projectId}/hse/import`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: formData,
+    });
+  },
 };
 
 // Alerts
@@ -87,6 +96,24 @@ export const mediaApi = {
   },
   remove: (projectId, mediaId) =>
     request(`/api/projects/${projectId}/media/${mediaId}`, {
+      method: 'DELETE', headers: headers(),
+    }),
+};
+
+// Documents
+export const documentsApi = {
+  list: (projectId) => request(`/api/projects/${projectId}/documents`, { headers: headers() }),
+  upload: (projectId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request(`/api/projects/${projectId}/documents`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: formData,
+    });
+  },
+  remove: (projectId, documentId) =>
+    request(`/api/projects/${projectId}/documents/${documentId}`, {
       method: 'DELETE', headers: headers(),
     }),
 };

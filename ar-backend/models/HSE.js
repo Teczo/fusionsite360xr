@@ -10,6 +10,13 @@ const hseSchema = new mongoose.Schema({
     required: true,
   },
   date: { type: Date, required: true },
+  description: { type: String, default: '' },
+  source: {
+    type: String,
+    enum: ['manual', 'csv-import'],
+    default: 'manual'
+  },
+  importedFromDocumentId: { type: mongoose.Schema.Types.ObjectId, ref: 'ProjectDocument' },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
 

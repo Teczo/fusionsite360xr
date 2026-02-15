@@ -46,51 +46,79 @@ export default function HSEList({ projectId }) {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-[#111827]">HSE Incidents</h2>
         {canEdit && (
-          <button
-            onClick={() => { setEditing(null); setShowForm(true); }}
-            className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-xs font-semibold text-[#374151] hover:bg-[#F9FAFB] transition"
-          >
-            + Report Incident
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setEditing(null); setShowForm(true); }}
+              className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-xs font-semibold text-[#374151] hover:bg-[#F9FAFB] transition"
+            >
+              + Report Incident
+            </button>
+            <label className="cursor-pointer rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-xs font-semibold text-[#374151] hover:bg-[#F9FAFB] transition">
+              Import CSV
+              <input
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={async (e) => {
+                  if (e.target.files?.[0]) {
+                    try {
+                      setLoading(true);
+                      const res = await hseApi.importCsv(projectId, e.target.files[0]);
+                      alert(`Imported ${res.importedCount} incidents successfully.`);
+                      load();
+                    } catch (err) {
+                      alert('Import failed: ' + err.message);
+                      setLoading(false);
+                    }
+                    e.target.value = ''; // Reset input
+                  }
+                }}
+              />
+            </label>
+          </div>
         )}
       </div>
 
-      {showForm && (
-        <HSEForm
-          initial={editing}
-          onSave={handleSave}
-          onCancel={() => { setShowForm(false); setEditing(null); }}
-        />
-      )}
+      {
+        showForm && (
+          <HSEForm
+            initial={editing}
+            onSave={handleSave}
+            onCancel={() => { setShowForm(false); setEditing(null); }}
+          />
+        )
+      }
 
-      {items.length === 0 ? (
-        <EmptyState title="No HSE incidents" description="No health, safety, or environmental incidents recorded." />
-      ) : (
-        <div className="space-y-3">
-          {items.map((item) => (
-            <div key={item._id} className="flex items-start gap-3 rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-4">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge label={item.severity} variant={item.severity} />
-                  <span className="text-sm font-semibold text-[#111827]">{item.title}</span>
+      {
+        items.length === 0 ? (
+          <EmptyState title="No HSE incidents" description="No health, safety, or environmental incidents recorded." />
+        ) : (
+          <div className="space-y-3">
+            {items.map((item) => (
+              <div key={item._id} className="flex items-start gap-3 rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge label={item.severity} variant={item.severity} />
+                    <span className="text-sm font-semibold text-[#111827]">{item.title}</span>
+                  </div>
+                  {item.description && (
+                    <p className="text-xs text-[#6B7280] mb-1">{item.description}</p>
+                  )}
+                  <span className="text-xs text-[#9CA3AF]">
+                    {new Date(item.date).toLocaleDateString()}
+                  </span>
                 </div>
-                {item.description && (
-                  <p className="text-xs text-[#6B7280] mb-1">{item.description}</p>
+                {canEdit && (
+                  <div className="flex gap-2 flex-shrink-0">
+                    <button onClick={() => { setEditing(item); setShowForm(true); }} className="text-xs text-[#2563EB] hover:underline">Edit</button>
+                    <button onClick={() => handleDelete(item._id)} className="text-xs text-[#EF4444] hover:underline">Delete</button>
+                  </div>
                 )}
-                <span className="text-xs text-[#9CA3AF]">
-                  {new Date(item.date).toLocaleDateString()}
-                </span>
               </div>
-              {canEdit && (
-                <div className="flex gap-2 flex-shrink-0">
-                  <button onClick={() => { setEditing(item); setShowForm(true); }} className="text-xs text-[#2563EB] hover:underline">Edit</button>
-                  <button onClick={() => handleDelete(item._id)} className="text-xs text-[#EF4444] hover:underline">Delete</button>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+            ))}
+          </div>
+        )
+      }
+    </div >
   );
 }
