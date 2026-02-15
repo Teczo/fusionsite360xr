@@ -110,12 +110,20 @@ export default function DigitalTwinDashboard() {
                             {/* 3D Digital Twin Panel */}
                             <div className="rounded-2xl border border-[#E6EAF0] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
                                 <div className="flex items-center gap-3 p-4">
-                                    <div className="inline-flex items-center gap-2">
-                                        <div className="inline-flex items-center gap-2 rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] px-3 py-2">
-                                            <span className="text-sm font-semibold text-[#111827]">3D Digital Twin</span>
-                                            <span className="text-xs text-[#6B7280]">▼</span>
-                                        </div>
-                                    </div>
+                                    {projectId && (
+                                        <button
+                                            onClick={() => {
+                                                const deepLink = `fusionxr://open?projectId=${projectId}`;
+                                                window.location.href = deepLink;
+                                            }}
+                                            className="rounded-xl bg-[#2563EB] px-4 py-2 text-xs font-semibold text-white
+                   hover:bg-[#1D4ED8] transition focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30"
+                                            title="Open in AR (iOS App)"
+                                        >
+                                            View in AR
+                                        </button>
+                                    )}
+
 
                                     <CameraPresetBar onPreset={requestCamera} />
 

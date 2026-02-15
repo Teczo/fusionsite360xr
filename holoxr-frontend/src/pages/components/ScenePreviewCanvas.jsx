@@ -131,6 +131,7 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
                     setSettings={setDofSettings}
                 />
             )}
+
             <Canvas
                 gl={{ preserveDrawingBuffer: true }}
                 camera={{ position: [0, 2, 8], fov: 45 }}
@@ -163,6 +164,7 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
                 />
 
 
+
                 {/* DoF Post Processing 
                 <PostFX enabled={dofEnabled} settings={dofSettings} focusWorldDistance={focusWorldDistance} />*/}
 
@@ -176,6 +178,7 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
                     screenSpacePanning
                 />
             </Canvas>
+
         </div>
     );
 }
@@ -495,7 +498,7 @@ function CameraPresetsController({ request, sceneBox, selectedBox, humanEyeHeigh
         const boxForScene = sceneBox && !sceneBox.isEmpty() ? sceneBox : fallbackBox;
 
         if (type === "overview") {
-            const { pos, target } = fitToBox(boxForScene, 45, 20, 1.45);
+            const { pos, target } = fitToBox(boxForScene, 45, 50, .8);
             startTween(pos, target);
             return;
         }
