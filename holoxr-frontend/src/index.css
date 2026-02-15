@@ -1,17 +1,30 @@
 @import "tailwindcss";
 
-/* 1) Theme tokens (top-level, NOT inside :root) */
+/* 1) Theme tokens — Light Enterprise UI */
 @theme {
-  --color-brand: #2c95d2;
-  --color-brand-600: #00E676;
+  /* Primary brand: teal-green */
+  --color-brand: #3BB2A5;
+  --color-brand-600: #2D9F93;
+  --color-brand-50: #E8F8F5;
+  --color-brand-100: #D1F0EB;
 
-  --color-appbg: #121212;
-  --color-surface: #1E1E1E;
+  /* Layout backgrounds */
+  --color-appbg: #F5F7FA;
+  --color-surface: #FFFFFF;
 
-  --color-textpri: #FFFFFF;
-  --color-textsec: #B0BEC5;
+  /* Text */
+  --color-textpri: #111827;
+  --color-textsec: #6B7280;
 
-  /* Login redesign tokens */
+  /* Borders */
+  --color-border: #E5E7EB;
+
+  /* Accent colors */
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
+
+  /* Login redesign tokens (unchanged) */
   --color-login-gradient-start: #2EA6D7;
   --color-login-gradient-end: #6CCF6A;
   --color-login-input-bg: #F0F5FA;
@@ -21,21 +34,21 @@
   --color-login-text-link: #2EA6D7;
 }
 
-/* 2) Custom utilities using @utility (ensures correct expansion order) */
+/* 2) Custom utilities */
 @utility btn-gradient-primary {
-  @apply bg-gradient-to-r from-[#2c95d2] to-[#72c267] text-white transition hover:opacity-90;
+  @apply bg-gradient-to-r from-[#3BB2A5] to-[#6CCF6A] text-white transition hover:opacity-90 shadow-sm;
 }
 
 @utility btn-primary {
-  @apply bg-brand text-black hover:bg-brand-600 rounded-2xl font-semibold px-4 py-2 shadow;
+  @apply bg-brand text-white hover:bg-brand-600 rounded-xl font-semibold px-4 py-2 shadow-sm;
 }
 
 @utility card {
-  @apply bg-surface rounded-2xl shadow-md overflow-hidden;
+  @apply bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] overflow-hidden;
 }
 
 @utility card-hover {
-  @apply transition ring-0 hover:ring-2 hover:ring-brand/30 hover:shadow-lg;
+  @apply transition hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)];
 }
 
 @utility text-title {
@@ -46,9 +59,7 @@
   @apply text-textsec;
 }
 
-
-
-/* Login page utilities */
+/* Login page utilities (unchanged) */
 @utility login-input {
   @apply w-full bg-[#F0F5FA] border border-[#E2E8F0] px-4 py-3 rounded-xl text-sm
     placeholder-[#A0AEC0] transition-all duration-200
@@ -105,8 +116,7 @@
   animation: shimmer 2s linear infinite;
 }
 
-/* --- keep your existing font-face, :root, body, etc. below this line --- */
-
+/* --- Fonts --- */
 @font-face {
   font-family: 'Lato';
   src: url('/fonts/Lato/Lato-Regular.ttf') format('truetype');
@@ -124,17 +134,15 @@
 }
 
 :root {
-
   --left-panel-width: 50%;
   --right-panel-width: 50%;
 
-  font-family: 'Lato', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(0, 0, 0, 0.87);
-  background-color: #242424;
+  color: #111827;
+  background-color: #F5F7FA;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -144,39 +152,17 @@
 
 a {
   font-weight: 500;
-  /* color: #646cff;  <-- Remove or comment out this line */
   text-decoration: inherit;
-}
-
-a:hover {
-  /*color: #535bf2;*/
 }
 
 body {
   margin: 0;
-  font-family: 'Lato', sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 h1 {
   font-size: 2.1em;
   line-height: 1.1;
-}
-
-
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #3d3d3d;
-  }
-
-  a:hover {
-    color: #747bff;
-  }
-
-  button {
-    background-color: #727272;
-  }
 }
 
 html,

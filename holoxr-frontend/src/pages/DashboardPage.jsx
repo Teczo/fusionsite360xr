@@ -271,10 +271,7 @@ export default function DashboardPage() {
 
     // ---- Layout ----
     return (
-        <div
-            className="flex h-screen text-white bg-cover bg-center bg-[#18191e]"
-            style={{ backgroundImage: "url('/images/dashboard-bg.png')" }}
-        >
+        <div className="flex h-screen bg-[#F5F7FA]">
             <Sidebar
                 isCollapsed={isCollapsed}
                 setIsCollapsed={setIsCollapsed}
@@ -283,10 +280,10 @@ export default function DashboardPage() {
                 billingTier={billingLabel}
             />
 
-            <div className={`flex-1 transition-all duration-300 ${isCollapsed ? 'pl-29' : 'pl-72'} pt-4 pr-4 pb-4`}>
-                <div className="flex flex-col h-full">
+            <div className={`flex-1 transition-all duration-300 ${isCollapsed ? 'pl-[72px]' : 'pl-[260px]'}`}>
+                <div className="flex flex-col h-full px-7 py-5">
                     {/* Top Header */}
-                    <div className="flex pt-4 z-50 mb-4">
+                    <div className="mb-6">
                         <DashboardHeader
                             searchQuery={searchQuery}
                             setSearchQuery={setSearchQuery}
@@ -294,25 +291,43 @@ export default function DashboardPage() {
                             setTheme={setTheme}
                             user={user}
                             setActiveView={go}
+                            setShowModal={setShowModal}
                         />
+                    </div>
+
+                    {/* Page Title */}
+                    <div className="mb-6">
+                        <h1 className="text-[26px] font-bold text-textpri">
+                            {activeView === 'your-designs' ? 'Projects' :
+                                activeView === 'digital-twin' ? 'Digital Twin Operations' :
+                                    activeView === 'team' ? 'Team' :
+                                        activeView === 'analytics' ? 'Analytics' :
+                                            activeView === 'billing' ? 'Billing & Plans' :
+                                                activeView === 'profile' ? 'Profile' :
+                                                    activeView.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())
+                            }
+                        </h1>
+                        <p className="text-sm text-textsec mt-1">
+                            {activeView === 'your-designs' ? 'Manage and track all your projects in one place' :
+                                activeView === 'digital-twin' ? 'Monitor your digital twin operations and analytics' :
+                                    ''
+                            }
+                        </p>
                     </div>
 
                     {/* Digital Twin Overview panel */}
                     {activeView === 'digital-twin' && (
                         <div className="flex-1 overflow-y-auto">
-                            <div className="h-full bg-black/30 backdrop-blur-lg border border-white/10 rounded-2xl p-6 overflow-y-auto">
-                                <h2 className="text-xl font-bold text-white mb-6">Digital Twin Operations</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                                    <TimelineWidget projects={projects} />
-                                    <HSEWidget projects={projects} />
-                                    <AlertsWidget projects={projects} />
-                                    <SCurveWidget projects={projects} />
-                                    <DigitalTwinPreviewWidget
-                                        projects={projects}
-                                        onOpen={(id) => navigate(`/digital-twin?id=${id}`)}
-                                    />
-                                    <MediaWidget projects={projects} />
-                                </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                                <TimelineWidget projects={projects} />
+                                <HSEWidget projects={projects} />
+                                <AlertsWidget projects={projects} />
+                                <SCurveWidget projects={projects} />
+                                <DigitalTwinPreviewWidget
+                                    projects={projects}
+                                    onOpen={(id) => navigate(`/digital-twin?id=${id}`)}
+                                />
+                                <MediaWidget projects={projects} />
                             </div>
                         </div>
                     )}
@@ -339,51 +354,57 @@ export default function DashboardPage() {
 
                     {/* Team panel */}
                     {activeView === 'team' && (
-                        <div className="mt-[-16px]">
-                            <TeamPanel
-                                userPlan={capabilitiesTier}
-                                planLimits={limits || defaultLimits}
-                                fetchTeam={fetchTeam}
-                                inviteUser={inviteUser}
-                                updateRole={updateRole}
-                                removeMember={removeMember}
-                            />
-                        </div>
+                        <TeamPanel
+                            userPlan={capabilitiesTier}
+                            planLimits={limits || defaultLimits}
+                            fetchTeam={fetchTeam}
+                            inviteUser={inviteUser}
+                            updateRole={updateRole}
+                            removeMember={removeMember}
+                        />
                     )}
                 </div>
             </div>
 
-            {/* Create Project Modal */}
+            {/* Create Project Modal — Light theme */}
             {showModal && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 backdrop-blur-sm">
-                    <div className="bg-[#2c2e3a] border border-white/20 p-6 rounded-lg w-full max-w-md shadow-2xl text-white">
-                        <h2 className="text-xl font-bold mb-4">Create New Project</h2>
-                        <input
-                            name="name"
-                            value={form.name}
-                            onChange={handleChange}
-                            placeholder="Project Name"
-                            className="w-full bg-[#18191e] border border-white/20 px-3 py-2 rounded mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <textarea
-                            name="description"
-                            value={form.description}
-                            onChange={handleChange}
-                            placeholder="Give your project a short description"
-                            className="w-full bg-[#18191e] border border-white/20 px-3 py-2 rounded mb-4 h-24 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex justify-end gap-3">
+                <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 backdrop-blur-sm">
+                    <div className="bg-white border border-gray-200 p-7 rounded-2xl w-full max-w-md shadow-xl">
+                        <h2 className="text-xl font-bold text-textpri mb-5">Create New Project</h2>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-textpri mb-1.5">Project Name</label>
+                                <input
+                                    name="name"
+                                    value={form.name}
+                                    onChange={handleChange}
+                                    placeholder="Enter project name"
+                                    className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri placeholder:text-textsec/60 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-textpri mb-1.5">Description</label>
+                                <textarea
+                                    name="description"
+                                    value={form.description}
+                                    onChange={handleChange}
+                                    placeholder="Give your project a short description"
+                                    className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri placeholder:text-textsec/60 h-24 resize-none focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3 mt-6">
                             <button
                                 onClick={() => setShowModal(false)}
-                                className="px-4 py-2 bg-gray-600/50 hover:bg-gray-500/50 rounded-lg transition-colors"
+                                className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-textpri rounded-xl text-sm font-medium transition-colors"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleCreate}
-                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+                                className="px-5 py-2.5 rounded-xl text-sm font-semibold btn-gradient-primary"
                             >
-                                Create
+                                Create Project
                             </button>
                         </div>
                     </div>
