@@ -14,16 +14,15 @@ import {
     User,
     CreditCard,
     Boxes,
-    Copy,
-    Sparkles,
-    LogOut,
+    X,
 } from "lucide-react";
 
-const STORAGE_KEY = "ui.sidebar.collapsed";
-
 export default function Sidebar({
-    isCollapsed,
-    setIsCollapsed,
+    sidebarOpen,
+    setSidebarOpen,
+    sidebarCollapsed,
+    setSidebarCollapsed,
+    isMobile,
     setShowModal,
     userName = "User",
     billingTier = "Free",
@@ -32,41 +31,6 @@ export default function Sidebar({
     const navigate = useNavigate();
     const [menuOpen, setMenuOpen] = useState(false);
     const profileRef = useRef(null);
-
-    // hydrate + cross-tab sync
-    useEffect(() => {
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            if (raw !== null) setIsCollapsed(raw === "1");
-        } catch { }
-        const onStorage = (e) => {
-            if (e.key === STORAGE_KEY && e.newValue != null) {
-                setIsCollapsed(e.newValue === "1");
-            }
-        };
-        window.addEventListener("storage", onStorage);
-        return () => window.removeEventListener("storage", onStorage);
-    }, [setIsCollapsed]);
-
-    // persist
-    useEffect(() => {
-        try {
-            localStorage.setItem(STORAGE_KEY, isCollapsed ? "1" : "0");
-        } catch { }
-    }, [isCollapsed]);
-
-    // keyboard shortcut
-    useEffect(() => {
-        const onKey = (e) => {
-            const isMeta = navigator.platform.includes("Mac") ? e.metaKey : e.ctrlKey;
-            if (isMeta && e.key.toLowerCase() === "b") {
-                e.preventDefault();
-                setIsCollapsed((p) => !p);
-            }
-        };
-        window.addEventListener("keydown", onKey);
-        return () => window.removeEventListener("keydown", onKey);
-    }, [setIsCollapsed]);
 
     // close profile menu on outside click
     useEffect(() => {
@@ -77,6 +41,9 @@ export default function Sidebar({
         document.addEventListener("mousedown", onDocClick);
         return () => document.removeEventListener("mousedown", onDocClick);
     }, []);
+
+    // On mobile, the sidebar is always "expanded" (shows labels) inside the drawer
+    const collapsed = isMobile ? false : sidebarCollapsed;
 
     const sections = [
         {
@@ -107,19 +74,24 @@ export default function Sidebar({
 
     const initial = (userName || "").trim().charAt(0).toUpperCase() || "U";
 
+    // --- Positioning classes ---
+    // Mobile: fixed drawer with slide transform
+    // Desktop/Tablet: normal flex child (shrink-0)
+    const positionClasses = isMobile
+        ? `fixed inset-y-0 left-0 z-40 w-[260px] transform transition-transform duration-300 ease-in-out ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`
+        : `shrink-0 ${collapsed ? "w-[72px]" : "w-[260px]"} transition-all duration-300`;
+
     return (
         <aside
             className={`
-                ${isCollapsed ? "w-[72px]" : "w-[260px]"}
+                ${positionClasses}
                 bg-white border-r border-gray-200 shadow-[2px_0_12px_rgba(0,0,0,0.04)]
-                fixed left-0 top-0 bottom-0 z-40
-                flex flex-col transition-all duration-300
-                text-textpri
+                flex flex-col text-textpri
             `}
         >
             {/* Header */}
             <div
-                className={`flex items-center justify-between px-4 pt-5 pb-3 ${isCollapsed ? "justify-center group relative" : ""}`}
+                className={`flex items-center justify-between px-4 pt-5 pb-3 ${collapsed ? "justify-center group relative" : ""}`}
             >
                 <div className="flex items-center gap-2.5">
                     <img
@@ -127,41 +99,55 @@ export default function Sidebar({
                         alt="HoloXR Logo"
                         className="w-8 h-8"
                     />
-                    {!isCollapsed && (
+                    {!collapsed && (
                         <span className="text-base font-bold text-textpri tracking-tight">
                             FusionXR
                         </span>
                     )}
                 </div>
 
-                <button
-                    onClick={() => setIsCollapsed(!isCollapsed)}
-                    className={`p-1.5 rounded-lg transition-all
-                        text-textsec hover:text-textpri hover:bg-gray-100
-                        ${isCollapsed ? "absolute right-1 top-5 opacity-0 group-hover:opacity-100" : ""}
-                    `}
-                    title={
-                        isCollapsed ? "Expand sidebar (⌘/Ctrl+B)" : "Collapse sidebar (⌘/Ctrl+B)"
-                    }
-                    aria-pressed={isCollapsed}
-                    aria-label="Toggle Sidebar"
-                >
-                    {isCollapsed ? (
-                        <ChevronsRight className="w-4 h-4" />
-                    ) : (
-                        <ChevronsLeft className="w-4 h-4" />
-                    )}
-                </button>
+                {/* Mobile: close button / Desktop+Tablet: collapse toggle */}
+                {isMobile ? (
+                    <button
+                        onClick={() => setSidebarOpen(false)}
+                        className="p-1.5 rounded-lg text-textsec hover:text-textpri hover:bg-gray-100 transition-all"
+                        aria-label="Close sidebar"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                ) : (
+                    <button
+                        onClick={() => setSidebarCollapsed(!collapsed)}
+                        className={`p-1.5 rounded-lg transition-all
+                            text-textsec hover:text-textpri hover:bg-gray-100
+                            ${collapsed ? "absolute right-1 top-5 opacity-0 group-hover:opacity-100" : ""}
+                        `}
+                        title={
+                            collapsed ? "Expand sidebar (⌘/Ctrl+B)" : "Collapse sidebar (⌘/Ctrl+B)"
+                        }
+                        aria-pressed={collapsed}
+                        aria-label="Toggle Sidebar"
+                    >
+                        {collapsed ? (
+                            <ChevronsRight className="w-4 h-4" />
+                        ) : (
+                            <ChevronsLeft className="w-4 h-4" />
+                        )}
+                    </button>
+                )}
             </div>
 
             {/* Create CTA */}
             <div className="px-3 mb-2">
                 <button
-                    onClick={() => setShowModal(true)}
-                    className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl font-semibold text-sm btn-gradient-primary ${isCollapsed ? "px-0" : ""}`}
+                    onClick={() => {
+                        setShowModal?.(true);
+                        if (isMobile) setSidebarOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl font-semibold text-sm btn-gradient-primary ${collapsed ? "px-0" : ""}`}
                 >
                     <Plus className="w-4 h-4" />
-                    {!isCollapsed && <span>New Project</span>}
+                    {!collapsed && <span>New Project</span>}
                 </button>
             </div>
 
@@ -171,7 +157,7 @@ export default function Sidebar({
             <nav className="mt-1 flex-1 overflow-y-auto px-3">
                 {sections.map(({ title, items }) => (
                     <div key={title} className="flex flex-col gap-0.5 mb-5">
-                        {!isCollapsed && (
+                        {!collapsed && (
                             <div className="px-3 py-2 text-[11px] uppercase tracking-widest text-textsec font-semibold">
                                 {title}
                             </div>
@@ -182,11 +168,11 @@ export default function Sidebar({
                                 key={key}
                                 to={`/dashboard/${key}`}
                                 className={linkClass}
-                                title={isCollapsed ? label : undefined}
+                                title={collapsed ? label : undefined}
                                 onClick={() => setMenuOpen(false)}
                             >
                                 <Icon className="w-[18px] h-[18px] shrink-0" />
-                                {!isCollapsed && <span>{label}</span>}
+                                {!collapsed && <span>{label}</span>}
                             </NavLink>
                         ))}
                     </div>
@@ -200,7 +186,7 @@ export default function Sidebar({
                     aria-haspopup="menu"
                     aria-expanded={menuOpen}
                     className={`${baseItem} ${idleItem}`}
-                    title={isCollapsed ? "Profile" : undefined}
+                    title={collapsed ? "Profile" : undefined}
                 >
                     {avatarUrl ? (
                         <img
@@ -213,7 +199,7 @@ export default function Sidebar({
                             {initial}
                         </div>
                     )}
-                    {!isCollapsed && (
+                    {!collapsed && (
                         <div className="flex flex-col leading-tight text-left">
                             <span className="font-medium text-textpri text-sm">{userName}</span>
                             <span className="text-[11px] text-textsec">{billingTier} plan</span>
@@ -224,7 +210,7 @@ export default function Sidebar({
                 {menuOpen && (
                     <div
                         role="menu"
-                        className={`absolute z-50 ${isCollapsed ? "left-full ml-2 bottom-1" : "left-2 right-2 bottom-[72px]"
+                        className={`absolute z-50 ${collapsed ? "left-full ml-2 bottom-1" : "left-2 right-2 bottom-[72px]"
                             } bg-white border border-gray-200 rounded-xl shadow-lg p-1.5`}
                     >
                         <button

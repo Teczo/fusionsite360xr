@@ -8,12 +8,11 @@ import AlertsList from "../components/ProjectModules/Alerts/AlertsList";
 import SCurvePanel from "../components/ProjectModules/SCurve/SCurvePanel";
 import MediaGallery from "../components/ProjectModules/Media/MediaGallery";
 import ProjectDocuments from "../components/ProjectModules/Documents/ProjectDocuments";
-import Sidebar from "../components/dashboard/Sidebar";
-import TopBar from "../components/dashboard/DashboardHeader";
 
 /**
  * Digital Twin Dashboard (Mock UI + Mock Data)
- * Tailwind-only. No tailwind.config theme required. No global CSS required.
+ * Layout (Sidebar + Header) is provided by AppLayout via routing.
+ * This component renders page content only.
  */
 export default function DigitalTwinDashboard() {
     const [isTwinFullscreen, setIsTwinFullscreen] = useState(false);
@@ -23,10 +22,6 @@ export default function DigitalTwinDashboard() {
     const location = useLocation();
     const params = new URLSearchParams(location.search);
     const projectId = params.get("id");
-    const [isCollapsed, setIsCollapsed] = useState(false);
-    const [showModal, setShowModal] = useState(false);
-    const [user, setUser] = useState({ name: 'User' });
-    const [billingLabel, setBillingLabel] = useState('Free');
     const [captureRequest, setCaptureRequest] = useState({ nonce: 0 });
 
     const requestCapture = () => {
@@ -47,253 +42,236 @@ export default function DigitalTwinDashboard() {
     }, [isTwinFullscreen]);
 
     return (
-
-        <div className="flex h-screen bg-[#F5F7FA]">
-            <Sidebar
-                isCollapsed={isCollapsed}
-                setIsCollapsed={setIsCollapsed}
-                setShowModal={setShowModal}
-                userName={user?.name || 'User'}
-                billingTier={billingLabel}
-            />
-            <div className={`flex-1 transition-all duration-300 ${isCollapsed ? 'pl-[72px]' : 'pl-[260px]'}`}>
-                <div className="flex flex-col h-full">
-                    <TopBar />
-
-                    <div className="mx-auto w-full px-10 py-5">
-                        {/* KPI cards */}
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                            <KpiCard
-                                icon={<IconChart />}
-                                title="Production Output"
-                                value="47,032"
-                                sub="Units today"
-                                delta="+5.8%"
-                                deltaTone="up"
-                                foot="vs last period"
-                            />
-                            <KpiCard
-                                icon={<IconBolt />}
-                                title="Overall OEE"
-                                value="92.3%"
-                                sub="Target: 90%"
-                                delta="+2.1%"
-                                deltaTone="up"
-                                foot="vs last period"
-                            />
-                            <KpiCard
-                                icon={<IconUsers />}
-                                title="Active Workforce"
-                                value="3,247"
-                                sub="Across all facilities"
-                                delta="+1.2%"
-                                deltaTone="up"
-                                foot="vs last period"
-                            />
-                            <KpiCard
-                                icon={<IconClock />}
-                                title="Downtime Hours"
-                                value="12.4"
-                                sub="vs. last week"
-                                delta="-18%"
-                                deltaTone="down"
-                                foot="vs last period"
-                            />
-                        </div>
-
-
-                        {/* 3D Digital Twin + S-Curve (Side-by-side on desktop) */}
-                        <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
-                            {/* S-Curve Panel */}
-                            <Card>
-                                <SCurvePanel projectId={projectId} />
-                            </Card>
-                            {/* 3D Digital Twin Panel */}
-                            <div className="rounded-2xl border border-[#E6EAF0] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
-                                <div className="flex items-center gap-3 p-4">
-                                    {projectId && (
-                                        <button
-                                            onClick={() => {
-                                                const deepLink = `fusionxr://open?projectId=${projectId}`;
-                                                window.location.href = deepLink;
-                                            }}
-                                            className="rounded-xl btn-gradient-primary px-4 py-2 text-xs font-semibold text-white
-                   hover:bg-[#1D4ED8] transition focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30"
-                                            title="Open in AR (iOS App)"
-                                        >
-                                            View in AR
-                                        </button>
-                                    )}
-
-
-                                    <CameraPresetBar onPreset={requestCamera} />
-
-                                    <button
-                                        onClick={requestCapture}
-                                        className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-xs font-semibold text-[#374151] hover:bg-[#F9FAFB] transition focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
-                                        title="Capture View"
-                                    >
-                                        Capture View
-                                    </button>
-
-                                    <button
-                                        onClick={() => setIsTwinFullscreen(true)}
-                                        className="inline-flex items-center justify-center rounded-xl border border-[#E6EAF0] bg-white p-2 hover:bg-[#F9FAFB] transition"
-                                        aria-label="Expand"
-                                        title="Expand"
-                                    >
-                                        <IconExpand />
-                                    </button>
-                                </div>
-
-                                <div className="relative h-[420px] overflow-hidden rounded-b-2xl bg-gradient-to-b from-[#F9FAFB] to-[#EEF2F7]">
-                                    <ScenePreviewCanvas
-                                        projectId={projectId}
-                                        cameraRequest={cameraRequest}
-                                        captureRequest={captureRequest}
-                                        onSelectAsset={setSelectedAsset}
-                                    />
-
-                                    <div className="absolute top-4 right-4 z-20">
-                                        <AssetInfoPanel asset={selectedAsset} onClear={() => setSelectedAsset(null)} />
-                                    </div>
-
-                                    {/* subtle vignette */}
-                                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.0)_0%,rgba(0,0,0,0.05)_100%)]" />
-                                </div>
-                            </div>
-
-
-                        </div>
-
-                        {/* Timeline – Full Width Horizontal Panel */}
-                        {projectId && (
-                            <div className="mt-5">
-                                <Card>
-                                    <TimelineList projectId={projectId} />
-                                </Card>
-                            </div>
-                        )}
-
-                        {/* HSE + Alerts row */}
-                        {projectId && (
-                            <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
-                                <Card>
-                                    <HSEList projectId={projectId} />
-                                </Card>
-                                <Card>
-                                    <AlertsList projectId={projectId} />
-                                </Card>
-                            </div>
-                        )}
-
-                        {/* Media Gallery */}
-                        {projectId && (
-                            <div className="mt-5">
-                                <Card>
-                                    <MediaGallery projectId={projectId} />
-                                </Card>
-                            </div>
-                        )}
-
-                        {/* Project Documents */}
-                        {projectId && (
-                            <div className="mt-5">
-                                <Card>
-                                    <ProjectDocuments projectId={projectId} />
-                                </Card>
-                            </div>
-                        )}
-
-
-                        {/* Bottom cards (shown when no specific project is loaded) */}
-                        {!projectId && (
-                            <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-4">
-                                <Card title="Facility Performance Comparison" menu>
-                                    <MockBars />
-                                </Card>
-                                <Card title="Resource Utilization (24h)" menu>
-                                    <Utilization />
-                                </Card>
-                                <Card title="Alerts & Incidents" menu>
-                                    <Alerts />
-                                </Card>
-                                <Card title="CCTV Camera Thumbnail" menu>
-                                    <CctvMock />
-                                </Card>
-                            </div>
-                        )}
-                    </div>
-                    {isTwinFullscreen && (
-                        <div
-                            className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm"
-                            onMouseDown={(e) => {
-                                // Only close if the user clicked the backdrop itself (not inside the dialog)
-                                if (e.target === e.currentTarget) setIsTwinFullscreen(false);
-                            }}
-                        >
-                            {/* Dialog */}
-                            <div
-                                className="absolute inset-4 md:inset-8 rounded-2xl border border-[#E6EAF0] bg-white
-                 shadow-[0_20px_60px_rgba(0,0,0,0.25)] overflow-hidden"
-                                onMouseDown={(e) => e.stopPropagation()} // prevents backdrop close
-                            >
-                                {/* Header */}
-                                <div className="flex items-center justify-between px-5 py-4 border-b border-[#E6EAF0]">
-                                    <div className="flex items-center gap-3">
-
-                                        <div className="inline-flex items-center gap-2">
-                                            <div className="inline-flex items-center gap-2 rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] px-3 py-2">
-                                                <span className="text-sm font-semibold text-[#111827]">3D Digital Twin</span>
-                                                <span className="text-xs text-[#6B7280]">Fullscreen</span>
-                                            </div>
-                                        </div>
-
-                                        <CameraPresetBar onPreset={requestCamera} />
-
-                                        <button
-                                            onClick={requestCapture}
-                                            className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-xs font-semibold text-[#374151]
-             hover:bg-[#F9FAFB] transition focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
-                                            title="Capture View"
-                                        >
-                                            Capture View
-                                        </button>
-
-                                        <button
-                                            onClick={() => setIsTwinFullscreen(false)}
-                                            className="inline-flex items-center justify-center rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-sm
-                     hover:bg-[#F9FAFB] transition"
-                                            aria-label="Exit fullscreen"
-                                            title="Exit fullscreen (Esc)"
-                                        >
-                                            Exit Fullscreen
-                                        </button>
-
-
-                                    </div>
-                                </div>
-
-                                {/* Content */}
-                                <div className="relative h-[calc(100%-64px)] bg-gradient-to-b from-[#F9FAFB] to-[#EEF2F7]">
-                                    <ScenePreviewCanvas
-                                        projectId={projectId}
-                                        cameraRequest={cameraRequest}
-                                        captureRequest={captureRequest}
-                                        onSelectAsset={setSelectedAsset}
-                                    />
-                                    <div className="absolute top-4 right-4 z-20">
-                                        <AssetInfoPanel asset={selectedAsset} onClear={() => setSelectedAsset(null)} />
-                                    </div>
-
-                                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.0)_0%,rgba(0,0,0,0.05)_100%)]" />
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                </div>
+        <div className="w-full">
+            {/* KPI cards */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <KpiCard
+                    icon={<IconChart />}
+                    title="Production Output"
+                    value="47,032"
+                    sub="Units today"
+                    delta="+5.8%"
+                    deltaTone="up"
+                    foot="vs last period"
+                />
+                <KpiCard
+                    icon={<IconBolt />}
+                    title="Overall OEE"
+                    value="92.3%"
+                    sub="Target: 90%"
+                    delta="+2.1%"
+                    deltaTone="up"
+                    foot="vs last period"
+                />
+                <KpiCard
+                    icon={<IconUsers />}
+                    title="Active Workforce"
+                    value="3,247"
+                    sub="Across all facilities"
+                    delta="+1.2%"
+                    deltaTone="up"
+                    foot="vs last period"
+                />
+                <KpiCard
+                    icon={<IconClock />}
+                    title="Downtime Hours"
+                    value="12.4"
+                    sub="vs. last week"
+                    delta="-18%"
+                    deltaTone="down"
+                    foot="vs last period"
+                />
             </div>
+
+
+            {/* 3D Digital Twin + S-Curve (Side-by-side on desktop) */}
+            <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+                {/* S-Curve Panel */}
+                <Card>
+                    <SCurvePanel projectId={projectId} />
+                </Card>
+                {/* 3D Digital Twin Panel */}
+                <div className="rounded-2xl border border-[#E6EAF0] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
+                    <div className="flex items-center gap-3 p-4 flex-wrap">
+                        {projectId && (
+                            <button
+                                onClick={() => {
+                                    const deepLink = `fusionxr://open?projectId=${projectId}`;
+                                    window.location.href = deepLink;
+                                }}
+                                className="rounded-xl btn-gradient-primary px-4 py-2 text-xs font-semibold text-white
+                   hover:bg-[#1D4ED8] transition focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30"
+                                title="Open in AR (iOS App)"
+                            >
+                                View in AR
+                            </button>
+                        )}
+
+
+                        <CameraPresetBar onPreset={requestCamera} />
+
+                        <button
+                            onClick={requestCapture}
+                            className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-xs font-semibold text-[#374151] hover:bg-[#F9FAFB] transition focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
+                            title="Capture View"
+                        >
+                            Capture View
+                        </button>
+
+                        <button
+                            onClick={() => setIsTwinFullscreen(true)}
+                            className="inline-flex items-center justify-center rounded-xl border border-[#E6EAF0] bg-white p-2 hover:bg-[#F9FAFB] transition"
+                            aria-label="Expand"
+                            title="Expand"
+                        >
+                            <IconExpand />
+                        </button>
+                    </div>
+
+                    <div className="relative h-[420px] overflow-hidden rounded-b-2xl bg-gradient-to-b from-[#F9FAFB] to-[#EEF2F7] min-w-0 min-h-0">
+                        <ScenePreviewCanvas
+                            projectId={projectId}
+                            cameraRequest={cameraRequest}
+                            captureRequest={captureRequest}
+                            onSelectAsset={setSelectedAsset}
+                        />
+
+                        <div className="absolute top-4 right-4 z-20">
+                            <AssetInfoPanel asset={selectedAsset} onClear={() => setSelectedAsset(null)} />
+                        </div>
+
+                        {/* subtle vignette */}
+                        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.0)_0%,rgba(0,0,0,0.05)_100%)]" />
+                    </div>
+                </div>
+
+
+            </div>
+
+            {/* Timeline – Full Width Horizontal Panel */}
+            {projectId && (
+                <div className="mt-5">
+                    <Card>
+                        <TimelineList projectId={projectId} />
+                    </Card>
+                </div>
+            )}
+
+            {/* HSE + Alerts row */}
+            {projectId && (
+                <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+                    <Card>
+                        <HSEList projectId={projectId} />
+                    </Card>
+                    <Card>
+                        <AlertsList projectId={projectId} />
+                    </Card>
+                </div>
+            )}
+
+            {/* Media Gallery */}
+            {projectId && (
+                <div className="mt-5">
+                    <Card>
+                        <MediaGallery projectId={projectId} />
+                    </Card>
+                </div>
+            )}
+
+            {/* Project Documents */}
+            {projectId && (
+                <div className="mt-5">
+                    <Card>
+                        <ProjectDocuments projectId={projectId} />
+                    </Card>
+                </div>
+            )}
+
+
+            {/* Bottom cards (shown when no specific project is loaded) */}
+            {!projectId && (
+                <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-4">
+                    <Card title="Facility Performance Comparison" menu>
+                        <MockBars />
+                    </Card>
+                    <Card title="Resource Utilization (24h)" menu>
+                        <Utilization />
+                    </Card>
+                    <Card title="Alerts & Incidents" menu>
+                        <Alerts />
+                    </Card>
+                    <Card title="CCTV Camera Thumbnail" menu>
+                        <CctvMock />
+                    </Card>
+                </div>
+            )}
+
+            {isTwinFullscreen && (
+                <div
+                    className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm"
+                    onMouseDown={(e) => {
+                        if (e.target === e.currentTarget) setIsTwinFullscreen(false);
+                    }}
+                >
+                    {/* Dialog */}
+                    <div
+                        className="absolute inset-4 md:inset-8 rounded-2xl border border-[#E6EAF0] bg-white
+                 shadow-[0_20px_60px_rgba(0,0,0,0.25)] overflow-hidden"
+                        onMouseDown={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E6EAF0]">
+                            <div className="flex items-center gap-3 flex-wrap">
+
+                                <div className="inline-flex items-center gap-2">
+                                    <div className="inline-flex items-center gap-2 rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] px-3 py-2">
+                                        <span className="text-sm font-semibold text-[#111827]">3D Digital Twin</span>
+                                        <span className="text-xs text-[#6B7280]">Fullscreen</span>
+                                    </div>
+                                </div>
+
+                                <CameraPresetBar onPreset={requestCamera} />
+
+                                <button
+                                    onClick={requestCapture}
+                                    className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-xs font-semibold text-[#374151]
+             hover:bg-[#F9FAFB] transition focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
+                                    title="Capture View"
+                                >
+                                    Capture View
+                                </button>
+
+                                <button
+                                    onClick={() => setIsTwinFullscreen(false)}
+                                    className="inline-flex items-center justify-center rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-sm
+                     hover:bg-[#F9FAFB] transition"
+                                    aria-label="Exit fullscreen"
+                                    title="Exit fullscreen (Esc)"
+                                >
+                                    Exit Fullscreen
+                                </button>
+
+
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="relative h-[calc(100%-64px)] bg-gradient-to-b from-[#F9FAFB] to-[#EEF2F7] min-w-0 min-h-0">
+                            <ScenePreviewCanvas
+                                projectId={projectId}
+                                cameraRequest={cameraRequest}
+                                captureRequest={captureRequest}
+                                onSelectAsset={setSelectedAsset}
+                            />
+                            <div className="absolute top-4 right-4 z-20">
+                                <AssetInfoPanel asset={selectedAsset} onClear={() => setSelectedAsset(null)} />
+                            </div>
+
+                            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.0)_0%,rgba(0,0,0,0.05)_100%)]" />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -311,7 +289,7 @@ function AssetInfoPanel({ asset, onClear, className = "" }) {
     return (
         <div
             className={
-                "w-[320px] rounded-2xl border border-[#E6EAF0] bg-white shadow-sm overflow-hidden " +
+                "w-[320px] max-w-[calc(100vw-2rem)] rounded-2xl border border-[#E6EAF0] bg-white shadow-sm overflow-hidden " +
                 className
             }
         >
@@ -391,21 +369,6 @@ function CameraPresetBar({ onPreset }) {
     );
 }
 
-/* ------------------------- Sidebar ------------------------- */
-
-
-import {
-    LayoutDashboard,
-    Wrench,
-    Boxes,
-    Radio,
-    BarChart3,
-    ShieldCheck,
-    Settings,
-} from "lucide-react";
-
-
-
 /* ------------------------- KPI ------------------------- */
 
 function KpiCard({ icon, title, value, sub, delta, deltaTone, foot }) {
@@ -454,50 +417,6 @@ function Card({ title, menu, children }) {
 }
 
 /* ------------------------- Mock Widgets ------------------------- */
-
-function TooltipCard({ className = "", title, lines }) {
-    return (
-        <div
-            className={[
-                "absolute z-10 w-[200px] rounded-xl border border-[#E6EAF0] bg-white p-3",
-                "shadow-[0_6px_18px_rgba(0,0,0,0.08)]",
-                className,
-            ].join(" ")}
-        >
-            <div className="text-xs font-semibold text-[#111827]">{title}</div>
-            <div className="mt-1 space-y-1 text-xs text-[#374151]">
-                {lines.map((l) => (
-                    <div key={l}>{l}</div>
-                ))}
-            </div>
-        </div>
-    );
-}
-
-function DiagnosticsCard({ className = "" }) {
-    return (
-        <div
-            className={[
-                "absolute z-10 w-[240px] rounded-xl border border-[#E6EAF0] bg-white p-3",
-                "shadow-[0_6px_18px_rgba(0,0,0,0.08)]",
-                className,
-            ].join(" ")}
-        >
-            <div className="text-xs font-semibold text-[#111827]">Diagnostics</div>
-            <div className="mt-2 space-y-1 text-xs text-[#374151]">
-                <div>Temperature: 145°C</div>
-                <div>Pressure: 8.2 bar</div>
-                <div>Flow Rate: 230 L/min</div>
-                <div>Vibration: 0.15 g</div>
-            </div>
-
-            <div className="mt-3 rounded-lg border border-[#FCA5A5] bg-[#FEF2F2] px-2 py-1 text-xs font-semibold text-[#B91C1C] inline-flex items-center gap-2">
-                <span className="inline-block h-2 w-2 rounded-full bg-[#EF4444]" />
-                Maintenance Required
-            </div>
-        </div>
-    );
-}
 
 function MockBars() {
     const data = [
@@ -635,43 +554,6 @@ function CctvMock() {
 
 /* ------------------------- Icons (simple inline) ------------------------- */
 
-function IconSearch() {
-    return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-            <path
-                d="M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z"
-                stroke="#9CA3AF"
-                strokeWidth="2"
-            />
-            <path
-                d="M16.5 16.5 21 21"
-                stroke="#9CA3AF"
-                strokeWidth="2"
-                strokeLinecap="round"
-            />
-        </svg>
-    );
-}
-
-function IconBell() {
-    return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-            <path
-                d="M15 17H9c-2.2 0-4-.8-4-3 0-1.9 1-2.7 1.6-3.5.5-.6.9-1.3.9-2.5a4.5 4.5 0 0 1 9 0c0 1.2.4 1.9.9 2.5.6.8 1.6 1.6 1.6 3.5 0 2.2-1.8 3-4 3Z"
-                stroke="#6B7280"
-                strokeWidth="2"
-                strokeLinejoin="round"
-            />
-            <path
-                d="M10 20a2 2 0 0 0 4 0"
-                stroke="#6B7280"
-                strokeWidth="2"
-                strokeLinecap="round"
-            />
-        </svg>
-    );
-}
-
 function IconExpand() {
     return (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -683,28 +565,6 @@ function IconExpand() {
             />
         </svg>
     );
-}
-
-function IconGrid() {
-    return <span>▦</span>;
-}
-function IconGear() {
-    return <span>⚙</span>;
-}
-function IconCube() {
-    return <span>◼</span>;
-}
-function IconWifi() {
-    return <span>⌁</span>;
-}
-function IconChartMini() {
-    return <span>▤</span>;
-}
-function IconShield() {
-    return <span>🛡</span>;
-}
-function IconSettings() {
-    return <span>⚙</span>;
 }
 
 function IconChart() {

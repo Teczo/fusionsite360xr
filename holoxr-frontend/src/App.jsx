@@ -12,6 +12,7 @@ import ARImageTracker from './pages/ARImageTracker';
 import ARModeSelect from './components/viewer/ARModeSelect';
 import DigitalTwinDashboard from "./pages/DigitalTwinDashboard";
 import { RoleProvider } from './components/hooks/useRole';
+import AppLayout from './layouts/AppLayout';
 
 const RequireAuth = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -29,10 +30,13 @@ export default function App() {
         <Route path="/ar/:id" element={<ARViewer />} />
         <Route path="/ar-plane/:id" element={<ARPlane />} />
         <Route path="/ar-image/:id" element={<ARImageTracker />} />
-        <Route path="/digital-twin" element={<DigitalTwinDashboard />} />
-        {/* Auth-protected */}
 
-        <Route path="/dashboard/:panel?" element={<RequireAuth><DashboardPage /></RequireAuth>} />
+        {/* Auth-protected routes wrapped in unified responsive layout */}
+        <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
+          <Route path="/dashboard/:panel?" element={<DashboardPage />} />
+          <Route path="/digital-twin" element={<DigitalTwinDashboard />} />
+        </Route>
+
         {/* Optional aliases so you can share simple links */}
         <Route path="/billing" element={<Navigate to="/dashboard/billing" replace />} />
         <Route path="/profile" element={<Navigate to="/dashboard/profile" replace />} />
