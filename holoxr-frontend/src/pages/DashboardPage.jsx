@@ -1,8 +1,6 @@
 // src/pages/DashboardPage.jsx
-import { useEffect, useState, useMemo } from 'react';
-import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import Sidebar from '../components/dashboard/Sidebar';
-import DashboardHeader from '../components/dashboard/DashboardHeader';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import DashboardPanel from '../components/dashboard/DashboardPanel';
 
 // Phase 1 Team feature components
@@ -21,18 +19,14 @@ import DigitalTwinPreviewWidget from '../components/DashboardWidgets/DigitalTwin
 export default function DashboardPage() {
     const { panel } = useParams(); // e.g., 'your-designs' | 'team' | 'billing' ...
     const navigate = useNavigate();
-    const location = useLocation();
 
     // ---- Core state ----
     const [projects, setProjects] = useState([]);
     const [trashedProjects, setTrashedProjects] = useState([]);
-    const [sharedProjects, setSharedProjects] = useState([]); // NEW
+    const [sharedProjects, setSharedProjects] = useState([]);
 
     const [activeView, setActiveView] = useState(panel || 'your-designs');
     const [openMenuId, setOpenMenuId] = useState(null);
-    const [isCollapsed, setIsCollapsed] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
 
     // Create project modal (existing flow)
     const [showModal, setShowModal] = useState(false);
@@ -43,7 +37,7 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
     const token = localStorage.getItem('token');
 
-    // ---- Share modal state (NEW) ----
+    // ---- Share modal state ----
     const [shareOpen, setShareOpen] = useState(false);
     const [shareProject, setShareProject] = useState(null);
 
@@ -57,12 +51,6 @@ export default function DashboardPage() {
 
     // ---- Helpers ----
     const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
-
-    // Keep <html> class in sync with theme
-    useEffect(() => {
-        document.documentElement.classList.toggle('dark', theme === 'dark');
-        localStorage.setItem('theme', theme);
-    }, [theme]);
 
     // Sync view when URL changes (back/forward)
     useEffect(() => {
@@ -121,7 +109,6 @@ export default function DashboardPage() {
         }
     };
 
-    // NEW: shared projects (shared with me)
     const fetchSharedProjects = async () => {
         try {
             const res = await fetch(`${import.meta.env.VITE_API_URL}/api/projects/shared`, {
@@ -139,7 +126,7 @@ export default function DashboardPage() {
         if (!token) return navigate('/signin');
         fetchProjects();
         fetchTrashedProjects();
-        fetchSharedProjects(); // NEW
+        fetchSharedProjects();
     }, [token]);
 
     // ---- Create project ----
@@ -183,7 +170,7 @@ export default function DashboardPage() {
             headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) return [];
-        return res.json(); // [{id, name, email, role, status}]
+        return res.json();
     };
 
     const inviteUser = async (email) => {
@@ -193,7 +180,7 @@ export default function DashboardPage() {
             body: JSON.stringify({ email }),
         });
         if (!res.ok) return null;
-        return res.json(); // { id, name, email, role:'Member', status:'Pending' }
+        return res.json();
     };
 
     const updateRole = async (memberId, role) => {
@@ -222,7 +209,7 @@ export default function DashboardPage() {
             headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) return [];
-        return res.json(); // [{id, name, email, permission:'view'|'edit', fromTeam, status}]
+        return res.json();
     };
 
     const searchTeam = async (q) => {
@@ -232,7 +219,7 @@ export default function DashboardPage() {
             { headers: { Authorization: `Bearer ${token}` } }
         );
         if (!res.ok) return [];
-        return res.json(); // [{id, name, email}]
+        return res.json();
     };
 
     const inviteToProject = async (emailOrUserId, permission) => {
@@ -244,7 +231,6 @@ export default function DashboardPage() {
         });
         if (!res.ok) return null;
         const row = await res.json();
-        // refresh "Shared" list for me (if needed)
         fetchSharedProjects();
         return row;
     };
@@ -269,109 +255,80 @@ export default function DashboardPage() {
         return res.ok;
     };
 
-    // ---- Layout ----
+    // ---- Render (page content only — layout is handled by AppLayout) ----
     return (
-        <div className="flex h-screen bg-[#F5F7FA]">
-            <Sidebar
-                isCollapsed={isCollapsed}
-                setIsCollapsed={setIsCollapsed}
-                setShowModal={setShowModal}
-                userName={user?.name || 'User'}
-                billingTier={billingLabel}
-            />
-
-            <div className={`flex-1 transition-all duration-300 ${isCollapsed ? 'pl-[72px]' : 'pl-[260px]'}`}>
-                {/* Top Header */}
-                <div className="mb-6">
-                    <DashboardHeader
-                        searchQuery={searchQuery}
-                        setSearchQuery={setSearchQuery}
-                        theme={theme}
-                        setTheme={setTheme}
-                        user={user}
-                        setActiveView={go}
-                        setShowModal={setShowModal}
-                    />
-                </div>
-                <div className="flex flex-col h-full px-7 py-5 overflow-hidden">
-
-
-                    {/* Page Title */}
-                    <div className="mb-6">
-                        <h1 className="text-[26px] font-bold text-textpri">
-                            {activeView === 'your-designs' ? 'Projects' :
-                                activeView === 'digital-twin' ? 'Digital Twin Operations' :
-                                    activeView === 'team' ? 'Team' :
-                                        activeView === 'analytics' ? 'Analytics' :
-                                            activeView === 'billing' ? 'Billing & Plans' :
-                                                activeView === 'profile' ? 'Profile' :
-                                                    activeView.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())
-                            }
-                        </h1>
-                        <p className="text-sm text-textsec mt-1">
-                            {activeView === 'your-designs' ? 'Manage and track all your projects in one place' :
-                                activeView === 'digital-twin' ? 'Monitor your digital twin operations and analytics' :
-                                    ''
-                            }
-                        </p>
-                    </div>
-
-                    {/* Digital Twin Overview panel */}
-                    {activeView === 'digital-twin' && (
-                        <div className="flex-1 overflow-y-auto">
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                                <TimelineWidget projects={projects} />
-                                <HSEWidget projects={projects} />
-                                <AlertsWidget projects={projects} />
-                                <SCurveWidget projects={projects} />
-                                <DigitalTwinPreviewWidget
-                                    projects={projects}
-                                    onOpen={(id) => navigate(`/digital-twin?id=${id}`)}
-                                />
-                                <MediaWidget projects={projects} />
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Main panel: Designs (Active/Shared/Trash) */}
-                    {activeView !== 'team' && activeView !== 'digital-twin' && (
-                        <DashboardPanel
-                            activeView={activeView}
-                            projects={projects}
-                            sharedProjects={sharedProjects}
-                            trashedProjects={trashedProjects}
-                            openMenuId={openMenuId}
-                            setOpenMenuId={setOpenMenuId}
-                            handleChange={handleChange}
-                            handleCreate={handleCreate}
-                            setProjects={setProjects}
-                            setTrashedProjects={setTrashedProjects}
-                            setActiveView={go}
-                            onOpenShare={onOpenShare}
-                            userPlan={capabilitiesTier}
-                            planLimits={limits}
-                        />
-                    )}
-
-                    {/* Team panel */}
-                    {activeView === 'team' && (
-                        <TeamPanel
-                            userPlan={capabilitiesTier}
-                            planLimits={limits || defaultLimits}
-                            fetchTeam={fetchTeam}
-                            inviteUser={inviteUser}
-                            updateRole={updateRole}
-                            removeMember={removeMember}
-                        />
-                    )}
-                </div>
+        <>
+            {/* Page Title */}
+            <div className="mb-6">
+                <h1 className="text-[26px] font-bold text-textpri">
+                    {activeView === 'your-designs' ? 'Projects' :
+                        activeView === 'digital-twin' ? 'Digital Twin Operations' :
+                            activeView === 'team' ? 'Team' :
+                                activeView === 'analytics' ? 'Analytics' :
+                                    activeView === 'billing' ? 'Billing & Plans' :
+                                        activeView === 'profile' ? 'Profile' :
+                                            activeView.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())
+                    }
+                </h1>
+                <p className="text-sm text-textsec mt-1">
+                    {activeView === 'your-designs' ? 'Manage and track all your projects in one place' :
+                        activeView === 'digital-twin' ? 'Monitor your digital twin operations and analytics' :
+                            ''
+                    }
+                </p>
             </div>
+
+            {/* Digital Twin Overview panel */}
+            {activeView === 'digital-twin' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                    <TimelineWidget projects={projects} />
+                    <HSEWidget projects={projects} />
+                    <AlertsWidget projects={projects} />
+                    <SCurveWidget projects={projects} />
+                    <DigitalTwinPreviewWidget
+                        projects={projects}
+                        onOpen={(id) => navigate(`/digital-twin?id=${id}`)}
+                    />
+                    <MediaWidget projects={projects} />
+                </div>
+            )}
+
+            {/* Main panel: Designs (Active/Shared/Trash) */}
+            {activeView !== 'team' && activeView !== 'digital-twin' && (
+                <DashboardPanel
+                    activeView={activeView}
+                    projects={projects}
+                    sharedProjects={sharedProjects}
+                    trashedProjects={trashedProjects}
+                    openMenuId={openMenuId}
+                    setOpenMenuId={setOpenMenuId}
+                    handleChange={handleChange}
+                    handleCreate={handleCreate}
+                    setProjects={setProjects}
+                    setTrashedProjects={setTrashedProjects}
+                    setActiveView={go}
+                    onOpenShare={onOpenShare}
+                    userPlan={capabilitiesTier}
+                    planLimits={limits}
+                />
+            )}
+
+            {/* Team panel */}
+            {activeView === 'team' && (
+                <TeamPanel
+                    userPlan={capabilitiesTier}
+                    planLimits={limits || defaultLimits}
+                    fetchTeam={fetchTeam}
+                    inviteUser={inviteUser}
+                    updateRole={updateRole}
+                    removeMember={removeMember}
+                />
+            )}
 
             {/* Create Project Modal — Light theme */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 backdrop-blur-sm">
-                    <div className="bg-white border border-gray-200 p-7 rounded-2xl w-full max-w-md shadow-xl">
+                    <div className="bg-white border border-gray-200 p-7 rounded-2xl w-full max-w-md shadow-xl mx-4">
                         <h2 className="text-xl font-bold text-textpri mb-5">Create New Project</h2>
                         <div className="space-y-4">
                             <div>
@@ -427,6 +384,6 @@ export default function DashboardPage() {
                 sharedCount={sharedProjects?.length || 0}
                 planLimits={limits || defaultLimits}
             />
-        </div>
+        </>
     );
 }

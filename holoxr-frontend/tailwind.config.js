@@ -36,4 +36,8 @@ export default {
     },
   },
   plugins: [],
+  // Custom screens for orientation-based responsive behavior
+  screens: {
+    'landscape': { 'raw': '(orientation: landscape)' },
+  },
 }

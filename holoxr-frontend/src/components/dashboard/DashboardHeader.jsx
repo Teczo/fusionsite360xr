@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Bell, SlidersHorizontal, Plus } from "lucide-react";
+import { Search, Bell, SlidersHorizontal, Plus, Menu } from "lucide-react";
 
 export default function DashboardHeader({
     searchQuery,
@@ -9,16 +9,28 @@ export default function DashboardHeader({
     user,
     setActiveView,
     setShowModal,
+    onToggleSidebar,
 }) {
     const [timeRange, setTimeRange] = useState("7d");
 
     return (
-        <header className="w-full bg-white border-b border-gray-200 shadow-[0_2px_8px_rgba(0,0,0,0.04)] sticky top-0 z-40">
+        <header className="w-full bg-white border-b border-gray-200 shadow-[0_2px_8px_rgba(0,0,0,0.04)] shrink-0">
 
             {/* Top row: breadcrumb + controls */}
-            <div className="flex items-center justify-between gap-4 px-6 py-4">
-                {/* Left: Breadcrumb */}
-                <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center justify-between gap-4 px-4 sm:px-6 py-4">
+                {/* Left: Toggle + Breadcrumb */}
+                <div className="flex items-center gap-3 min-w-0">
+                    {/* Sidebar toggle — visible on tablet & mobile only */}
+                    {onToggleSidebar && (
+                        <button
+                            onClick={onToggleSidebar}
+                            className="lg:hidden p-2 -ml-2 rounded-xl text-textsec hover:text-textpri hover:bg-gray-100 transition-colors"
+                            aria-label="Toggle sidebar"
+                        >
+                            <Menu className="w-5 h-5" />
+                        </button>
+                    )}
+
                     <nav className="flex items-center gap-1.5 text-sm">
                         <span className="text-textsec font-medium">Workspace</span>
                         <span className="text-textsec/50">/</span>
@@ -28,8 +40,8 @@ export default function DashboardHeader({
 
                 {/* Right: controls */}
                 <div className="flex items-center gap-2.5 shrink-0">
-                    {/* Search */}
-                    <div className="relative">
+                    {/* Search — hidden on very small screens */}
+                    <div className="relative hidden sm:block">
                         <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-textsec" />
                         <input
                             value={searchQuery}
@@ -57,10 +69,10 @@ export default function DashboardHeader({
                     </button>
 
                     {/* Divider */}
-                    <div className="w-px h-6 bg-gray-200" />
+                    <div className="w-px h-6 bg-gray-200 hidden sm:block" />
 
-                    {/* Time range pills */}
-                    <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+                    {/* Time range pills — hidden on small screens */}
+                    <div className="hidden sm:flex items-center gap-1 bg-gray-100 rounded-xl p-1">
                         <button
                             onClick={() => setTimeRange("7d")}
                             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${timeRange === "7d"
@@ -88,7 +100,7 @@ export default function DashboardHeader({
                             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold btn-gradient-primary"
                         >
                             <Plus className="w-4 h-4" />
-                            New Project
+                            <span className="hidden sm:inline">New Project</span>
                         </button>
                     )}
                 </div>
