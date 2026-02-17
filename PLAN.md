@@ -1,122 +1,110 @@
-# Plan: Refactor Create Project Modal
+# Plan: Map Card + Weather Card for FusionXR Dashboard
 
-## Current State Analysis
+## Architecture Analysis
 
-### Files Involved
-| File | Role | Current State |
-|------|------|---------------|
-| `ar-backend/models/Project.js` | Mongoose schema | Has: `userId`, `name`, `description`, `thumbnail`, `scene`, `published`, `publishedAt`, `publishedScene`, `trashed`, timestamps |
-| `ar-backend/routes/project.js:29-45` | POST `/api/projects` | Only accepts `name` and `description` |
-| `holoxr-frontend/src/pages/DashboardPage.jsx:329-371` | Create Project Modal UI | Inline modal with only `name` and `description` fields |
-| `holoxr-frontend/src/components/dashboard/DashboardPanel.jsx` | Dashboard grid | Already handles `proj.status` gracefully via `getProjectStatus()` — **no changes needed** |
-| `holoxr-frontend/src/layouts/AppLayout.jsx:106-128` | Secondary placeholder modal | Has empty submit handler — will be removed (DashboardPage owns the real modal) |
+After exploring the codebase, here's the key finding:
 
-### Key Observation
-`DashboardPanel.jsx:27-35` already has a `getProjectStatus()` function that checks `proj.status` first, then falls back to date-based derivation. Old projects without a `status` field will continue working with zero changes to the dashboard.
+- **DashboardPanel.jsx** = The **project listing page** (KPI stats + project grid cards). It shows ALL projects, not a single project's detail. It has no per-project widget area.
+- **DashboardPage.jsx** = Orchestrator page that renders `DashboardPanel` (for "your-designs" view) and an aggregate widget grid (for "digital-twin" view). The digital-twin view renders `TimelineWidget`, `HSEWidget`, etc. across ALL projects.
+- **DigitalTwinDashboard.jsx** = The **per-project dashboard** (accessed via `/digital-twin?id={projectId}`). This is where project-specific widgets live: BIM Viewer, S-Curve, Timeline, HSE, Alerts, Media, Documents.
+
+**Integration point:** The new Map and Weather cards belong in **DigitalTwinDashboard.jsx**, not DashboardPanel.jsx, because:
+1. The task requires cards to be "project-specific"
+2. The task's grid suggestion (BIM Viewer + Map, Weather + HSE + Schedule) matches the DigitalTwinDashboard layout
+3. DigitalTwinDashboard already has `projectId` and renders per-project widgets
 
 ---
 
-## Changes (4 Steps, Incremental)
+## Step-by-Step Plan
 
-### Step 1: Extend Project Schema Safely
-**File:** `ar-backend/models/Project.js`
-
-Add the following fields **after** existing fields (no deletions, no renames):
-
-```js
-startDate: { type: Date, default: null },
-endDate: { type: Date, default: null },
-status: {
-  type: String,
-  enum: ["Planning", "Active", "On Hold", "Completed"],
-  default: "Planning"
-},
-tags: { type: [String], default: [] },
-projectCode: { type: String, default: null },
-teamMembers: [{type: mongoose.Schema.Types.ObjectId, ref: 'User'}],   // default: []
-location: {
-  address: { type: String, default: null },
-  latitude: { type: Number, default: null },
-  longitude: { type: Number, default: null }
-}
+### Step 1: Install Leaflet dependency
+```
+cd holoxr-frontend && npm install leaflet
 ```
 
-**Backward compatibility:** All new fields have defaults (`null`, `[]`, or `"Planning"`). Old documents missing these fields will get default values when read by Mongoose. No migration script needed.
+### Step 2: Import Leaflet CSS in `src/index.css`
+Add `@import 'leaflet/dist/leaflet.css';` at the top of the file (before Tailwind directives).
+
+### Step 3: Create `MapCard.jsx`
+**File:** `holoxr-frontend/src/components/dashboard/cards/MapCard.jsx`
+
+- Accepts `project` prop (needs `project.location.latitude`, `project.location.longitude`, `project.name`, `project.location.address`)
+- Uses `useEffect` + `useRef` to initialize a Leaflet map instance
+- Centers on project coordinates with a marker + popup (project name + address)
+- Disables scroll zoom (`scrollWheelZoom: false`)
+- Fixed height `h-64` inside a card container matching existing styling (`rounded-2xl border border-[#E6EAF0] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)]`)
+- Cleans up map on unmount (prevents memory leak)
+- Uses OpenStreetMap tiles (free, no API key)
+
+### Step 4: Create `WeatherCard.jsx`
+**File:** `holoxr-frontend/src/components/dashboard/cards/WeatherCard.jsx`
+
+- Accepts `project` prop
+- On mount, fetches current weather + 5-day forecast from OpenWeatherMap API using `project.location.latitude/longitude`
+- Uses `VITE_WEATHER_API_KEY` environment variable (not hardcoded)
+- Displays: current temp, condition icon, wind speed, humidity, 5-day mini forecast strip
+- Manages `loading`, `error`, `weatherData` states
+- Handles: loading spinner, API failure graceful fallback, missing location
+- Card styling matches existing dashboard cards
+
+### Step 5: Create `LocationSetupCard.jsx`
+**File:** `holoxr-frontend/src/components/dashboard/cards/LocationSetupCard.jsx`
+
+- Rendered when `project.location` doesn't have valid lat/lng
+- Shows: MapPin icon, "Enable Location Intelligence" title, subtitle explaining benefits, "Add Location" button
+- Button is informational (navigates or shows guidance to edit project)
+- Card styling matches existing dashboard cards
+- Uses `lucide-react` icons (already in dependencies)
+
+### Step 6: Modify `DigitalTwinDashboard.jsx`
+**File:** `holoxr-frontend/src/pages/DigitalTwinDashboard.jsx`
+
+Changes:
+1. **Add project data fetch** — Currently DigitalTwinDashboard only has `projectId` from URL params but never fetches the full project object. Add a `useEffect` to fetch `/api/projects/{projectId}` to get the project data (including `location`).
+2. **Add conditional rendering** — After the existing S-Curve + BIM Viewer row:
+
+```jsx
+const hasLocation = project?.location?.latitude && project?.location?.longitude;
+```
+
+If `hasLocation`:
+```jsx
+<MapCard project={project} />
+<WeatherCard project={project} />
+```
+
+If `!hasLocation` (and projectId exists):
+```jsx
+<LocationSetupCard />
+```
+
+3. **Layout** — Add as a new row in the grid:
+   - Map + Weather side-by-side (`grid grid-cols-1 lg:grid-cols-2 gap-5`)
+   - Placed between BIM Viewer row and Timeline row
 
 ---
 
-### Step 2: Update POST Endpoint
-**File:** `ar-backend/routes/project.js` (the `POST /projects` handler at line 29)
+## Files Created (3 new)
+1. `holoxr-frontend/src/components/dashboard/cards/MapCard.jsx`
+2. `holoxr-frontend/src/components/dashboard/cards/WeatherCard.jsx`
+3. `holoxr-frontend/src/components/dashboard/cards/LocationSetupCard.jsx`
 
-- Destructure the new optional fields from `req.body`
-- Build the project object conditionally — only include fields that are actually provided
-- Keep validation minimal: require `name`, `startDate`, `endDate`
-- All other fields remain optional
+## Files Modified (2 existing)
+1. `holoxr-frontend/src/index.css` — Add Leaflet CSS import
+2. `holoxr-frontend/src/pages/DigitalTwinDashboard.jsx` — Add project fetch + conditional Map/Weather/LocationSetup rendering
 
-No changes to GET, PUT, DELETE, or any other endpoints. Existing GET endpoints already return the full document, so new fields will be included automatically.
-
----
-
-### Step 3: Refactor CreateProjectModal in DashboardPage
-**File:** `holoxr-frontend/src/pages/DashboardPage.jsx`
-
-Replace the inline modal (lines 329-371) with a structured, section-based form:
-
-**Section 1 — Basic Info (always visible):**
-- Project Name * (text input, required)
-- Description (textarea, recommended)
-- Start Date * (date input, required)
-- End Date * (date input, required)
-- Status (dropdown, default: "Planning")
-
-**Section 2 — Classification (collapsible, "+ Add Classification"):**
-- Tags (comma-separated text input)
-- Project Code (text input)
-
-**Section 3 — Team Members (collapsible, "+ Add Team Members"):**
-- Team Members (text input, placeholder for future search)
-
-**Section 4 — Location (collapsible, "+ Add Location"):**
-- Address (text input)
-- Latitude / Longitude (number inputs)
-
-**State changes:**
-- Expand `form` state from `{ name, description }` to include all new fields
-- Add `showClassification`, `showTeam`, `showLocation` boolean toggle states
-- Update `handleCreate` to build payload and strip empty optional fields before POST
-- Update validation: require `name`, `startDate`, `endDate`
-
-**UI details:**
-- Collapsible sections with CSS transition (`overflow-hidden`, `max-height`, `transition-all`)
-- Subtle `border-t border-gray-100` dividers between sections
-- Modal `max-w-md` width unchanged
-- Submit/Cancel buttons unchanged in style
-- Scrollable modal body (`max-h-[80vh] overflow-y-auto`) if content overflows
-
----
-
-### Step 4: Remove duplicate modal from AppLayout
-**File:** `holoxr-frontend/src/layouts/AppLayout.jsx`
-
-Remove the placeholder modal (lines 106-128) and the unused `handleCreateProject`, `projectName`, `isCreating` state. The Sidebar/Header "New Project" buttons set `showCreateModal` in context, and DashboardPage reads this to open its own fully-functional modal.
-
-Wire `showCreateModal` from AppLayout context into DashboardPage's `showModal` state so that clicking "New Project" in the Sidebar/Header triggers the real modal.
-
----
-
-## Files NOT Modified (and why)
-| File | Reason |
-|------|--------|
-| `DashboardPanel.jsx` | Already handles missing `status` via `getProjectStatus()` fallback |
-| BIM/CSV upload components | Out of scope per requirements |
-| Other routes (GET, PUT, DELETE) | No changes needed — Mongoose auto-includes new fields in responses |
-| Dashboard routing | No changes |
-| `Sidebar.jsx` / `DashboardHeader.jsx` | No changes — they already call `setShowModal(true)` |
+## Files NOT Modified (backward compatibility)
+- `ar-backend/models/Project.js` — Schema untouched
+- `ar-backend/routes/*` — No API changes
+- `DashboardPanel.jsx` — Project listing page untouched
+- `DashboardPage.jsx` — Aggregate widget grid untouched
+- All existing widgets — No changes
 
 ## Backward Compatibility Guarantees
-1. **No fields deleted or renamed** in schema
-2. **All new fields have defaults** — old documents work without migration
-3. **`getProjectStatus()`** in DashboardPanel already falls back when `proj.status` is undefined
-4. **Optional chaining** used in frontend for all new fields
-5. **POST endpoint** still works with just `{ name, description }` — old clients unaffected
-6. **No breaking API changes** — response shape is additive only
+1. **No schema changes** — Project model stays identical
+2. **No API changes** — No routes added/modified
+3. **Optional rendering** — Map/Weather only appear when `project.location.latitude && project.location.longitude` exist; old projects without location see LocationSetupCard or nothing
+4. **No existing component changes** — All existing widgets, BIM viewer, etc. remain unchanged
+5. **Graceful degradation** — Weather API failure shows error state, not a crash
+6. **No DB storage of weather** — Fetched dynamically on each render
+7. **Safe optional chaining** — All location access uses `?.` operator

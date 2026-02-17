@@ -9,6 +9,10 @@ import SCurvePanel from "../components/ProjectModules/SCurve/SCurvePanel";
 import MediaGallery from "../components/ProjectModules/Media/MediaGallery";
 import ProjectDocuments from "../components/ProjectModules/Documents/ProjectDocuments";
 
+import MapCard from "../components/dashboard/cards/MapCard";
+import WeatherCard from "../components/dashboard/cards/WeatherCard";
+import LocationSetupCard from "../components/dashboard/cards/LocationSetupCard";
+
 /**
  * Digital Twin Dashboard (Mock UI + Mock Data)
  * Layout (Sidebar + Header) is provided by AppLayout via routing.
@@ -17,6 +21,7 @@ import ProjectDocuments from "../components/ProjectModules/Documents/ProjectDocu
 export default function DigitalTwinDashboard() {
     const [isTwinFullscreen, setIsTwinFullscreen] = useState(false);
     const [selectedAsset, setSelectedAsset] = useState(null);
+    const [project, setProject] = useState(null);
 
     const [cameraRequest, setCameraRequest] = useState({ type: "overview", nonce: 0 });
     const location = useLocation();
@@ -32,6 +37,31 @@ export default function DigitalTwinDashboard() {
         setCameraRequest((prev) => ({ type, nonce: prev.nonce + 1 }));
     };
 
+    // Fetch project data (for location-based cards)
+    useEffect(() => {
+        if (!projectId) return;
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetch(
+                    `${import.meta.env.VITE_API_URL}/api/projects/${projectId}`,
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+                if (res.ok && !cancelled) {
+                    const data = await res.json();
+                    setProject(data);
+                }
+            } catch {
+                // Silently ignore — location cards just won't render
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [projectId]);
+
+    const hasLocation = project?.location?.latitude && project?.location?.longitude;
 
     useEffect(() => {
         const onKeyDown = (e) => {
@@ -147,6 +177,20 @@ export default function DigitalTwinDashboard() {
 
 
             </div>
+
+            {/* Map + Weather / Location Setup */}
+            {projectId && (
+                <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    {hasLocation ? (
+                        <>
+                            <MapCard project={project} />
+                            <WeatherCard project={project} />
+                        </>
+                    ) : (
+                        <LocationSetupCard />
+                    )}
+                </div>
+            )}
 
             {/* Timeline – Full Width Horizontal Panel */}
             {projectId && (
