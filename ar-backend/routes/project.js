@@ -28,14 +28,43 @@ router.options('/projects/:id/thumbnail', cors({
 
 router.post('/projects', auth, async (req, res) => {
     try {
-        const { name, description } = req.body;
+        const {
+            name, description, startDate, endDate,
+            status, tags, projectCode, teamMembers, location,
+        } = req.body;
 
-        const project = new Project({
-            userId: req.userId,
-            name,
-            description,
-        });
+        if (!name) {
+            return res.status(400).json({ error: 'Project name is required' });
+        }
 
+        // Validate date range only if both are provided
+        if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+            return res.status(400).json({ error: 'Start date must be before end date' });
+        }
+
+        // Build clean data — omit empty optional fields
+        const data = { userId: req.userId, name };
+
+        if (description)  data.description = description;
+        if (startDate)     data.startDate = startDate;
+        if (endDate)       data.endDate = endDate;
+        if (status)        data.status = status;
+        if (projectCode)   data.projectCode = projectCode;
+
+        if (Array.isArray(tags) && tags.length > 0) {
+            data.tags = tags;
+        }
+        if (Array.isArray(teamMembers) && teamMembers.length > 0) {
+            data.teamMembers = teamMembers;
+        }
+        if (location && (location.address || location.latitude != null || location.longitude != null)) {
+            data.location = {};
+            if (location.address)          data.location.address = location.address;
+            if (location.latitude != null)  data.location.latitude = location.latitude;
+            if (location.longitude != null) data.location.longitude = location.longitude;
+        }
+
+        const project = new Project(data);
         await project.save();
         res.status(201).json(project);
     } catch (err) {

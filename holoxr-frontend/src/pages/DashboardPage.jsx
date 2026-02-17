@@ -1,6 +1,7 @@
 // src/pages/DashboardPage.jsx
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useOutletContext } from 'react-router-dom';
+import { ChevronDown } from 'lucide-react';
 import DashboardPanel from '../components/dashboard/DashboardPanel';
 
 // Phase 1 Team feature components
@@ -28,9 +29,27 @@ export default function DashboardPage() {
     const [activeView, setActiveView] = useState(panel || 'your-designs');
     const [openMenuId, setOpenMenuId] = useState(null);
 
-    // Create project modal (existing flow)
+    // Create project modal
     const [showModal, setShowModal] = useState(false);
-    const [form, setForm] = useState({ name: '', description: '' });
+    const [form, setForm] = useState({
+        name: '', description: '', startDate: '', endDate: '',
+        status: 'Planning', tags: '', projectCode: '', teamMembers: '',
+        locationAddress: '', locationLat: '', locationLng: '',
+    });
+
+    // Progressive disclosure toggles
+    const [showClassification, setShowClassification] = useState(false);
+    const [showTeam, setShowTeam] = useState(false);
+    const [showLocation, setShowLocation] = useState(false);
+
+    // Sync modal with AppLayout context (Sidebar/Header "New Project" button)
+    const outletCtx = useOutletContext();
+    useEffect(() => {
+        if (outletCtx?.showCreateModal) {
+            setShowModal(true);
+            outletCtx.setShowCreateModal(false);
+        }
+    }, [outletCtx?.showCreateModal]);
 
     // Profile / plan
     const [user, setUser] = useState({ name: 'User' });
@@ -131,7 +150,36 @@ export default function DashboardPage() {
 
     // ---- Create project ----
     const handleCreate = async () => {
-        if (!form.name || !form.description) return;
+        if (!form.name) return;
+
+        // Build clean payload — omit empty optional fields
+        const payload = { name: form.name };
+
+        if (form.description)  payload.description = form.description;
+        if (form.startDate)    payload.startDate = form.startDate;
+        if (form.endDate)      payload.endDate = form.endDate;
+        if (form.status)       payload.status = form.status;
+        if (form.projectCode)  payload.projectCode = form.projectCode;
+
+        // Tags: split comma-separated string, trim, remove empties
+        const tagsArr = form.tags
+            ? form.tags.split(',').map(t => t.trim()).filter(Boolean)
+            : [];
+        if (tagsArr.length > 0) payload.tags = tagsArr;
+
+        // Team members: split comma-separated string
+        const membersArr = form.teamMembers
+            ? form.teamMembers.split(',').map(t => t.trim()).filter(Boolean)
+            : [];
+        if (membersArr.length > 0) payload.teamMembers = membersArr;
+
+        // Location: only include if at least one field has value
+        const loc = {};
+        if (form.locationAddress) loc.address = form.locationAddress;
+        if (form.locationLat)     loc.latitude = parseFloat(form.locationLat);
+        if (form.locationLng)     loc.longitude = parseFloat(form.locationLng);
+        if (Object.keys(loc).length > 0) payload.location = loc;
+
         try {
             const res = await fetch(`${import.meta.env.VITE_API_URL}/api/projects`, {
                 method: 'POST',
@@ -139,7 +187,7 @@ export default function DashboardPage() {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify(form),
+                body: JSON.stringify(payload),
             });
             const data = await res.json();
             if (!res.ok) {
@@ -148,6 +196,14 @@ export default function DashboardPage() {
             }
             setProjects((prev) => [data, ...prev]);
             setShowModal(false);
+            setForm({
+                name: '', description: '', startDate: '', endDate: '',
+                status: 'Planning', tags: '', projectCode: '', teamMembers: '',
+                locationAddress: '', locationLat: '', locationLng: '',
+            });
+            setShowClassification(false);
+            setShowTeam(false);
+            setShowLocation(false);
             navigate(`/studio?id=${data._id}`);
         } catch (err) {
             console.error(err);
@@ -328,31 +384,199 @@ export default function DashboardPage() {
             {/* Create Project Modal — Light theme */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 backdrop-blur-sm">
-                    <div className="bg-white border border-gray-200 p-7 rounded-2xl w-full max-w-md shadow-xl mx-4">
-                        <h2 className="text-xl font-bold text-textpri mb-5">Create New Project</h2>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-textpri mb-1.5">Project Name</label>
-                                <input
-                                    name="name"
-                                    value={form.name}
-                                    onChange={handleChange}
-                                    placeholder="Enter project name"
-                                    className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri placeholder:text-textsec/60 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
-                                />
+                    <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-md shadow-xl mx-4 flex flex-col max-h-[85vh]">
+                        <div className="p-7 pb-0 shrink-0">
+                            <h2 className="text-xl font-bold text-textpri mb-5">Create New Project</h2>
+                        </div>
+
+                        {/* Scrollable body */}
+                        <div className="flex-1 overflow-y-auto px-7 pb-2">
+                            {/* ── Section 1: Basic Info (always visible) ── */}
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-textpri mb-1.5">
+                                        Project Name <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        name="name"
+                                        value={form.name}
+                                        onChange={handleChange}
+                                        placeholder="Enter project name"
+                                        className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri placeholder:text-textsec/60 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-textpri mb-1.5">Description</label>
+                                    <textarea
+                                        name="description"
+                                        value={form.description}
+                                        onChange={handleChange}
+                                        placeholder="Give your project a short description"
+                                        className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri placeholder:text-textsec/60 h-20 resize-none focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-sm font-medium text-textpri mb-1.5">Start Date</label>
+                                        <input
+                                            type="date"
+                                            name="startDate"
+                                            value={form.startDate}
+                                            onChange={handleChange}
+                                            className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-textpri mb-1.5">End Date</label>
+                                        <input
+                                            type="date"
+                                            name="endDate"
+                                            value={form.endDate}
+                                            onChange={handleChange}
+                                            className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-textpri mb-1.5">Status</label>
+                                    <select
+                                        name="status"
+                                        value={form.status}
+                                        onChange={handleChange}
+                                        className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
+                                    >
+                                        <option value="Planning">Planning</option>
+                                        <option value="Active">Active</option>
+                                        <option value="On Hold">On Hold</option>
+                                        <option value="Completed">Completed</option>
+                                    </select>
+                                </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-textpri mb-1.5">Description</label>
-                                <textarea
-                                    name="description"
-                                    value={form.description}
-                                    onChange={handleChange}
-                                    placeholder="Give your project a short description"
-                                    className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri placeholder:text-textsec/60 h-24 resize-none focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
-                                />
+
+                            {/* ── Section 2: Classification (collapsible) ── */}
+                            <div className="border-t border-gray-100 mt-5 pt-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowClassification(v => !v)}
+                                    className="flex items-center gap-2 w-full text-left text-sm font-medium text-textsec hover:text-textpri transition-colors py-1.5"
+                                >
+                                    <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showClassification ? 'rotate-0' : '-rotate-90'}`} />
+                                    Add Classification
+                                </button>
+                                <div
+                                    className="overflow-hidden transition-all duration-300 ease-in-out"
+                                    style={{ maxHeight: showClassification ? '200px' : '0px', opacity: showClassification ? 1 : 0 }}
+                                >
+                                    <div className="space-y-3 pt-3">
+                                        <div>
+                                            <label className="block text-sm font-medium text-textpri mb-1.5">Tags</label>
+                                            <input
+                                                name="tags"
+                                                value={form.tags}
+                                                onChange={handleChange}
+                                                placeholder="e.g. structural, phase-1, urgent"
+                                                className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri placeholder:text-textsec/60 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-textpri mb-1.5">Project Code</label>
+                                            <input
+                                                name="projectCode"
+                                                value={form.projectCode}
+                                                onChange={handleChange}
+                                                placeholder="e.g. PRJ-2026-001"
+                                                className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri placeholder:text-textsec/60 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* ── Section 3: Team Members (collapsible) ── */}
+                            <div className="border-t border-gray-100 mt-3 pt-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowTeam(v => !v)}
+                                    className="flex items-center gap-2 w-full text-left text-sm font-medium text-textsec hover:text-textpri transition-colors py-1.5"
+                                >
+                                    <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showTeam ? 'rotate-0' : '-rotate-90'}`} />
+                                    Add Team Members
+                                </button>
+                                <div
+                                    className="overflow-hidden transition-all duration-300 ease-in-out"
+                                    style={{ maxHeight: showTeam ? '120px' : '0px', opacity: showTeam ? 1 : 0 }}
+                                >
+                                    <div className="pt-3">
+                                        <label className="block text-sm font-medium text-textpri mb-1.5">Team Members</label>
+                                        <input
+                                            name="teamMembers"
+                                            value={form.teamMembers}
+                                            onChange={handleChange}
+                                            placeholder="Enter member IDs, comma-separated"
+                                            className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri placeholder:text-textsec/60 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* ── Section 4: Location (collapsible) ── */}
+                            <div className="border-t border-gray-100 mt-3 pt-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowLocation(v => !v)}
+                                    className="flex items-center gap-2 w-full text-left text-sm font-medium text-textsec hover:text-textpri transition-colors py-1.5"
+                                >
+                                    <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showLocation ? 'rotate-0' : '-rotate-90'}`} />
+                                    Add Location
+                                </button>
+                                <div
+                                    className="overflow-hidden transition-all duration-300 ease-in-out"
+                                    style={{ maxHeight: showLocation ? '250px' : '0px', opacity: showLocation ? 1 : 0 }}
+                                >
+                                    <div className="space-y-3 pt-3">
+                                        <div>
+                                            <label className="block text-sm font-medium text-textpri mb-1.5">Address</label>
+                                            <input
+                                                name="locationAddress"
+                                                value={form.locationAddress}
+                                                onChange={handleChange}
+                                                placeholder="e.g. 123 Main St, City"
+                                                className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri placeholder:text-textsec/60 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="block text-sm font-medium text-textpri mb-1.5">Latitude</label>
+                                                <input
+                                                    type="number"
+                                                    step="any"
+                                                    name="locationLat"
+                                                    value={form.locationLat}
+                                                    onChange={handleChange}
+                                                    placeholder="e.g. -26.2041"
+                                                    className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri placeholder:text-textsec/60 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-textpri mb-1.5">Longitude</label>
+                                                <input
+                                                    type="number"
+                                                    step="any"
+                                                    name="locationLng"
+                                                    value={form.locationLng}
+                                                    onChange={handleChange}
+                                                    placeholder="e.g. 28.0473"
+                                                    className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri placeholder:text-textsec/60 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div className="flex justify-end gap-3 mt-6">
+
+                        {/* Fixed footer */}
+                        <div className="flex justify-end gap-3 p-7 pt-5 border-t border-gray-100 shrink-0">
                             <button
                                 onClick={() => setShowModal(false)}
                                 className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-textpri rounded-xl text-sm font-medium transition-colors"
