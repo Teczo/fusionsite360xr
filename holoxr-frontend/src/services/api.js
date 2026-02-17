@@ -118,6 +118,21 @@ export const documentsApi = {
     }),
 };
 
+// Schedule
+export const scheduleApi = {
+  upload: (projectId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request(`/api/projects/${projectId}/schedule/upload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: formData,
+    });
+  },
+  list: (projectId) =>
+    request(`/api/projects/${projectId}/schedule`, { headers: headers() }),
+};
+
 // User role
 export const userApi = {
   me: () => request('/api/me', { headers: headers() }),
