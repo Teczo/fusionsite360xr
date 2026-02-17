@@ -37,7 +37,7 @@ const PORT = process.env.PORT || 4000;
 // Build from CORS_ORIGINS env var (comma-separated) with sensible defaults
 const allowlist = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map(s => s.trim()).filter(Boolean)
-  : ['http://localhost:5173', 'https://fusionsite360xr.onrender.com'];
+  : ['http://localhost:5173', 'https://fusionxr-backend-e6e8cgbyh8ghg6fv.malaysiawest-01.azurewebsites.net', 'https://fusionsite360xr.onrender.com'];
 
 // 2) Single CORS middleware (no second app.use(cors()))
 const corsOptions = {
