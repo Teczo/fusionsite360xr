@@ -19,9 +19,44 @@ export default function AppLayout() {
     const [searchQuery, setSearchQuery] = useState('');
     const [showCreateModal, setShowCreateModal] = useState(false);
 
-    const [user] = useState({ name: 'Alex Johnson', email: 'alex@example.com' });
+    const [user, setUser] = useState(null);
+
 
     const navigate = useNavigate();
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const token = localStorage.getItem("token");
+
+                const res = await fetch(
+                    `${import.meta.env.VITE_API_URL}/api/profile`,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
+                    }
+                );
+
+                if (!res.ok) throw new Error(`Load failed (${res.status})`);
+
+                const data = await res.json();
+
+                setUser({
+                    name: data?.name,
+                    plan: data?.plan || "Free", // adjust if you store plan elsewhere
+                    avatar: data?.profile?.avatarUrl,
+                });
+
+            } catch (err) {
+                console.error("Failed to fetch user:", err);
+            }
+        };
+
+        fetchUser();
+    }, []);
+
+
 
 
 
@@ -59,7 +94,9 @@ export default function AppLayout() {
                 setSidebarCollapsed={setSidebarCollapsed}
                 isMobile={isMobile}
                 setShowModal={setShowCreateModal}
-                userName={user.name}
+                userName={user?.name}
+                billingTier={user?.plan}
+                avatarUrl={user?.avatar}
             />
 
             {/* Right column: topbar + content */}
@@ -68,7 +105,9 @@ export default function AppLayout() {
                 <DashboardHeader
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
-                    user={user}
+                    userName={user?.name}
+                    billingTier={user?.plan}
+                    avatarUrl={user?.avatar}
                     setShowModal={setShowCreateModal}
                     onToggleSidebar={toggleSidebar}
                 />
