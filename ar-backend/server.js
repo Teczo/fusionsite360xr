@@ -7,9 +7,6 @@ import cors from 'cors';
 import multer from 'multer';
 import mongoose from 'mongoose';
 import { BlobServiceClient } from '@azure/storage-blob';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 
 import authRoutes from './routes/auth.js';
 import projectRoutes from './routes/project.js';
@@ -33,17 +30,14 @@ import scheduleRoutes from './routes/schedule.js';
 import requireActiveSubscription from './middleware/requireActiveSubscription.js';
 import authMiddleware from './middleware/authMiddleware.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
 const app = express();
 const PORT = process.env.PORT || 4000;
 
 // 1) Define allowlist FIRST
-const allowlist = [
-  'http://localhost:5173',
-  'https://fusionsite360xr.onrender.com',
-];
+// Build from CORS_ORIGINS env var (comma-separated) with sensible defaults
+const allowlist = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map(s => s.trim()).filter(Boolean)
+  : ['http://localhost:5173', 'https://fusionsite360xr.onrender.com'];
 
 // 2) Single CORS middleware (no second app.use(cors()))
 const corsOptions = {
@@ -66,7 +60,7 @@ app.use('/api/billing', billingWebhook);
 app.use(express.json());
 app.use(express.text({ type: 'text/plain' }));
 
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Static serving removed — all files are served from Azure Blob Storage
 
 // DB
 mongoose.connect(process.env.MONGODB_URI)

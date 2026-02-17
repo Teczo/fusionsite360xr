@@ -111,7 +111,7 @@ router.post(
 
             if (isModel) {
                 // Mirror your existing logic (write to temp, zip, upload)
-                const tempDir = path.join(__dirname, '..', 'uploads');
+                const tempDir = process.env.TEMP_DIR || '/tmp/uploads';
                 fs.mkdirSync(tempDir, { recursive: true });
 
                 const tempModelPath = path.join(tempDir, `${timestamp}-${originalName}`);
@@ -229,7 +229,7 @@ router.post('/upload/sketchfab', async (req, res) => {
             });
             uploadedUrl = blobClient.url;
         } else if (ext === '.glb' || ext === '.gltf') {
-            const tempDir = path.join(__dirname, '..', 'uploads');
+            const tempDir = process.env.TEMP_DIR || '/tmp/uploads';
             fs.mkdirSync(tempDir, { recursive: true });
 
             const tempModelPath = path.join(tempDir, `${timestamp}-${originalName}`);

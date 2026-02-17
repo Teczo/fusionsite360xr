@@ -15,8 +15,12 @@ const upload = multer({ storage: multer.memoryStorage() });
    CORS (specific endpoints)
 --------------------------------------------------- */
 
+const corsOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map(s => s.trim()).filter(Boolean)
+    : ['http://localhost:5173', 'https://holoxr.teczo.co', 'https://holoxr.onrender.com'];
+
 router.options('/projects/:id/thumbnail', cors({
-    origin: ['https://holoxr.teczo.co', 'https://holoxr.onrender.com', 'http://localhost:5173'],
+    origin: corsOrigins,
     methods: ['PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
@@ -380,7 +384,7 @@ router.delete('/projects/:id/permanent', auth, async (req, res) => {
 router.patch(
     '/projects/:id/thumbnail',
     cors({
-        origin: ['https://holoxr.teczo.co', 'https://holoxr.onrender.com', 'http://localhost:5173'],
+        origin: corsOrigins,
         allowedHeaders: ['Content-Type', 'Authorization'],
         credentials: true,
     }),
