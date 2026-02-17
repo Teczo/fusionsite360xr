@@ -38,28 +38,37 @@ export default function GanttChart({ data }) {
     let minDate = Infinity;
     let maxDate = -Infinity;
 
-    const items = data.map((task) => {
-      const start = new Date(task.plannedStart).getTime();
-      const end = new Date(task.plannedFinish).getTime();
-      const duration = Math.max(end - start, DAY_MS); // minimum 1 day
+    const items = data
+      .map((task) => {
+        const start = new Date(task.plannedStart).getTime();
+        const end = new Date(task.plannedFinish).getTime();
 
-      if (start < minDate) minDate = start;
-      if (end > maxDate) maxDate = end;
+        if (isNaN(start) || isNaN(end)) return null;
 
-      return {
-        name: task.name || task.activityId,
-        start,
-        duration,
-        critical: !!task.criticalPath,
-      };
-    });
+        const duration = Math.max(end - start, DAY_MS);
+
+        if (start < minDate) minDate = start;
+        if (end > maxDate) maxDate = end;
+
+        return {
+          name: task.name || task.activityId || 'Unnamed',
+          start,
+          duration,
+          critical: !!task.criticalPath,
+        };
+      })
+      .filter(Boolean);
+
+    if (!isFinite(minDate) || !isFinite(maxDate)) {
+      return { items: [], minDate: 0, maxDate: 0 };
+    }
 
     // Add padding to domain
     const padding = (maxDate - minDate) * 0.05 || DAY_MS * 7;
     return { items, minDate: minDate - padding, maxDate: maxDate + padding };
   }, [data]);
 
-  if (!data?.length) {
+  if (!chartData.items.length) {
     return (
       <div className="flex items-center justify-center py-8 text-sm text-[#9CA3AF]">
         No schedule data to display
@@ -71,46 +80,48 @@ export default function GanttChart({ data }) {
 
   return (
     <div className="w-full overflow-x-auto">
-      <ResponsiveContainer width="100%" height={chartHeight}>
-        <BarChart
-          data={chartData.items}
-          layout="vertical"
-          margin={{ top: 10, right: 30, left: 10, bottom: 10 }}
-          barSize={18}
-        >
-          <XAxis
-            type="number"
-            domain={[chartData.minDate, chartData.maxDate]}
-            tickFormatter={formatDate}
-            tick={{ fontSize: 11, fill: '#9CA3AF' }}
-            axisLine={{ stroke: '#E6EAF0' }}
-            tickLine={false}
-          />
-          <YAxis
-            type="category"
-            dataKey="name"
-            width={150}
-            tick={{ fontSize: 11, fill: '#374151' }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <Tooltip content={<CustomTooltip />} cursor={false} />
+      <div style={{ width: '100%', height: chartHeight }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={chartData.items}
+            layout="vertical"
+            margin={{ top: 10, right: 30, left: 10, bottom: 10 }}
+            barSize={18}
+          >
+            <XAxis
+              type="number"
+              domain={[chartData.minDate, chartData.maxDate]}
+              tickFormatter={formatDate}
+              tick={{ fontSize: 11, fill: '#9CA3AF' }}
+              axisLine={{ stroke: '#E6EAF0' }}
+              tickLine={false}
+            />
+            <YAxis
+              type="category"
+              dataKey="name"
+              width={150}
+              tick={{ fontSize: 11, fill: '#374151' }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <Tooltip content={<CustomTooltip />} cursor={false} />
 
-          {/* Invisible offset bar to position the visible bar at the correct start */}
-          <Bar dataKey="start" stackId="gantt" fill="transparent" isAnimationActive={false} />
+            {/* Invisible offset bar to position the visible bar at the correct start */}
+            <Bar dataKey="start" stackId="gantt" fill="transparent" isAnimationActive={false} />
 
-          {/* Visible duration bar */}
-          <Bar dataKey="duration" stackId="gantt" radius={[4, 4, 4, 4]} isAnimationActive={false}>
-            {chartData.items.map((entry, index) => (
-              <Cell
-                key={index}
-                fill={entry.critical ? '#EF4444' : '#2563EB'}
-                fillOpacity={0.85}
-              />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+            {/* Visible duration bar */}
+            <Bar dataKey="duration" stackId="gantt" radius={[4, 4, 4, 4]} isAnimationActive={false}>
+              {chartData.items.map((entry, index) => (
+                <Cell
+                  key={index}
+                  fill={entry.critical ? '#EF4444' : '#2563EB'}
+                  fillOpacity={0.85}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
 
       {/* Legend */}
       <div className="flex items-center justify-center gap-6 mt-2 text-xs text-[#6B7280]">
