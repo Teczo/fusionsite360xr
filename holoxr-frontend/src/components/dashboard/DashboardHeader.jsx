@@ -4,8 +4,6 @@ import { Search, Bell, SlidersHorizontal, Plus, Menu } from "lucide-react";
 export default function DashboardHeader({
     searchQuery,
     setSearchQuery,
-    theme,
-    setTheme,
     user,
     setActiveView,
     setShowModal,
@@ -33,8 +31,6 @@ export default function DashboardHeader({
 
                     <nav className="flex items-center gap-1.5 text-sm">
                         <span className="text-textsec font-medium">Workspace</span>
-                        <span className="text-textsec/50">/</span>
-                        <span className="text-textpri font-semibold">Dashboard</span>
                     </nav>
                 </div>
 

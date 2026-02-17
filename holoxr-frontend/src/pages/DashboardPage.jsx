@@ -155,11 +155,11 @@ export default function DashboardPage() {
         // Build clean payload — omit empty optional fields
         const payload = { name: form.name };
 
-        if (form.description)  payload.description = form.description;
-        if (form.startDate)    payload.startDate = form.startDate;
-        if (form.endDate)      payload.endDate = form.endDate;
-        if (form.status)       payload.status = form.status;
-        if (form.projectCode)  payload.projectCode = form.projectCode;
+        if (form.description) payload.description = form.description;
+        if (form.startDate) payload.startDate = form.startDate;
+        if (form.endDate) payload.endDate = form.endDate;
+        if (form.status) payload.status = form.status;
+        if (form.projectCode) payload.projectCode = form.projectCode;
 
         // Tags: split comma-separated string, trim, remove empties
         const tagsArr = form.tags
@@ -176,8 +176,8 @@ export default function DashboardPage() {
         // Location: only include if at least one field has value
         const loc = {};
         if (form.locationAddress) loc.address = form.locationAddress;
-        if (form.locationLat)     loc.latitude = parseFloat(form.locationLat);
-        if (form.locationLng)     loc.longitude = parseFloat(form.locationLng);
+        if (form.locationLat) loc.latitude = parseFloat(form.locationLat);
+        if (form.locationLng) loc.longitude = parseFloat(form.locationLng);
         if (Object.keys(loc).length > 0) payload.location = loc;
 
         try {

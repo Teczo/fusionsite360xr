@@ -49,9 +49,9 @@ export default function Sidebar({
         {
             title: "Main",
             items: [
-                { label: "Dashboard", key: "your-designs", icon: LayoutGrid },
+                { label: "Workspace", key: "your-designs", icon: LayoutGrid },
                 { label: "Digital Twin", key: "digital-twin", icon: Boxes },
-                { label: "Doc Management", key: "templates", icon: FileText },
+                { label: "Documents", key: "templates", icon: FileText },
                 { label: "Project Mgmt", key: "meshai", icon: FolderKanban },
                 { label: "Asset Mgmt", key: "experiences", icon: Package },
             ],

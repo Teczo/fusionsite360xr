@@ -17,18 +17,13 @@ export default function AppLayout() {
     } = useSidebarState();
 
     const [searchQuery, setSearchQuery] = useState('');
-    const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
     const [showCreateModal, setShowCreateModal] = useState(false);
 
     const [user] = useState({ name: 'Alex Johnson', email: 'alex@example.com' });
 
     const navigate = useNavigate();
 
-    // Keep <html> class in sync with theme
-    useEffect(() => {
-        document.documentElement.classList.toggle('dark', theme === 'dark');
-        localStorage.setItem('theme', theme);
-    }, [theme]);
+
 
     // Outlet context so children can read shared state
     const outletCtx = useMemo(
@@ -37,18 +32,16 @@ export default function AppLayout() {
             setSidebarCollapsed,
             searchQuery,
             setSearchQuery,
-            theme,
-            setTheme,
             user,
             navigate,
             showCreateModal,
             setShowCreateModal,
         }),
-        [sidebarCollapsed, searchQuery, theme, user, navigate, showCreateModal]
+        [sidebarCollapsed, searchQuery, user, navigate, showCreateModal]
     );
 
     return (
-        <div className="flex h-dvh overflow-hidden bg-[#f7f7f9] dark:bg-[#0b0c0f] text-slate-900 dark:text-white">
+        <div className="flex h-dvh overflow-hidden bg-[#f7f7f9] text-slate-900">
             {/* Mobile overlay backdrop */}
             {isMobile && sidebarOpen && (
                 <div
@@ -75,8 +68,6 @@ export default function AppLayout() {
                 <DashboardHeader
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
-                    theme={theme}
-                    setTheme={setTheme}
                     user={user}
                     setShowModal={setShowCreateModal}
                     onToggleSidebar={toggleSidebar}
@@ -87,10 +78,8 @@ export default function AppLayout() {
                     className="flex-1 overflow-auto min-h-0 p-4 sm:p-6"
                     aria-label="Dashboard content"
                 >
-                    <div className="w-full min-h-full rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white/90 dark:bg-white/5 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
-                        <div className="p-4 sm:p-6 lg:p-8">
-                            <Outlet context={outletCtx} />
-                        </div>
+                    <div className="p-4 sm:p-6 lg:p-8">
+                        <Outlet context={outletCtx} />
                     </div>
                 </main>
             </div>
