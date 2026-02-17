@@ -19,8 +19,6 @@ export default function AppLayout() {
     const [searchQuery, setSearchQuery] = useState('');
     const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark');
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [projectName, setProjectName] = useState('');
-    const [isCreating, setIsCreating] = useState(false);
 
     const [user] = useState({ name: 'Alex Johnson', email: 'alex@example.com' });
 
@@ -48,11 +46,6 @@ export default function AppLayout() {
         }),
         [sidebarCollapsed, searchQuery, theme, user, navigate, showCreateModal]
     );
-
-    const handleCreateProject = (e) => {
-        e.preventDefault();
-        // placeholder — pages can override via outletCtx.setShowCreateModal
-    };
 
     return (
         <div className="flex h-dvh overflow-hidden bg-[#f7f7f9] dark:bg-[#0b0c0f] text-slate-900 dark:text-white">
@@ -102,30 +95,6 @@ export default function AppLayout() {
                 </main>
             </div>
 
-            {/* Create Project Modal */}
-            {showCreateModal && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center">
-                    <div className="absolute inset-0 bg-black/50" onClick={() => setShowCreateModal(false)} />
-                    <form
-                        onSubmit={handleCreateProject}
-                        className="relative w-full max-w-md rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white dark:bg-[#121317] p-6 shadow-2xl mx-4"
-                    >
-                        <h3 className="text-lg font-semibold mb-4">Create Project</h3>
-                        <label className="block text-sm mb-2">Project name</label>
-                        <input
-                            autoFocus
-                            value={projectName}
-                            onChange={(e) => setProjectName(e.target.value)}
-                            className="w-full rounded-xl bg-white/90 dark:bg-white/10 border border-slate-300/70 dark:border-white/10 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 mb-4"
-                            placeholder="e.g., TVET Lathe Module"
-                        />
-                        <div className="flex items-center justify-end gap-2">
-                            <button type="button" onClick={() => setShowCreateModal(false)} className="px-3 py-2 text-sm rounded-xl border border-slate-300/70 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/10">Cancel</button>
-                            <button type="submit" disabled={isCreating} className="px-3 py-2 text-sm rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-70">{isCreating ? 'Creating…' : 'Create'}</button>
-                        </div>
-                    </form>
-                </div>
-            )}
         </div>
     );
 }
