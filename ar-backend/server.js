@@ -26,6 +26,7 @@ import scurveRoutes from './routes/scurve.js';
 import mediaRoutes from './routes/media.js';
 import documentRoutes from './routes/documents.js';
 import scheduleRoutes from './routes/schedule.js';
+import intelligenceRoutes from './routes/intelligence.js';
 
 import requireActiveSubscription from './middleware/requireActiveSubscription.js';
 import authMiddleware from './middleware/authMiddleware.js';
@@ -124,6 +125,7 @@ app.use('/api', scurveRoutes);
 app.use('/api', mediaRoutes);
 app.use('/api', documentRoutes);
 app.use('/api', scheduleRoutes);
+app.use('/api', intelligenceRoutes);
 
 // Billing (after webhook + parsers)
 app.use('/api/billing', billingRoutes);
