@@ -11,6 +11,11 @@ import ARPlane from './pages/ARPlane';
 import ARImageTracker from './pages/ARImageTracker';
 import ARModeSelect from './components/viewer/ARModeSelect';
 import DigitalTwinDashboard from "./pages/DigitalTwinDashboard";
+import TwinPage from "./pages/TwinPage";
+import TimelinePage from "./pages/TimelinePage";
+import HsePage from "./pages/HsePage";
+import FilesPage from "./pages/FilesPage";
+import AiPage from "./pages/AiPage";
 import { RoleProvider } from './components/hooks/useRole';
 import AppLayout from './layouts/AppLayout';
 
@@ -35,6 +40,11 @@ export default function App() {
         <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
           <Route path="/dashboard/:panel?" element={<DashboardPage />} />
           <Route path="/digital-twin" element={<DigitalTwinDashboard />} />
+          <Route path="/twin"     element={<TwinPage />} />
+          <Route path="/timeline" element={<TimelinePage />} />
+          <Route path="/hse"      element={<HsePage />} />
+          <Route path="/files"    element={<FilesPage />} />
+          <Route path="/ai"       element={<AiPage />} />
         </Route>
 
         {/* Optional aliases so you can share simple links */}
