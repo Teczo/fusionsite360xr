@@ -1,4 +1,4 @@
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import Sidebar from '../components/dashboard/Sidebar';
 import DashboardHeader from '../components/dashboard/DashboardHeader';
@@ -23,6 +23,9 @@ export default function AppLayout() {
 
 
     const navigate = useNavigate();
+    const location = useLocation();
+    // Routes that need a full-viewport canvas with no padding wrapper
+    const isFullPageRoute = location.pathname === '/twin';
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -114,12 +117,16 @@ export default function AppLayout() {
 
                 {/* Main scrollable content area */}
                 <main
-                    className="flex-1 overflow-auto min-h-0 p-4 sm:p-6"
+                    className={`flex-1 min-h-0 ${isFullPageRoute ? 'overflow-hidden' : 'overflow-auto p-4 sm:p-6'}`}
                     aria-label="Dashboard content"
                 >
-                    <div className="p-4 sm:p-6 lg:p-8">
+                    {isFullPageRoute ? (
                         <Outlet context={outletCtx} />
-                    </div>
+                    ) : (
+                        <div className="p-4 sm:p-6 lg:p-8">
+                            <Outlet context={outletCtx} />
+                        </div>
+                    )}
                 </main>
             </div>
 
