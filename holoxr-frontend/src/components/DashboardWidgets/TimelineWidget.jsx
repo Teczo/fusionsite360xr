@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { timelineApi } from '../../services/api';
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';
@@ -41,6 +42,16 @@ export default function TimelineWidget({ projects }) {
               </div>
             </div>
           ))}
+        </div>
+      )}
+      {projects?.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-[#E6EAF0]">
+          <Link
+            to={`/timeline?id=${projects[0]._id}`}
+            className="text-xs font-semibold text-[#2563EB] hover:underline"
+          >
+            View all →
+          </Link>
         </div>
       )}
     </Card>
