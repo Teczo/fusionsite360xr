@@ -134,6 +134,15 @@ router.post(
         const criticalRaw = (norm.critical_path || norm.critical || '').toLowerCase();
         const criticalPath = ['true', 'yes', '1'].includes(criticalRaw);
 
+        const predecessors = norm.predecessors
+          ? norm.predecessors.split(',').map(p => p.trim()).filter(Boolean)
+          : [];
+
+        const dependencyType =
+          ['FS', 'SS', 'FF'].includes((norm.dependency_type || '').toUpperCase())
+            ? norm.dependency_type.toUpperCase()
+            : 'FS';
+
         activities.push({
           projectId,
           activityId: norm.activity_id,
@@ -148,6 +157,9 @@ router.post(
           isDelayed,
           criticalPath,
           weatherSensitivity: norm.weather_sensitivity || norm.weather || '',
+          predecessors,
+          successors: [],
+          dependencyType,
         });
       }
 
@@ -163,6 +175,28 @@ router.post(
 
       // 5. Bulk insert
       await ScheduleActivity.insertMany(activities);
+
+      // 5a. Compute successor links for bidirectional graph traversal
+      const inserted = await ScheduleActivity.find({ projectId }).lean();
+      const idToDoc = new Map(inserted.map(a => [a.activityId, a]));
+
+      const successorUpdates = [];
+      for (const act of inserted) {
+        for (const predId of (act.predecessors || [])) {
+          const predDoc = idToDoc.get(predId);
+          if (predDoc) {
+            successorUpdates.push({
+              updateOne: {
+                filter: { _id: predDoc._id },
+                update: { $addToSet: { successors: act.activityId } },
+              },
+            });
+          }
+        }
+      }
+      if (successorUpdates.length > 0) {
+        await ScheduleActivity.bulkWrite(successorUpdates);
+      }
 
       // 6. Upload original file to Azure
       let uploadResult;

@@ -14,6 +14,21 @@ const ScheduleActivitySchema = new mongoose.Schema({
   isDelayed: { type: Boolean, default: false },
   criticalPath: { type: Boolean, default: false },
   weatherSensitivity: String,
+  predecessors: [
+    {
+      type: String
+    }
+  ],
+  successors: [
+    {
+      type: String
+    }
+  ],
+  dependencyType: {
+    type: String,
+    enum: ["FS", "SS", "FF"],
+    default: "FS"
+  },
 }, { timestamps: true });
 
 ScheduleActivitySchema.index({ projectId: 1, plannedStart: 1 });
