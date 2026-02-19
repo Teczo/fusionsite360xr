@@ -6,6 +6,7 @@ import { getIncidentStats } from '../services/intelligence/incidentStats.service
 import { getScheduleVariance } from '../services/intelligence/scheduleVariance.service.js';
 import { getActivityRisk } from '../services/intelligence/activityRisk.service.js';
 import { buildDependencyGraph } from '../services/intelligence/dependencyGraph.service.js';
+import { getProjectDataHealth } from '../services/intelligence/dataHealth.service.js';
 
 const router = Router();
 
@@ -75,6 +76,17 @@ router.get('/projects/:id/intelligence/dependency-graph', async (req, res) => {
   } catch (err) {
     console.error('[intelligence/dependency-graph]', err);
     res.status(500).json({ error: 'Failed to build dependency graph' });
+  }
+});
+
+// GET /api/projects/:id/data-health
+router.get('/projects/:id/data-health', async (req, res) => {
+  try {
+    const data = await getProjectDataHealth(req.params.id);
+    res.json(data);
+  } catch (err) {
+    console.error('[data-health]', err);
+    res.status(500).json({ error: 'Failed to compute data health' });
   }
 });
 
