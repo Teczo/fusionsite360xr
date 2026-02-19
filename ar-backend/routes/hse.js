@@ -12,6 +12,11 @@ import { requireRole } from '../middleware/rbac.js';
 
 const router = express.Router();
 
+const SEVERITY_WEIGHTS = { Critical: 3, Warning: 2, Info: 1 };
+function getSeverityWeight(severity) {
+  return SEVERITY_WEIGHTS[severity] ?? 0;
+}
+
 // Configure multer for memory storage
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -131,6 +136,7 @@ router.post('/projects/:id/hse/import', auth, upload.single('file'), async (req,
         source: 'csv-import',
         importedFromDocumentId: doc._id,
         createdBy: req.userId,
+        computedSeverityWeight: getSeverityWeight(row.severity),
         // Extra fields not in main schema but mentioned in user request:
         // incidentId, zone, injuryType, rootCause, contractor, weatherCondition
         // These are NOT in the current HSE schema I viewed earlier.
@@ -208,6 +214,7 @@ router.post('/projects/:id/hse', auth, requireRole('admin'), async (req, res) =>
       severity,
       date,
       createdBy: req.userId,
+      computedSeverityWeight: getSeverityWeight(severity),
     });
     await item.save();
     res.status(201).json(item);

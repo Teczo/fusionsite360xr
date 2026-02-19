@@ -114,6 +114,23 @@ router.post(
         const durationMs = plannedFinish.getTime() - plannedStart.getTime();
         const durationDays = Math.max(1, Math.round(durationMs / (1000 * 60 * 60 * 24)));
 
+        // Derived fields
+        const plannedDurationDays = Math.max(
+          1,
+          Math.round((plannedFinish.getTime() - plannedStart.getTime()) / 86400000)
+        );
+
+        const today = new Date();
+        let delayDays;
+        if (actualFinish) {
+          delayDays = Math.max(0, Math.round((actualFinish.getTime() - plannedFinish.getTime()) / 86400000));
+        } else if (plannedFinish < today) {
+          delayDays = Math.round((today.getTime() - plannedFinish.getTime()) / 86400000);
+        } else {
+          delayDays = 0;
+        }
+        const isDelayed = delayDays > 0;
+
         const criticalRaw = (norm.critical_path || norm.critical || '').toLowerCase();
         const criticalPath = ['true', 'yes', '1'].includes(criticalRaw);
 
@@ -126,6 +143,9 @@ router.post(
           actualStart,
           actualFinish,
           durationDays,
+          plannedDurationDays,
+          delayDays,
+          isDelayed,
           criticalPath,
           weatherSensitivity: norm.weather_sensitivity || norm.weather || '',
         });

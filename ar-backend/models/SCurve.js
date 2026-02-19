@@ -10,6 +10,8 @@ const sCurveSchema = new mongoose.Schema({
   baseline: { type: [dataPointSchema], default: [] },
   actual: { type: [dataPointSchema], default: [] },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  variance: { type: Number, default: 0 },
+  variancePercent: { type: Number, default: 0 },
 }, { timestamps: true });
 
 export default mongoose.model('SCurve', sCurveSchema);

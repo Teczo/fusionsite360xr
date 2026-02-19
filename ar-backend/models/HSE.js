@@ -18,6 +18,7 @@ const hseSchema = new mongoose.Schema({
   },
   importedFromDocumentId: { type: mongoose.Schema.Types.ObjectId, ref: 'ProjectDocument' },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  computedSeverityWeight: { type: Number, default: 0 },
 }, { timestamps: true });
 
 hseSchema.index({ projectId: 1, date: -1 });
