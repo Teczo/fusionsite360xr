@@ -42,9 +42,18 @@ router.put('/projects/:id/s-curve', auth, requireRole('admin'), async (req, res)
       return res.status(400).json({ error: 'baseline and actual must be arrays' });
     }
 
+    // Derived variance fields
+    const latestBaseline = baseline.length > 0 ? baseline[baseline.length - 1].value : 0;
+    const latestActual   = actual.length   > 0 ? actual[actual.length - 1].value   : 0;
+    const variance = latestActual - latestBaseline;
+    const variancePercent =
+      latestBaseline === 0
+        ? 0
+        : ((latestActual - latestBaseline) / latestBaseline) * 100;
+
     const data = await SCurve.findOneAndUpdate(
       { projectId: id },
-      { baseline, actual, updatedBy: req.userId },
+      { baseline, actual, updatedBy: req.userId, variance, variancePercent },
       { new: true, upsert: true, runValidators: true }
     );
     res.json(data);

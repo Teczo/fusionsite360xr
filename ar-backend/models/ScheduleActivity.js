@@ -9,6 +9,9 @@ const ScheduleActivitySchema = new mongoose.Schema({
   actualStart: Date,
   actualFinish: Date,
   durationDays: Number,
+  plannedDurationDays: { type: Number, default: 0 },
+  delayDays: { type: Number, default: 0 },
+  isDelayed: { type: Boolean, default: false },
   criticalPath: { type: Boolean, default: false },
   weatherSensitivity: String,
 }, { timestamps: true });
