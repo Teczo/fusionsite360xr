@@ -5,6 +5,7 @@ import { getOverdueActivities } from '../services/intelligence/overdueActivities
 import { getIncidentStats } from '../services/intelligence/incidentStats.service.js';
 import { getScheduleVariance } from '../services/intelligence/scheduleVariance.service.js';
 import { getActivityRisk } from '../services/intelligence/activityRisk.service.js';
+import { buildDependencyGraph } from '../services/intelligence/dependencyGraph.service.js';
 
 const router = Router();
 
@@ -63,6 +64,17 @@ router.get('/projects/:id/intelligence/activity-risk', async (req, res) => {
   } catch (err) {
     console.error('[intelligence/activity-risk]', err);
     res.status(500).json({ error: 'Failed to compute activity risk' });
+  }
+});
+
+// GET /api/projects/:id/intelligence/dependency-graph
+router.get('/projects/:id/intelligence/dependency-graph', async (req, res) => {
+  try {
+    const data = await buildDependencyGraph(req.params.id);
+    res.json(data);
+  } catch (err) {
+    console.error('[intelligence/dependency-graph]', err);
+    res.status(500).json({ error: 'Failed to build dependency graph' });
   }
 });
 
