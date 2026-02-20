@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Bot, SendHorizontal, Info, Lightbulb, Zap } from 'lucide-react';
+import { Bot, SendHorizontal, Info, Lightbulb } from 'lucide-react';
 import EmptyState from '../components/ui/EmptyState';
+
+const API = import.meta.env.VITE_API_URL;
 
 const INITIAL_MESSAGES = [
   {
     id: 1,
     role: 'assistant',
-    text: "Hello! I'm your FusionXR AI Assistant. Ask me anything about your project — timelines, HSE reports, documents, and more. Full AI responses are coming soon.",
+    text: "Hello! I'm your FusionXR AI Assistant. Ask me anything about your project — overdue tasks, weekly schedule, cost by phase, safety incidents, and more.",
   },
 ];
 
@@ -24,6 +26,7 @@ export default function AiPage() {
 
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
 
@@ -40,24 +43,49 @@ export default function AiPage() {
     ta.style.height = `${Math.min(ta.scrollHeight, 120)}px`;
   }, [input]);
 
-  const sendMessage = () => {
-    const text = input.trim();
-    if (!text) return;
+  const sendMessage = async () => {
+    const question = input.trim();
+    if (!question || loading) return;
 
-    setMessages((prev) => [...prev, { id: Date.now(), role: 'user', text }]);
+    setMessages((prev) => [...prev, { id: Date.now(), role: 'user', text: question }]);
     setInput('');
+    setLoading(true);
 
-    // Placeholder assistant reply (no real AI call)
-    setTimeout(() => {
+    try {
+      const response = await fetch(`${API}/api/ai/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, question }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Request failed');
+      }
+
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now() + 1,
           role: 'assistant',
-          text: 'AI integration coming soon. This feature will be powered by an LLM in a future phase.',
+          intent: result.intent,
+          data: result.data,
         },
       ]);
-    }, 600);
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          role: 'assistant',
+          text: `Error: ${err.message}`,
+          isError: true,
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -90,9 +118,6 @@ export default function AiPage() {
           <h1 className="text-lg font-semibold text-textpri leading-tight">AI Assistant</h1>
           <p className="text-sm text-textsec truncate">Project: {projectId}</p>
         </div>
-        <span className="hidden sm:inline-flex items-center px-2.5 py-1 text-xs font-medium bg-amber-50 text-amber-600 rounded-full border border-amber-100">
-          Coming Soon
-        </span>
       </div>
 
       {/* ── Chat layout ── */}
@@ -125,13 +150,39 @@ export default function AiPage() {
                   className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                     msg.role === 'user'
                       ? 'bg-brand text-white rounded-tr-sm'
+                      : msg.isError
+                      ? 'bg-red-50 text-red-700 rounded-tl-sm border border-red-100'
                       : 'bg-gray-50 text-textpri rounded-tl-sm border border-gray-100'
                   }`}
                 >
-                  {msg.text}
+                  {msg.text && <span>{msg.text}</span>}
+                  {msg.intent && (
+                    <span className="block text-xs text-textsec mb-1 font-medium uppercase tracking-wide">
+                      {msg.intent.replace(/_/g, ' ')}
+                    </span>
+                  )}
+                  {msg.data !== undefined && (
+                    <pre className="mt-1 text-xs overflow-x-auto whitespace-pre-wrap break-words">
+                      {typeof msg.data === 'string'
+                        ? msg.data
+                        : JSON.stringify(msg.data, null, 2)}
+                    </pre>
+                  )}
                 </div>
               </div>
             ))}
+            {/* Loading indicator */}
+            {loading && (
+              <div className="flex gap-2 flex-row">
+                <div className="w-8 h-8 rounded-full bg-brand/10 grid place-items-center shrink-0 mt-0.5">
+                  <Bot className="w-4 h-4 text-brand" />
+                </div>
+                <div className="max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed bg-gray-50 text-textsec rounded-tl-sm border border-gray-100">
+                  Thinking…
+                </div>
+              </div>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
 
@@ -149,7 +200,7 @@ export default function AiPage() {
               />
               <button
                 onClick={sendMessage}
-                disabled={!input.trim()}
+                disabled={!input.trim() || loading}
                 aria-label="Send message"
                 className="shrink-0 w-10 h-10 rounded-xl bg-brand text-white grid place-items-center hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
@@ -207,19 +258,6 @@ export default function AiPage() {
             </div>
           </div>
 
-          {/* Coming-soon notice */}
-          <div className="bg-amber-50 rounded-2xl border border-amber-100 p-4">
-            <div className="flex items-start gap-2">
-              <Zap className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-              <div>
-                <p className="text-xs font-semibold text-amber-700 mb-1">AI Integration</p>
-                <p className="text-xs text-amber-600 leading-relaxed">
-                  Full AI responses will be available in the next phase. All responses are currently
-                  mocked.
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
