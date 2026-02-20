@@ -106,6 +106,9 @@ app.get('/blobs', async (req, res) => {
   }
 });
 
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api/dev/intelligence', intelligenceDevRoutes);
+}
 // Routes
 app.use('/api', authRoutes);
 app.use('/api', projectRoutes);
@@ -135,9 +138,7 @@ app.use('/api', intelligenceRoutes);
 // DEV ONLY — Intelligence debug console routes.
 // Completely absent in production; safe to remove along with routes/dev/ and
 // controllers/dev/ to strip the feature entirely.
-if (process.env.NODE_ENV !== 'production') {
-  app.use('/api/dev/intelligence', intelligenceDevRoutes);
-}
+
 
 // Billing (after webhook + parsers)
 app.use('/api/billing', billingRoutes);
