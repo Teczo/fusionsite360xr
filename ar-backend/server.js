@@ -27,6 +27,7 @@ import mediaRoutes from './routes/media.js';
 import documentRoutes from './routes/documents.js';
 import scheduleRoutes from './routes/schedule.js';
 import intelligenceRoutes from './routes/intelligence.js';
+import intelligenceDevRoutes from './routes/dev/intelligenceDevRoutes.js';
 
 import requireActiveSubscription from './middleware/requireActiveSubscription.js';
 import authMiddleware from './middleware/authMiddleware.js';
@@ -126,6 +127,13 @@ app.use('/api', mediaRoutes);
 app.use('/api', documentRoutes);
 app.use('/api', scheduleRoutes);
 app.use('/api', intelligenceRoutes);
+
+// DEV ONLY — Intelligence debug console routes.
+// Completely absent in production; safe to remove along with routes/dev/ and
+// controllers/dev/ to strip the feature entirely.
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api/dev/intelligence', intelligenceDevRoutes);
+}
 
 // Billing (after webhook + parsers)
 app.use('/api/billing', billingRoutes);

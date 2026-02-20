@@ -18,6 +18,7 @@ import FilesPage from "./pages/FilesPage";
 import AiPage from "./pages/AiPage";
 import { RoleProvider } from './components/hooks/useRole';
 import AppLayout from './layouts/AppLayout';
+import DevIntelligence from './pages/DevIntelligence';
 
 const RequireAuth = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -51,6 +52,9 @@ export default function App() {
         <Route path="/billing" element={<Navigate to="/dashboard/billing" replace />} />
         <Route path="/profile" element={<Navigate to="/dashboard/profile" replace />} />
         <Route path="/studio" element={<RequireAuth><StudioPage /></RequireAuth>} />
+
+        {/* Dev debug console — direct URL access only, not in navigation */}
+        <Route path="/dev/intelligence" element={<DevIntelligence />} />
 
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/signin" replace />} />
