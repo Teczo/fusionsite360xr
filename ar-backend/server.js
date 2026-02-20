@@ -28,6 +28,7 @@ import documentRoutes from './routes/documents.js';
 import scheduleRoutes from './routes/schedule.js';
 import intelligenceRoutes from './routes/intelligence.js';
 import intelligenceDevRoutes from './routes/dev/intelligenceDevRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
 
 import requireActiveSubscription from './middleware/requireActiveSubscription.js';
 import authMiddleware from './middleware/authMiddleware.js';
@@ -134,6 +135,7 @@ app.use('/api', mediaRoutes);
 app.use('/api', documentRoutes);
 app.use('/api', scheduleRoutes);
 app.use('/api', intelligenceRoutes);
+app.use('/api/ai', aiRoutes);
 
 // DEV ONLY — Intelligence debug console routes.
 // Completely absent in production; safe to remove along with routes/dev/ and
