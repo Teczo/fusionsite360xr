@@ -14,8 +14,26 @@ const MS_PER_DAY = 1000 * 60 * 60 * 24;
 //
 // All three cases propagate the same integer delay forward through the graph.
 export async function simulateCascadingDelay(projectId, activityId, delayDays) {
+  // ── DEBUG START ──────────────────────────────────────────────────────────────
+  console.log("----- SIMULATION DEBUG START -----");
+  console.log("Incoming projectId:", projectId);
+  console.log("Incoming activityId:", activityId);
+  console.log("Incoming delayDays:", delayDays);
+
+  if (!mongoose.Types.ObjectId.isValid(projectId)) {
+    console.error("Invalid projectId format:", projectId);
+  }
+  if (!mongoose.Types.ObjectId.isValid(activityId)) {
+    console.warn("ActivityId is not a valid ObjectId (may be using logical activityId):", activityId);
+  }
+  // ── DEBUG END ────────────────────────────────────────────────────────────────
+
   const pid = new mongoose.Types.ObjectId(projectId);
+  console.log("Converted projectId ObjectId:", pid.toString());
   const allActivities = await ScheduleActivity.find({ projectId: pid }).lean();
+  console.log("Total activities fetched for project:", allActivities.length);
+  console.log("Fetched activity IDs (_id):", allActivities.map(a => String(a._id)));
+  console.log("Fetched activity activityId fields:", allActivities.map(a => a.activityId));
 
   if (!allActivities.length) {
     return { impactedActivities: [], totalProjectDelay: 0 };
@@ -26,6 +44,14 @@ export async function simulateCascadingDelay(projectId, activityId, delayDays) {
   for (const act of allActivities) {
     activityMap.set(act.activityId, act);
   }
+
+  // Direct Atlas _id lookup — confirms document is reachable under current connection
+  const directCheck = await ScheduleActivity.findOne({
+    _id: mongoose.Types.ObjectId.isValid(activityId)
+      ? new mongoose.Types.ObjectId(activityId)
+      : null,
+  }).lean();
+  console.log("Direct _id lookup result:", directCheck ? "FOUND" : "NOT FOUND");
 
   // Build adjacency: activityId → successorActivityIds[]
   // Each activity stores its own successors array.
@@ -77,6 +103,8 @@ export async function simulateCascadingDelay(projectId, activityId, delayDays) {
   }
 
   // Validate root activity exists
+  console.log("Checking if activityMap has key:", String(activityId));
+  console.log("ActivityMap keys:", Array.from(activityMap.keys()));
   if (!activityMap.has(activityId)) {
     throw new Error(`Activity not found: ${activityId}`);
   }

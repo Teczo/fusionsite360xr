@@ -66,7 +66,11 @@ app.use(express.text({ type: 'text/plain' }));
 
 // DB
 mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ MongoDB connected'))
+  .then(() => {
+    console.log('✅ MongoDB connected');
+    console.log("Connected Mongo DB Name:", mongoose.connection.name);
+    console.log("Mongo Host:", mongoose.connection.host);
+  })
   .catch((err) => console.error(err));
 
 // Azure
