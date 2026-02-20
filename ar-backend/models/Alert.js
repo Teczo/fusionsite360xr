@@ -8,6 +8,8 @@ const alertSchema = new mongoose.Schema({
     enum: ['Critical', 'Warning', 'Info'],
     required: true,
   },
+  // MIGRATION: default '' preserves compatibility with legacy documents that pre-date this field being required.
+  activityId: { type: String, required: true, default: '' },
   source: {
     type: String,
     enum: ['manual', 'iot'],
@@ -15,7 +17,7 @@ const alertSchema = new mongoose.Schema({
   },
   date: { type: Date, required: true },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-}, { timestamps: true });
+}, { strict: true, timestamps: true });
 
 alertSchema.index({ projectId: 1, date: -1 });
 
