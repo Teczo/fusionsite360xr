@@ -156,17 +156,58 @@ export default function AiPage() {
                   }`}
                 >
                   {msg.text && <span>{msg.text}</span>}
-                  {msg.intent && (
-                    <span className="block text-xs text-textsec mb-1 font-medium uppercase tracking-wide">
+                  {msg.intent && msg.intent !== 'unknown' && (
+                    <span className="block text-xs text-textsec mb-2 font-medium uppercase tracking-wide">
                       {msg.intent.replace(/_/g, ' ')}
                     </span>
                   )}
                   {msg.data !== undefined && (
-                    <pre className="mt-1 text-xs overflow-x-auto whitespace-pre-wrap break-words">
-                      {typeof msg.data === 'string'
-                        ? msg.data
-                        : JSON.stringify(msg.data, null, 2)}
-                    </pre>
+                    Array.isArray(msg.data) ? (
+                      msg.data.length === 0 ? (
+                        <p className="mt-1 text-xs text-textsec italic">No records found.</p>
+                      ) : (
+                        <div className="mt-1 overflow-x-auto">
+                          <table className="text-xs border-collapse w-full">
+                            <thead>
+                              <tr>
+                                {Object.keys(msg.data[0]).map((col) => (
+                                  <th
+                                    key={col}
+                                    className="text-left px-2 py-1 bg-gray-100 border border-gray-200 font-semibold text-textpri capitalize whitespace-nowrap"
+                                  >
+                                    {col.replace(/([A-Z])/g, ' $1').trim()}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {msg.data.map((row, i) => (
+                                <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                  {Object.values(row).map((val, j) => (
+                                    <td
+                                      key={j}
+                                      className="px-2 py-1 border border-gray-200 text-textsec whitespace-nowrap"
+                                    >
+                                      {val instanceof Date
+                                        ? new Date(val).toLocaleDateString()
+                                        : typeof val === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(val)
+                                        ? new Date(val).toLocaleDateString()
+                                        : String(val ?? '—')}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )
+                    ) : typeof msg.data === 'string' ? (
+                      <p className="mt-1 text-xs text-textsec italic">{msg.data}</p>
+                    ) : (
+                      <pre className="mt-1 text-xs overflow-x-auto whitespace-pre-wrap break-words">
+                        {JSON.stringify(msg.data, null, 2)}
+                      </pre>
+                    )
                   )}
                 </div>
               </div>
