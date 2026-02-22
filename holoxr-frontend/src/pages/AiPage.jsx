@@ -52,13 +52,44 @@ export default function AiPage() {
     setLoading(true);
 
     try {
+      const token = localStorage.getItem('token');
+
+      if (!token) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now() + 1,
+            role: 'assistant',
+            text: 'Authentication error: Please log in again.',
+            isError: true,
+          },
+        ]);
+        return;
+      }
+
       const response = await fetch(`${API}/api/ai/query`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
         body: JSON.stringify({ projectId, question }),
       });
 
       const result = await response.json();
+
+      if (response.status === 401) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now() + 1,
+            role: 'assistant',
+            text: 'Session expired. Please log in again.',
+            isError: true,
+          },
+        ]);
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(result.error || 'Request failed');
