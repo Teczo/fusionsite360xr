@@ -159,7 +159,7 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
 
 
 
-                {/* DoF Post Processing 
+                {/* DoF Post Processing
                 <PostFX enabled={dofEnabled} settings={dofSettings} focusWorldDistance={focusWorldDistance} />*/}
 
                 <OrbitControls
@@ -224,25 +224,15 @@ function formatTimestampForFilename(d = new Date()) {
     return `${yyyy}${mm}${dd}_${hh}${mi}${ss}`;
 }
 
-function extractElementGuid(obj) {
-    if (!obj) return null;
-    if (obj.userData?.elementGuid) return obj.userData.elementGuid;
-    const name = obj.name || '';
-    // IFC compact GUID (22 chars: letters, digits, $, _)
-    if (/^[0-9A-Za-z$_]{22}$/.test(name)) return name;
-    // UUID format (36 chars with dashes)
-    if (/^[0-9a-f-]{36}$/i.test(name)) return name;
-    // Walk up parent chain (stop at Scene root)
-    if (obj.parent && obj.parent.type !== 'Scene') return extractElementGuid(obj.parent);
-    return null;
-}
-
 function SceneContent({ models, onFocusDistance, selectedId, onSelect, activeTool, onBimElementSelect }) {
     const rootRef = useRef();
     const { camera } = useThree();
 
     // store original emissive so we can restore cleanly
     const originalRef = useRef(new Map());
+
+    // track currently BIM-highlighted meshes so we can reset them
+    const bimHighlightRef = useRef([]);
 
     const categorize = (name = "") => {
         const s = name.toLowerCase();
@@ -260,6 +250,39 @@ function SceneContent({ models, onFocusDistance, selectedId, onSelect, activeToo
         return n === 0 ? "Healthy" : n === 1 ? "Maintenance" : "Offline";
     };
 
+    // Save original emissive for a material (once)
+    const saveOriginal = (m) => {
+        if (!originalRef.current.has(m)) {
+            originalRef.current.set(m, {
+                emissive: m.emissive ? m.emissive.clone() : new THREE.Color(0x000000),
+                emissiveIntensity: typeof m.emissiveIntensity === "number" ? m.emissiveIntensity : 0,
+            });
+        }
+    };
+
+    // Reset a single material to its saved original
+    const resetMaterial = (m) => {
+        if (!m) return;
+        const orig = originalRef.current.get(m);
+        if (orig && m.emissive) {
+            m.emissive.copy(orig.emissive);
+            m.emissiveIntensity = orig.emissiveIntensity;
+            m.needsUpdate = true;
+        }
+    };
+
+    // Reset all meshes in the entire root to original emissive
+    const resetAllHighlights = useCallback(() => {
+        const root = rootRef.current;
+        if (!root) return;
+        root.traverse((obj) => {
+            if (!obj.isMesh) return;
+            const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+            mats.forEach((m) => { if (m) resetMaterial(m); });
+        });
+        bimHighlightRef.current = [];
+    }, []);
+
     const applyTint = (group, enabled) => {
         if (!group) return;
 
@@ -275,12 +298,7 @@ function SceneContent({ models, onFocusDistance, selectedId, onSelect, activeToo
                 if (!m) return;
 
                 // save original emissive once
-                if (!originalRef.current.has(m)) {
-                    originalRef.current.set(m, {
-                        emissive: m.emissive ? m.emissive.clone() : new THREE.Color(0x000000),
-                        emissiveIntensity: typeof m.emissiveIntensity === "number" ? m.emissiveIntensity : 0,
-                    });
-                }
+                saveOriginal(m);
 
                 const orig = originalRef.current.get(m);
 
@@ -308,6 +326,13 @@ function SceneContent({ models, onFocusDistance, selectedId, onSelect, activeToo
         return () => { if (canvas) canvas.style.cursor = ''; };
     }, [activeTool]);
 
+    // Clear BIM highlight when BIM tool is deactivated
+    useEffect(() => {
+        if (activeTool !== 'bim') {
+            resetAllHighlights();
+        }
+    }, [activeTool, resetAllHighlights]);
+
     const handlePick = useCallback(
         (e, model) => {
             e.stopPropagation();
@@ -319,17 +344,34 @@ function SceneContent({ models, onFocusDistance, selectedId, onSelect, activeToo
                 onFocusDistance(dist);
             }
 
-            // BIM tool: extract elementGuid from the clicked mesh
+            // BIM tool: use mesh NAME as identity key (not GUID)
             if (activeTool === 'bim') {
-                const guid = extractElementGuid(e.object);
-                if (guid) {
-                    onBimElementSelect?.(guid);
-                } else {
-                    console.warn('[BIM] No elementGuid found on mesh:', e.object?.name ?? '(unnamed)');
-                    // Fall back to mesh name so the panel can attempt a lookup
-                    onBimElementSelect?.(e.object?.name || model.id);
+                const meshName = e.object?.name || model.id;
+                const normalizedName = meshName.trim().toLowerCase();
+                console.log('[BIM] Picked mesh name:', meshName, '→ normalized:', normalizedName);
+
+                // Reset all previous highlights, then highlight picked mesh
+                resetAllHighlights();
+
+                const pickedMesh = e.object;
+                if (pickedMesh && pickedMesh.isMesh) {
+                    const mats = Array.isArray(pickedMesh.material)
+                        ? pickedMesh.material
+                        : [pickedMesh.material];
+                    mats.forEach((m) => {
+                        if (!m) return;
+                        saveOriginal(m);
+                        if (m.emissive) {
+                            m.emissive.set(0x00ffff);
+                            m.emissiveIntensity = 0.8;
+                            m.needsUpdate = true;
+                        }
+                    });
+                    bimHighlightRef.current = mats.filter(Boolean);
                 }
-                // Apply visual tint via the existing selection path (no asset info panel side-effect)
+
+                onBimElementSelect?.({ name: normalizedName, originalName: meshName });
+                // Mark as bim pick so asset panel doesn't open
                 onSelect?.({ id: model.id, _bimPick: true });
                 return;
             }
@@ -347,7 +389,7 @@ function SceneContent({ models, onFocusDistance, selectedId, onSelect, activeToo
 
             onSelect?.(payload);
         },
-        [camera, onFocusDistance, onSelect, activeTool, onBimElementSelect]
+        [camera, onFocusDistance, onSelect, activeTool, onBimElementSelect, resetAllHighlights]
     );
 
     // On selection change, tint only selected model (restore others)
@@ -387,7 +429,6 @@ function SceneContent({ models, onFocusDistance, selectedId, onSelect, activeToo
         </group>
     );
 }
-
 
 
 
@@ -605,4 +646,3 @@ function CameraPresetsController({ request, sceneBox, selectedBox, humanEyeHeigh
 
     return null;
 }
-
