@@ -8,7 +8,7 @@ import { ModelItem } from "../../components/viewer/ARViewerComponents";
 import DoFDevPanel from "../components/dev/DoFDevPanel";
 
 
-export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRequest, onSelectAsset }) {
+export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRequest, onSelectAsset, activeTool, onBimElementSelect }) {
 
     const [published, setPublished] = useState(null);
     const [error, setError] = useState("");
@@ -142,8 +142,11 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
                     selectedId={selectedId}
                     onSelect={(payload) => {
                         setSelectedId(payload.id);
-                        onSelectAsset?.(payload);
+                        // Don't surface asset info panel when picking in BIM mode
+                        if (!payload._bimPick) onSelectAsset?.(payload);
                     }}
+                    activeTool={activeTool}
+                    onBimElementSelect={onBimElementSelect}
                 />
 
 
@@ -221,7 +224,20 @@ function formatTimestampForFilename(d = new Date()) {
     return `${yyyy}${mm}${dd}_${hh}${mi}${ss}`;
 }
 
-function SceneContent({ models, onFocusDistance, selectedId, onSelect }) {
+function extractElementGuid(obj) {
+    if (!obj) return null;
+    if (obj.userData?.elementGuid) return obj.userData.elementGuid;
+    const name = obj.name || '';
+    // IFC compact GUID (22 chars: letters, digits, $, _)
+    if (/^[0-9A-Za-z$_]{22}$/.test(name)) return name;
+    // UUID format (36 chars with dashes)
+    if (/^[0-9a-f-]{36}$/i.test(name)) return name;
+    // Walk up parent chain (stop at Scene root)
+    if (obj.parent && obj.parent.type !== 'Scene') return extractElementGuid(obj.parent);
+    return null;
+}
+
+function SceneContent({ models, onFocusDistance, selectedId, onSelect, activeTool, onBimElementSelect }) {
     const rootRef = useRef();
     const { camera } = useThree();
 
@@ -285,18 +301,40 @@ function SceneContent({ models, onFocusDistance, selectedId, onSelect }) {
         });
     };
 
+    // Cursor feedback for active tool
+    useEffect(() => {
+        const canvas = document.querySelector('canvas');
+        if (canvas) canvas.style.cursor = activeTool === 'bim' ? 'crosshair' : '';
+        return () => { if (canvas) canvas.style.cursor = ''; };
+    }, [activeTool]);
+
     const handlePick = useCallback(
         (e, model) => {
             e.stopPropagation();
 
-            // Existing focus distance behavior
+            // Focus distance (always)
             const hitPoint = e.point?.clone?.() ?? null;
             if (hitPoint) {
                 const dist = camera.position.distanceTo(hitPoint);
                 onFocusDistance(dist);
             }
 
-            // Selection (wraps entire model group, not just a sub-mesh)
+            // BIM tool: extract elementGuid from the clicked mesh
+            if (activeTool === 'bim') {
+                const guid = extractElementGuid(e.object);
+                if (guid) {
+                    onBimElementSelect?.(guid);
+                } else {
+                    console.warn('[BIM] No elementGuid found on mesh:', e.object?.name ?? '(unnamed)');
+                    // Fall back to mesh name so the panel can attempt a lookup
+                    onBimElementSelect?.(e.object?.name || model.id);
+                }
+                // Apply visual tint via the existing selection path (no asset info panel side-effect)
+                onSelect?.({ id: model.id, _bimPick: true });
+                return;
+            }
+
+            // Normal mode: asset selection
             const payload = {
                 id: model.id,
                 name: model.name || e.object?.name || `Asset ${model.id}`,
@@ -309,7 +347,7 @@ function SceneContent({ models, onFocusDistance, selectedId, onSelect }) {
 
             onSelect?.(payload);
         },
-        [camera, onFocusDistance, onSelect]
+        [camera, onFocusDistance, onSelect, activeTool, onBimElementSelect]
     );
 
     // On selection change, tint only selected model (restore others)

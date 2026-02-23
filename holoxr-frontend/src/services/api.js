@@ -137,3 +137,20 @@ export const scheduleApi = {
 export const userApi = {
   me: () => request('/api/me', { headers: headers() }),
 };
+
+// BIM
+export const bimApi = {
+  upload: (projectId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request(`/api/projects/${projectId}/bim/upload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: formData,
+    });
+  },
+  get: (projectId, elementGuid) =>
+    request(`/api/projects/${projectId}/bim/${encodeURIComponent(elementGuid)}`, {
+      headers: headers(),
+    }),
+};
