@@ -6,8 +6,69 @@ import {
 } from '../intelligence/queryService.js';
 
 import { simulateCascadingDelay } from '../intelligence/simulationService.js';
+import { classifyIntent } from './intentClassifier.js';
 
 export async function routeIntent(projectId, question) {
+  const classification = await classifyIntent(question);
+
+  if (!classification) {
+    return fallbackKeywordRouter(projectId, question);
+  }
+
+  const { intent, parameters } = classification;
+
+  switch (intent) {
+    case 'overdue_activities':
+      return {
+        intent,
+        result: await getOverdueActivities(projectId),
+      };
+
+    case 'activities_this_week':
+      return {
+        intent,
+        result: await getActivitiesCompletingThisWeek(projectId),
+      };
+
+    case 'cost_by_phase': {
+      const phase = parameters?.phase || 'Phase 1';
+      return {
+        intent,
+        result: await getCostByPhase(projectId, phase),
+      };
+    }
+
+    case 'cascading_delay':
+      if (!parameters?.activityId || !parameters?.delayDays) {
+        return { intent: 'unknown', result: 'Missing required parameters.' };
+      }
+      return {
+        intent,
+        result: await simulateCascadingDelay(
+          projectId,
+          parameters.activityId,
+          parameters.delayDays
+        ),
+      };
+
+    case 'monthly_incidents': {
+      const now = new Date();
+      return {
+        intent,
+        result: await getMonthlyIncidentCount(
+          projectId,
+          now.getMonth() + 1,
+          now.getFullYear()
+        ),
+      };
+    }
+
+    default:
+      return { intent: 'unknown', result: 'Unable to determine intent' };
+  }
+}
+
+async function fallbackKeywordRouter(projectId, question) {
   const q = question.toLowerCase();
 
   // 1. Overdue activities
