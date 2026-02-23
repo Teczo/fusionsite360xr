@@ -74,23 +74,34 @@ mongoose.connect(process.env.MONGODB_URI)
   })
   .catch((err) => console.error(err));
 
-// Azure
-const blobServiceClient = BlobServiceClient.fromConnectionString(
-  process.env.AZURE_STORAGE_CONNECTION_STRING
-);
-const containerClient = blobServiceClient.getContainerClient('uploads');
+// Azure — guard against missing connection string (would otherwise crash at startup)
+if (!process.env.AZURE_STORAGE_CONNECTION_STRING) {
+  console.error('❌ AZURE_STORAGE_CONNECTION_STRING is not set — file upload/listing will be unavailable');
+}
+const blobServiceClient = process.env.AZURE_STORAGE_CONNECTION_STRING
+  ? BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING)
+  : null;
+const containerClient = blobServiceClient ? blobServiceClient.getContainerClient('uploads') : null;
 
 // Multer
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Files (example public endpoint)
 app.get('/files', async (req, res) => {
-  const files = await File.find().sort({ uploadedAt: -1 });
-  res.json(files);
+  try {
+    const files = await File.find().sort({ uploadedAt: -1 });
+    res.json(files);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to list files' });
+  }
 });
 
 // Blobs (example public endpoint)
 app.get('/blobs', async (req, res) => {
+  if (!containerClient) {
+    return res.status(503).json({ error: 'Azure Storage is not configured' });
+  }
   try {
     const blobs = [];
     for await (const blob of containerClient.listBlobsFlat()) {
@@ -124,7 +135,6 @@ app.use('/api/analytics', analyticsRoutes);
 
 // If you want animations behind subscription too, wrap it the same way
 app.use('/api', animationRoutes);
-app.use('/api/animations', animationRoutes);
 
 // Digital Twin modules (Timeline, HSE, Alerts, S-Curve, Media, Documents)
 app.use('/api', timelineRoutes);
@@ -144,6 +154,14 @@ app.use('/api/ai', aiRoutes);
 
 // Billing (after webhook + parsers)
 app.use('/api/billing', billingRoutes);
+
+// Global error handler — must be last, after all routes
+// Catches: next(err) calls, CORS rejections, and any synchronous throws in middleware
+app.use((err, req, res, next) => {
+  console.error('[Global Error Handler]', err);
+  if (res.headersSent) return next(err);
+  res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+});
 
 // Start
 app.listen(PORT, () => {

@@ -7,6 +7,7 @@ export default function SignInPage() {
     const navigate = useNavigate();
     const [form, setForm] = useState({ email: '', password: '' });
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
 
@@ -16,6 +17,8 @@ export default function SignInPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setLoading(true);
+        setError('');
         try {
             const res = await fetch(`${import.meta.env.VITE_API_URL}/api/signin`, {
                 method: 'POST',
@@ -34,6 +37,8 @@ export default function SignInPage() {
         } catch (err) {
             console.error(err);
             setError('Network error during sign in');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -160,9 +165,10 @@ export default function SignInPage() {
                         {/* Sign In Button */}
                         <button
                             type="submit"
-                            className="btn-login-gradient btn-shimmer"
+                            disabled={loading}
+                            className="btn-login-gradient btn-shimmer disabled:opacity-60 disabled:cursor-not-allowed"
                         >
-                            Sign In
+                            {loading ? 'Signing in…' : 'Sign In'}
                         </button>
                     </form>
 
