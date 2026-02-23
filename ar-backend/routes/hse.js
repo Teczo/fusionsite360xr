@@ -202,7 +202,7 @@ router.post('/projects/:id/hse', auth, requireRole('admin'), async (req, res) =>
     const project = await verifyProject(id, req.userId);
     if (!project) return res.status(404).json({ error: 'Project not found' });
 
-    const { title, description, severity, date } = req.body;
+    const { title, description, severity, date, zoneId, incidentDate } = req.body;
     if (!title || !severity || !date) {
       return res.status(400).json({ error: 'title, severity, and date are required' });
     }
@@ -213,14 +213,19 @@ router.post('/projects/:id/hse', auth, requireRole('admin'), async (req, res) =>
       description: description || '',
       severity,
       date,
+      zoneId: zoneId || '',
+      incidentDate: incidentDate || null,
       createdBy: req.userId,
       computedSeverityWeight: getSeverityWeight(severity),
     });
     await item.save();
-    res.status(201).json(item);
+    return res.status(201).json(item);
   } catch (err) {
     console.error('Failed to create HSE incident:', err);
-    res.status(500).json({ error: 'Failed to create HSE incident' });
+    if (err.name === 'ValidationError' || err.name === 'CastError') {
+      return res.status(400).json({ error: err.message });
+    }
+    return res.status(500).json({ error: 'Failed to create HSE incident' });
   }
 });
 
@@ -235,17 +240,27 @@ router.put('/projects/:id/hse/:hseId', auth, requireRole('admin'), async (req, r
     const project = await verifyProject(id, req.userId);
     if (!project) return res.status(404).json({ error: 'Project not found' });
 
-    const { title, description, severity, date } = req.body;
+    const { title, description, severity, date, zoneId, incidentDate } = req.body;
+    const updateFields = { title, description, severity, date, zoneId, incidentDate };
+
+    // Recalculate computedSeverityWeight whenever severity is changed
+    if (severity !== undefined) {
+      updateFields.computedSeverityWeight = getSeverityWeight(severity);
+    }
+
     const item = await HSE.findOneAndUpdate(
       { _id: hseId, projectId: id },
-      { title, description, severity, date },
+      updateFields,
       { new: true, runValidators: true }
     );
     if (!item) return res.status(404).json({ error: 'HSE incident not found' });
-    res.json(item);
+    return res.json(item);
   } catch (err) {
     console.error('Failed to update HSE incident:', err);
-    res.status(500).json({ error: 'Failed to update HSE incident' });
+    if (err.name === 'ValidationError' || err.name === 'CastError') {
+      return res.status(400).json({ error: err.message });
+    }
+    return res.status(500).json({ error: 'Failed to update HSE incident' });
   }
 });
 
