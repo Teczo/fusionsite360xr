@@ -6,12 +6,12 @@ const STATUS_VALUES = ['Not Started', 'In Progress', 'Completed', 'Delayed', 'On
 // Migration map: normalises legacy status values written before the v2 schema hardening pass.
 // Applied in pre('save') so existing documents are migrated on their next write.
 const STATUS_MIGRATION_MAP = {
-  'Planning':        'Not Started',
-  'Active':          'In Progress',
-  'Behind Schedule': 'Delayed',
-  'Late':            'Delayed',
-  'Done':            'Completed',
-  'Ongoing':         'In Progress',
+    'Planning': 'Not Started',
+    'Active': 'In Progress',
+    'Behind Schedule': 'Delayed',
+    'Late': 'Delayed',
+    'Done': 'Completed',
+    'Ongoing': 'In Progress',
 };
 
 const projectSchema = new mongoose.Schema({
@@ -42,10 +42,29 @@ const projectSchema = new mongoose.Schema({
 }, { strict: true, timestamps: true });
 
 // Normalise legacy status values before validation so existing documents are never rejected.
-projectSchema.pre('save', function (next) {
+projectSchema.pre('validate', function (next) {
     if (this.status && STATUS_MIGRATION_MAP[this.status]) {
         this.status = STATUS_MIGRATION_MAP[this.status];
     }
+    next();
+});
+
+// Also normalise legacy status values for update operations
+projectSchema.pre(['findOneAndUpdate', 'updateOne', 'updateMany'], function (next) {
+    const update = this.getUpdate();
+
+    if (!update) return next();
+
+    // Handle direct status update
+    if (update.status && STATUS_MIGRATION_MAP[update.status]) {
+        update.status = STATUS_MIGRATION_MAP[update.status];
+    }
+
+    // Handle $set operator
+    if (update.$set?.status && STATUS_MIGRATION_MAP[update.$set.status]) {
+        update.$set.status = STATUS_MIGRATION_MAP[update.$set.status];
+    }
+
     next();
 });
 
