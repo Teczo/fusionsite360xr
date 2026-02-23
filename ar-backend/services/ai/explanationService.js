@@ -21,6 +21,7 @@ Do not repeat raw JSON unless necessary.
 Be concise and factual.`;
 
 export async function generateExplanation(intent, structuredData) {
+  console.log("Calling OpenAI explanation...");
   try {
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -35,6 +36,10 @@ export async function generateExplanation(intent, structuredData) {
     });
     return response.choices[0].message.content.trim();
   } catch (err) {
+    if (err.status === 429) {
+      console.warn("OpenAI quota exceeded — returning structured data only.");
+      return null;
+    }
     console.error('[LLM Explanation Error]', err);
     return null;
   }
