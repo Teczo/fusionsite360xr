@@ -29,6 +29,7 @@ import scheduleRoutes from './routes/schedule.js';
 import intelligenceRoutes from './routes/intelligence.js';
 import intelligenceDevRoutes from './routes/dev/intelligenceDevRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
+import bimRoutes from './routes/bim.js';
 
 import requireActiveSubscription from './middleware/requireActiveSubscription.js';
 import authMiddleware from './middleware/authMiddleware.js';
@@ -136,7 +137,7 @@ app.use('/api/analytics', analyticsRoutes);
 // If you want animations behind subscription too, wrap it the same way
 app.use('/api', animationRoutes);
 
-// Digital Twin modules (Timeline, HSE, Alerts, S-Curve, Media, Documents)
+// Digital Twin modules (Timeline, HSE, Alerts, S-Curve, Media, Documents, BIM)
 app.use('/api', timelineRoutes);
 app.use('/api', hseRoutes);
 app.use('/api', alertRoutes);
@@ -144,6 +145,7 @@ app.use('/api', scurveRoutes);
 app.use('/api', mediaRoutes);
 app.use('/api', documentRoutes);
 app.use('/api', scheduleRoutes);
+app.use('/api', bimRoutes);
 app.use('/api', intelligenceRoutes);
 app.use('/api/ai', aiRoutes);
 

@@ -1,15 +1,32 @@
 import mongoose from 'mongoose';
 
-const STATUS_VALUES = ['Not Started', 'In Progress', 'Completed', 'Delayed', 'On Hold'];
+const { ObjectId } = mongoose.Schema.Types;
 
 const BIMComponentSchema = new mongoose.Schema({
-  projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', required: true, index: true },
-  zoneId: { type: String, required: true },
-  componentId: { type: String },
-  name: { type: String },
-  type: { type: String },
-  status: { type: String, enum: STATUS_VALUES, default: 'Not Started' },
-  properties: { type: mongoose.Schema.Types.Mixed },
-}, { strict: true, timestamps: true });
+  projectId:              { type: ObjectId, ref: 'Project', required: true },
+  element_guid:           { type: String, required: true },
+  model_id:               { type: String },
+  element_name:           { type: String },
+  category:               { type: String },
+  subcategory:            { type: String },
+  discipline:             { type: String },
+  phase:                  { type: String },
+  level_zone:             { type: String },
+  volume_m3:              { type: Number },
+  area_m2:                { type: Number },
+  length_m:               { type: Number },
+  material:               { type: String },
+  weight_kg:              { type: Number },
+  planned_start:          { type: Date },
+  planned_finish:         { type: Date },
+  actual_start:           { type: Date },
+  actual_finish:          { type: Date },
+  status:                 { type: String },
+  responsible_contractor: { type: String },
+  work_package_id:        { type: String },
+  mep_density_score:      { type: Number },
+}, { timestamps: true });
+
+BIMComponentSchema.index({ projectId: 1, element_guid: 1 }, { unique: true });
 
 export default mongoose.model('BIMComponent', BIMComponentSchema);

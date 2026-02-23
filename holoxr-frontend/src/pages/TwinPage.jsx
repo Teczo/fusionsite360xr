@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { Maximize2, Minimize2, Camera, Eye } from "lucide-react";
 import ScenePreviewCanvas from "./components/ScenePreviewCanvas";
+import TwinToolbar from "../components/twin/TwinToolbar";
+import BimMetadataPanel from "../components/twin/BimMetadataPanel";
 
 const CAMERA_PRESETS = ["overview", "top", "side", "ground"];
 
@@ -21,6 +23,9 @@ export default function TwinPage() {
     const [captureRequest, setCaptureRequest] = useState({ nonce: 0 });
     const [selectedAsset, setSelectedAsset] = useState(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
+
+    const [activeTool, setActiveTool] = useState(null);
+    const [selectedElementGuid, setSelectedElementGuid] = useState(null);
 
     const containerRef = useRef(null);
 
@@ -45,6 +50,16 @@ export default function TwinPage() {
         }
     };
 
+    const handleToolChange = (tool) => {
+        setActiveTool(tool);
+        if (!tool) setSelectedElementGuid(null);
+    };
+
+    const handleBimPanelClose = () => {
+        setSelectedElementGuid(null);
+        setActiveTool(null);
+    };
+
     if (!projectId) {
         return (
             <div className="h-full w-full flex items-center justify-center bg-gray-950">
@@ -66,6 +81,8 @@ export default function TwinPage() {
                 cameraRequest={cameraRequest}
                 captureRequest={captureRequest}
                 onSelectAsset={setSelectedAsset}
+                activeTool={activeTool}
+                onBimElementSelect={setSelectedElementGuid}
             />
 
             {/* ── Overlay: camera preset strip + action buttons ── */}
@@ -107,8 +124,18 @@ export default function TwinPage() {
                 </div>
             </div>
 
-            {/* ── Asset info panel (bottom-left when an asset is selected) ── */}
-            {selectedAsset && (
+            {/* ── Floating toolbar (bottom-center) ── */}
+            <TwinToolbar activeTool={activeTool} onToolChange={handleToolChange} />
+
+            {/* ── BIM metadata panel (slides in from right) ── */}
+            <BimMetadataPanel
+                projectId={projectId}
+                elementGuid={selectedElementGuid}
+                onClose={handleBimPanelClose}
+            />
+
+            {/* ── Asset info panel (bottom-left when an asset is selected in normal mode) ── */}
+            {selectedAsset && activeTool !== 'bim' && (
                 <div className="absolute bottom-4 left-4 z-10 bg-black/60 backdrop-blur-sm border border-white/10 rounded-xl p-3 min-w-[200px] max-w-[280px]">
                     <div className="flex items-start justify-between gap-2 mb-1.5">
                         <span className="text-sm font-semibold text-white leading-tight">
