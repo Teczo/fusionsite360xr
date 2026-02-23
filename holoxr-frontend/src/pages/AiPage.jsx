@@ -102,6 +102,7 @@ export default function AiPage() {
           role: 'assistant',
           intent: result.intent,
           data: result.data,
+          explanation: result.explanation ?? null,
         },
       ]);
     } catch (err) {
@@ -191,6 +192,9 @@ export default function AiPage() {
                     <span className="block text-xs text-textsec mb-2 font-medium uppercase tracking-wide">
                       {msg.intent.replace(/_/g, ' ')}
                     </span>
+                  )}
+                  {msg.explanation && (
+                    <p className="mt-1 mb-2 text-sm text-textpri leading-relaxed">{msg.explanation}</p>
                   )}
                   {msg.data !== undefined && (
                     Array.isArray(msg.data) ? (
