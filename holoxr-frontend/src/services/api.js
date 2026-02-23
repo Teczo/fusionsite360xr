@@ -149,6 +149,12 @@ export const bimApi = {
       body: formData,
     });
   },
+  // NAME-BASED lookup (primary)
+  getByName: (projectId, elementName) =>
+    request(`/api/projects/${projectId}/bim/by-name/${encodeURIComponent(elementName)}`, {
+      headers: headers(),
+    }),
+  // GUID-based lookup (legacy)
   get: (projectId, elementGuid) =>
     request(`/api/projects/${projectId}/bim/${encodeURIComponent(elementGuid)}`, {
       headers: headers(),

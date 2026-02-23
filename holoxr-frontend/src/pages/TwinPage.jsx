@@ -25,7 +25,8 @@ export default function TwinPage() {
     const [isFullscreen, setIsFullscreen] = useState(false);
 
     const [activeTool, setActiveTool] = useState(null);
-    const [selectedElementGuid, setSelectedElementGuid] = useState(null);
+    // { name: string (normalized), originalName: string } | null
+    const [selectedElement, setSelectedElement] = useState(null);
 
     const containerRef = useRef(null);
 
@@ -52,11 +53,11 @@ export default function TwinPage() {
 
     const handleToolChange = (tool) => {
         setActiveTool(tool);
-        if (!tool) setSelectedElementGuid(null);
+        if (!tool) setSelectedElement(null);
     };
 
     const handleBimPanelClose = () => {
-        setSelectedElementGuid(null);
+        setSelectedElement(null);
         setActiveTool(null);
     };
 
@@ -82,7 +83,7 @@ export default function TwinPage() {
                 captureRequest={captureRequest}
                 onSelectAsset={setSelectedAsset}
                 activeTool={activeTool}
-                onBimElementSelect={setSelectedElementGuid}
+                onBimElementSelect={setSelectedElement}
             />
 
             {/* ── Overlay: camera preset strip + action buttons ── */}
@@ -130,7 +131,7 @@ export default function TwinPage() {
             {/* ── BIM metadata panel (slides in from right) ── */}
             <BimMetadataPanel
                 projectId={projectId}
-                elementGuid={selectedElementGuid}
+                selected={selectedElement}
                 onClose={handleBimPanelClose}
             />
 

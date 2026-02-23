@@ -34,15 +34,23 @@ function Section({ title, children }) {
   );
 }
 
-export default function BimMetadataPanel({ projectId, elementGuid, onClose }) {
+/**
+ * BimMetadataPanel
+ *
+ * Props:
+ *   projectId  – string
+ *   selected   – { name: string, originalName: string } | null
+ *   onClose    – () => void
+ */
+export default function BimMetadataPanel({ projectId, selected, onClose }) {
   const [component, setComponent] = useState(null);
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
-  const isOpen = Boolean(elementGuid);
+  const isOpen = Boolean(selected);
 
   useEffect(() => {
-    if (!elementGuid || !projectId) {
+    if (!selected?.name || !projectId) {
       setComponent(null);
       setNotFound(false);
       return;
@@ -52,7 +60,9 @@ export default function BimMetadataPanel({ projectId, elementGuid, onClose }) {
     setNotFound(false);
     setComponent(null);
 
-    bimApi.get(projectId, elementGuid)
+    console.log('[BIM] Panel lookup by name:', selected.name);
+
+    bimApi.getByName(projectId, selected.name)
       .then((data) => {
         setComponent(data);
       })
@@ -65,7 +75,7 @@ export default function BimMetadataPanel({ projectId, elementGuid, onClose }) {
         }
       })
       .finally(() => setLoading(false));
-  }, [projectId, elementGuid]);
+  }, [projectId, selected?.name]);
 
   return (
     <div
@@ -96,21 +106,32 @@ export default function BimMetadataPanel({ projectId, elementGuid, onClose }) {
         )}
 
         {!loading && notFound && (
-          <div className="px-4 py-8 text-center text-white/40 text-sm">
-            No BIM metadata available for this element.
+          <div className="px-4 py-6">
+            <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-4 text-xs space-y-2">
+              <div className="text-white/70 font-semibold text-sm">Selected Element</div>
+              <div className="flex justify-between items-start gap-2 py-0.5">
+                <span className="text-white/50 shrink-0">Name</span>
+                <span className="text-white font-medium text-right break-all">
+                  {selected?.originalName || selected?.name || '—'}
+                </span>
+              </div>
+              <div className="text-white/40 pt-1 border-t border-white/10">
+                No BIM metadata available for this element.
+              </div>
+            </div>
           </div>
         )}
 
         {!loading && component && (
           <>
             <Section title="General">
-              <MetaRow label="Name"       value={component.element_name} />
-              <MetaRow label="GUID"       value={component.element_guid} />
-              <MetaRow label="Category"   value={component.category} />
+              <MetaRow label="Name"        value={component.element_name} />
+              <MetaRow label="GUID"        value={component.element_guid} />
+              <MetaRow label="Category"    value={component.category} />
               <MetaRow label="Subcategory" value={component.subcategory} />
-              <MetaRow label="Discipline" value={component.discipline} />
-              <MetaRow label="Phase"      value={component.phase} />
-              <MetaRow label="Level/Zone" value={component.level_zone} />
+              <MetaRow label="Discipline"  value={component.discipline} />
+              <MetaRow label="Phase"       value={component.phase} />
+              <MetaRow label="Level/Zone"  value={component.level_zone} />
             </Section>
 
             <Section title="Geometry">
@@ -130,9 +151,9 @@ export default function BimMetadataPanel({ projectId, elementGuid, onClose }) {
             </Section>
 
             <Section title="Execution">
-              <MetaRow label="Contractor"       value={component.responsible_contractor} />
-              <MetaRow label="Work Package"     value={component.work_package_id} />
-              <MetaRow label="MEP Density"      value={fmtNum(component.mep_density_score)} />
+              <MetaRow label="Contractor"   value={component.responsible_contractor} />
+              <MetaRow label="Work Package" value={component.work_package_id} />
+              <MetaRow label="MEP Density"  value={fmtNum(component.mep_density_score)} />
             </Section>
           </>
         )}

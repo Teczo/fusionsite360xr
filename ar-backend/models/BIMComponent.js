@@ -4,9 +4,9 @@ const { ObjectId } = mongoose.Schema.Types;
 
 const BIMComponentSchema = new mongoose.Schema({
   projectId:              { type: ObjectId, ref: 'Project', required: true },
-  element_guid:           { type: String, required: true },
+  element_guid:           { type: String },
   model_id:               { type: String },
-  element_name:           { type: String },
+  element_name:           { type: String, required: true },
   category:               { type: String },
   subcategory:            { type: String },
   discipline:             { type: String },
@@ -27,6 +27,10 @@ const BIMComponentSchema = new mongoose.Schema({
   mep_density_score:      { type: Number },
 }, { timestamps: true });
 
-BIMComponentSchema.index({ projectId: 1, element_guid: 1 }, { unique: true });
+// Primary identity: projectId + element_name (NAME-BASED, not GUID-based)
+BIMComponentSchema.index(
+  { projectId: 1, element_name: 1 },
+  { unique: true }
+);
 
 export default mongoose.model('BIMComponent', BIMComponentSchema);
