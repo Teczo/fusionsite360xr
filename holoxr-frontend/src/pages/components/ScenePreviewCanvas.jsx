@@ -137,18 +137,29 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
 
 
 
-                <SceneContent
-                    models={models}
-                    onFocusDistance={setFocusWorldDistance}
-                    selectedId={selectedId}
-                    onSelect={(payload) => {
-                        setSelectedId(payload.id);
-                        // Don't surface asset info panel when picking in BIM mode
-                        if (!payload._bimPick) onSelectAsset?.(payload);
-                    }}
-                    activeTool={activeTool}
-                    onBimElementSelect={onBimElementSelect}
-                />
+                <Selection>
+                    <EffectComposer multisampling={4}>
+                        <Outline
+                            visibleEdgeColor={0x00ffff}
+                            hiddenEdgeColor={0x00ffff}
+                            edgeStrength={5}
+                            blur
+                        />
+                    </EffectComposer>
+                    <SceneContent
+                        models={models}
+                        onFocusDistance={setFocusWorldDistance}
+                        selectedId={selectedId}
+                        onSelect={(payload) => {
+                            setSelectedId(payload.id);
+                            if (!payload._bimPick) onSelectAsset?.(payload);
+                        }}
+                        activeTool={activeTool}
+                        onBimElementSelect={onBimElementSelect}
+                    />
+
+
+                </Selection>
 
 
                 <CameraPresetsController
@@ -225,15 +236,16 @@ function formatTimestampForFilename(d = new Date()) {
     return `${yyyy}${mm}${dd}_${hh}${mi}${ss}`;
 }
 
-function SceneContent({ models, onFocusDistance, selectedId, onSelect, activeTool, onBimElementSelect }) {
+function SceneContent({
+    models,
+    onFocusDistance,
+    selectedId,
+    onSelect,
+    activeTool,
+    onBimElementSelect
+}) {
     const rootRef = useRef();
     const { camera } = useThree();
-
-    // store original emissive so we can restore cleanly
-    const originalRef = useRef(new Map());
-
-    // track currently BIM-highlighted meshes so we can reset them
-    const bimHighlightRef = useRef([]);
 
     const categorize = (name = "") => {
         const s = name.toLowerCase();
@@ -246,184 +258,62 @@ function SceneContent({ models, onFocusDistance, selectedId, onSelect, activeToo
     };
 
     const mockStatus = (id = "") => {
-        // deterministic but "random-looking"
         const n = [...String(id)].reduce((a, c) => a + c.charCodeAt(0), 0) % 3;
         return n === 0 ? "Healthy" : n === 1 ? "Maintenance" : "Offline";
     };
 
-    // Save original emissive for a material (once)
-    const saveOriginal = (m) => {
-        if (!originalRef.current.has(m)) {
-            originalRef.current.set(m, {
-                emissive: m.emissive ? m.emissive.clone() : new THREE.Color(0x000000),
-                emissiveIntensity: typeof m.emissiveIntensity === "number" ? m.emissiveIntensity : 0,
-            });
-        }
-    };
-
-    // Reset a single material to its saved original
-    const resetMaterial = (m) => {
-        if (!m) return;
-        const orig = originalRef.current.get(m);
-        if (orig && m.emissive) {
-            m.emissive.copy(orig.emissive);
-            m.emissiveIntensity = orig.emissiveIntensity;
-            m.needsUpdate = true;
-        }
-    };
-
-    // Reset all meshes in the entire root to original emissive
-    const resetAllHighlights = useCallback(() => {
-        const root = rootRef.current;
-        if (!root) return;
-        root.traverse((obj) => {
-            if (!obj.isMesh) return;
-            const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-            mats.forEach((m) => { if (m) resetMaterial(m); });
-        });
-        bimHighlightRef.current = [];
-    }, []);
-
-    const applyTint = (group, enabled) => {
-        if (!group) return;
-
-        group.traverse((obj) => {
-            if (!obj.isMesh) return;
-            const mat = obj.material;
-            if (!mat) return;
-
-            // handle multi-material
-            const mats = Array.isArray(mat) ? mat : [mat];
-
-            mats.forEach((m) => {
-                if (!m) return;
-
-                // save original emissive once
-                saveOriginal(m);
-
-                const orig = originalRef.current.get(m);
-
-                if (enabled) {
-                    if (m.emissive) {
-                        m.emissive.set(0x2563eb); // subtle blue tint
-                        m.emissiveIntensity = 0.35;
-                    }
-                } else {
-                    if (m.emissive && orig) {
-                        m.emissive.copy(orig.emissive);
-                        m.emissiveIntensity = orig.emissiveIntensity;
-                    }
-                }
-
-                m.needsUpdate = true;
-            });
-        });
-    };
-
-    // Cursor feedback for active tool
+    // Cursor feedback for BIM tool
     useEffect(() => {
-        const canvas = document.querySelector('canvas');
-        if (canvas) canvas.style.cursor = activeTool === 'bim' ? 'crosshair' : '';
-        return () => { if (canvas) canvas.style.cursor = ''; };
+        const canvas = document.querySelector("canvas");
+        if (canvas) {
+            canvas.style.cursor = activeTool === "bim" ? "crosshair" : "";
+        }
+        return () => {
+            if (canvas) canvas.style.cursor = "";
+        };
     }, [activeTool]);
-
-    // Clear BIM highlight when BIM tool is deactivated
-    useEffect(() => {
-        if (activeTool !== 'bim') {
-            resetAllHighlights();
-        }
-    }, [activeTool, resetAllHighlights]);
 
     const handlePick = useCallback(
         (e, model) => {
             e.stopPropagation();
 
-            // Debug logging
-            console.log("Clicked mesh name:", e.object?.name);
-            console.log("Model ID:", model.id);
-            console.log("Model URL:", model.url);
-
-            // Focus distance (always)
+            // Focus distance (for DoF if needed later)
             const hitPoint = e.point?.clone?.() ?? null;
             if (hitPoint) {
                 const dist = camera.position.distanceTo(hitPoint);
                 onFocusDistance(dist);
             }
 
-            // BIM tool: use mesh NAME as identity key (not GUID)
-            if (activeTool === 'bim') {
-                const fileName = model.name; // e.g. Fixed_platform_maintower.glb
-                const baseName = fileName.replace('.glb', '');
+            // ================================
+            // BIM MODE (MODEL-LEVEL MATCHING)
+            // ================================
+            if (activeTool === "bim") {
+                const fileName = model.name;
+                const baseName = fileName.replace(".glb", "");
                 const normalizedName = baseName.trim().toLowerCase();
 
-                console.log('[BIM] Using model-level name:', normalizedName);
+                onSelect?.({ id: model.id, _bimPick: true });
 
                 onBimElementSelect?.({
                     name: normalizedName,
                     originalName: baseName
                 });
-                console.log('[BIM] Picked mesh name:', meshName, '→ normalized:', normalizedName);
 
-                // Reset all previous highlights, then highlight picked mesh
-                resetAllHighlights();
-
-                const pickedMesh = e.object;
-                if (pickedMesh && pickedMesh.isMesh) {
-                    const mats = Array.isArray(pickedMesh.material)
-                        ? pickedMesh.material
-                        : [pickedMesh.material];
-                    mats.forEach((m) => {
-                        if (!m) return;
-                        saveOriginal(m);
-                        if (m.emissive) {
-                            m.emissive.set(0x00ffff);
-                            m.emissiveIntensity = 0.8;
-                            m.needsUpdate = true;
-                        }
-                    });
-                    bimHighlightRef.current = mats.filter(Boolean);
-                }
-
-                onBimElementSelect?.({ name: normalizedName, originalName: meshName });
-                // Mark as bim pick so asset panel doesn't open
-                onSelect?.({ id: model.id, _bimPick: true });
                 return;
             }
 
-            // Normal mode: asset selection
-            const payload = {
-                id: model.id,
-                name: model.name || e.object?.name || `Asset ${model.id}`,
-                type: model.type || "model",
-                category: categorize(model.name || e.object?.name || ""),
-                status: mockStatus(model.id),
-                lastUpdated: new Date().toLocaleString(),
-                hint: "Currently demo data. In production, this binds to your CMMS/IoT/document systems.",
-            };
-
-            onSelect?.(payload);
+            return;
         },
-        [camera, onFocusDistance, onSelect, activeTool, onBimElementSelect, resetAllHighlights]
+        [camera, onFocusDistance, onSelect, activeTool, onBimElementSelect]
     );
-
-
-    // On selection change, tint only selected model (restore others)
-    useEffect(() => {
-        // We tint by finding the selected group's ref via R3F tree:
-        // simplest: traverse root children and match userData.assetId
-        const root = rootRef.current;
-        if (!root) return;
-
-        root.children.forEach((child) => {
-            const assetId = child.userData?.assetId;
-            applyTint(child, assetId && assetId === selectedId);
-        });
-    }, [selectedId]);
 
     return (
         <group ref={rootRef}>
             {models.map((m) => (
-                <Select key={m.id} enabled={selectedId === m.id}>
+                <Select
+                    key={m.id}
+                    enabled={selectedId === m.id}
+                >
                     <group
                         userData={{ assetId: m.id }}
                         onPointerDown={(e) => handlePick(e, m)}
