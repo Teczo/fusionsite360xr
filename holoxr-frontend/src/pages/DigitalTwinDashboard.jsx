@@ -23,7 +23,6 @@ import { toast } from "react-hot-toast";
  */
 export default function DigitalTwinDashboard() {
     const [isTwinFullscreen, setIsTwinFullscreen] = useState(false);
-    const [selectedAsset, setSelectedAsset] = useState(null);
     const [project, setProject] = useState(null);
 
     const fileInputRef = useRef(null);
@@ -204,12 +203,9 @@ export default function DigitalTwinDashboard() {
                             projectId={projectId}
                             cameraRequest={cameraRequest}
                             captureRequest={captureRequest}
-                            onSelectAsset={setSelectedAsset}
                         />
 
-                        <div className="absolute top-4 right-4 z-20">
-                            <AssetInfoPanel asset={selectedAsset} onClear={() => setSelectedAsset(null)} />
-                        </div>
+
 
                         {/* subtle vignette */}
                         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.0)_0%,rgba(0,0,0,0.05)_100%)]" />
@@ -346,11 +342,8 @@ export default function DigitalTwinDashboard() {
                                 projectId={projectId}
                                 cameraRequest={cameraRequest}
                                 captureRequest={captureRequest}
-                                onSelectAsset={setSelectedAsset}
                             />
-                            <div className="absolute top-4 right-4 z-20">
-                                <AssetInfoPanel asset={selectedAsset} onClear={() => setSelectedAsset(null)} />
-                            </div>
+
 
                             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.0)_0%,rgba(0,0,0,0.05)_100%)]" />
                         </div>
@@ -361,74 +354,7 @@ export default function DigitalTwinDashboard() {
     );
 }
 
-function AssetInfoPanel({ asset, onClear, className = "" }) {
-    if (!asset) return null;
 
-    const badge =
-        asset.status === "Healthy"
-            ? "bg-green-50 text-green-700 border-green-200"
-            : asset.status === "Maintenance"
-                ? "bg-amber-50 text-amber-700 border-amber-200"
-                : "bg-red-50 text-red-700 border-red-200";
-
-    return (
-        <div
-            className={
-                "w-[320px] max-w-[calc(100vw-2rem)] rounded-2xl border border-[#E6EAF0] bg-white shadow-sm overflow-hidden " +
-                className
-            }
-        >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#E6EAF0]">
-                <div className="text-sm font-semibold text-[#111827]">Asset Info</div>
-                <button
-                    onClick={onClear}
-                    className="text-xs font-semibold text-[#6B7280] hover:text-[#111827]"
-                >
-                    Clear
-                </button>
-            </div>
-
-            <div className="px-4 py-3 space-y-3">
-                <div>
-                    <div className="text-xs text-[#6B7280]">Asset Name</div>
-                    <div className="text-sm font-semibold text-[#111827]">{asset.name || "—"}</div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                    <div>
-                        <div className="text-xs text-[#6B7280]">Type</div>
-                        <div className="text-sm font-semibold text-[#111827]">{asset.type || "—"}</div>
-                    </div>
-                    <div>
-                        <div className="text-xs text-[#6B7280]">Category</div>
-                        <div className="text-sm font-semibold text-[#111827]">{asset.category || "—"}</div>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 items-end">
-                    <div>
-                        <div className="text-xs text-[#6B7280]">Status</div>
-                        <div className={"inline-flex items-center rounded-xl border px-2 py-1 text-xs font-semibold " + badge}>
-                            {asset.status || "—"}
-                        </div>
-                    </div>
-                    <div>
-                        <div className="text-xs text-[#6B7280]">Last Updated</div>
-                        <div className="text-sm font-semibold text-[#111827]">
-                            {asset.lastUpdated || "—"}
-                        </div>
-                    </div>
-                </div>
-
-                {asset.hint && (
-                    <div className="text-xs text-[#6B7280]">
-                        {asset.hint}
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
 
 
 function CameraPresetBar({ onPreset }) {
