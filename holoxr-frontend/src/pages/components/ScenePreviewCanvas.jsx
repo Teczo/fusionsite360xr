@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { EffectComposer, DepthOfField, Outline, Selection, Select } from "@react-three/postprocessing";
+import { EffectComposer, Outline, Selection, Select } from "@react-three/postprocessing";
 import * as THREE from "three";
 
 import { ModelItem } from "../../components/viewer/ARViewerComponents";
@@ -82,6 +82,25 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
             }));
     }, [published]);
 
+    // Stable callback — new inline arrow function every render would recreate
+    // handlePick inside SceneContent (onSelect is in its useCallback deps).
+    const handleSelect = useCallback(
+        (payload) => {
+            setSelectedId(payload.id);
+            if (!payload._bimPick) onSelectAsset?.(payload);
+        },
+        [onSelectAsset]
+    );
+
+    // Clear outline whenever the BIM tool is deactivated.
+    // This effect depends only on activeTool, not on selectedId, so it
+    // cannot create a feedback loop.
+    useEffect(() => {
+        if (activeTool !== "bim") {
+            setSelectedId(null);
+        }
+    }, [activeTool]);
+
     if (error) {
         return (
             <div className="h-full w-full flex items-center justify-center">
@@ -150,10 +169,7 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
                         models={models}
                         onFocusDistance={setFocusWorldDistance}
                         selectedId={selectedId}
-                        onSelect={(payload) => {
-                            setSelectedId(payload.id);
-                            if (!payload._bimPick) onSelectAsset?.(payload);
-                        }}
+                        onSelect={handleSelect}
                         activeTool={activeTool}
                         onBimElementSelect={onBimElementSelect}
                     />
@@ -338,45 +354,6 @@ function SceneContent({
 
 
 
-function PostFX({ focusWorldDistance }) {
-    const { camera } = useThree();
-
-    // Convert world distance -> normalized 0..1 focusDistance used by DepthOfField
-    // 0 = near plane, 1 = far plane
-    const focusDistance = useMemo(() => {
-        if (focusWorldDistance == null) return 0.15; // default focus
-        const n = camera.near;
-        const f = camera.far;
-        const t = (focusWorldDistance - n) / (f - n);
-        return THREE.MathUtils.clamp(t, 0, 1);
-    }, [focusWorldDistance, camera.near, camera.far]);
-
-    return (
-
-
-        <Selection>
-            <EffectComposer>
-                {dofEnabled && (
-                    <DepthOfField
-                        focusDistance={dofSettings.focusDistance}
-                        focalLength={dofSettings.focalLength}
-                        bokehScale={dofSettings.bokehScale}
-                        height={dofSettings.height}
-                    />
-                )}
-
-                <Outline
-                    edgeStrength={2.5}
-                    pulseSpeed={0.0}
-                    visibleEdgeColor={0x2563eb}
-                    hiddenEdgeColor={0x2563eb}
-                    blur
-                />
-            </EffectComposer>
-        </Selection>
-
-    );
-}
 
 function AutoFitCamera({ targetRef }) {
     const { camera, controls } = useThree();
