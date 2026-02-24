@@ -74,6 +74,7 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
             .filter((it) => it.type === "model" && it.visible !== false && typeof it.url === "string")
             .map((it) => ({
                 id: it.id,
+                name: it.name,
                 url: it.url,
                 transform: it.transform,
                 autoplay: !!it.autoplay,
@@ -337,6 +338,11 @@ function SceneContent({ models, onFocusDistance, selectedId, onSelect, activeToo
         (e, model) => {
             e.stopPropagation();
 
+            // Debug logging
+            console.log("Clicked mesh name:", e.object?.name);
+            console.log("Model ID:", model.id);
+            console.log("Model URL:", model.url);
+
             // Focus distance (always)
             const hitPoint = e.point?.clone?.() ?? null;
             if (hitPoint) {
@@ -346,8 +352,16 @@ function SceneContent({ models, onFocusDistance, selectedId, onSelect, activeToo
 
             // BIM tool: use mesh NAME as identity key (not GUID)
             if (activeTool === 'bim') {
-                const meshName = e.object?.name || model.id;
-                const normalizedName = meshName.trim().toLowerCase();
+                const fileName = model.name; // e.g. Fixed_platform_maintower.glb
+                const baseName = fileName.replace('.glb', '');
+                const normalizedName = baseName.trim().toLowerCase();
+
+                console.log('[BIM] Using model-level name:', normalizedName);
+
+                onBimElementSelect?.({
+                    name: normalizedName,
+                    originalName: baseName
+                });
                 console.log('[BIM] Picked mesh name:', meshName, '→ normalized:', normalizedName);
 
                 // Reset all previous highlights, then highlight picked mesh
@@ -391,6 +405,7 @@ function SceneContent({ models, onFocusDistance, selectedId, onSelect, activeToo
         },
         [camera, onFocusDistance, onSelect, activeTool, onBimElementSelect, resetAllHighlights]
     );
+
 
     // On selection change, tint only selected model (restore others)
     useEffect(() => {

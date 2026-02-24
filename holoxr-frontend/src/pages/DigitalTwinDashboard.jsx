@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 
 import ScenePreviewCanvas from "./components/ScenePreviewCanvas";
@@ -13,6 +13,9 @@ import MapCard from "../components/dashboard/cards/MapCard";
 import WeatherCard from "../components/dashboard/cards/WeatherCard";
 import LocationSetupCard from "../components/dashboard/cards/LocationSetupCard";
 
+import { bimApi } from "../services/api";
+import { toast } from "react-hot-toast";
+
 /**
  * Digital Twin Dashboard (Mock UI + Mock Data)
  * Layout (Sidebar + Header) is provided by AppLayout via routing.
@@ -22,6 +25,29 @@ export default function DigitalTwinDashboard() {
     const [isTwinFullscreen, setIsTwinFullscreen] = useState(false);
     const [selectedAsset, setSelectedAsset] = useState(null);
     const [project, setProject] = useState(null);
+
+    const fileInputRef = useRef(null);
+    const [isUploadingBim, setIsUploadingBim] = useState(false);
+    const handleBimFileChange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file || !projectId) return;
+
+        try {
+            setIsUploadingBim(true);
+
+            const result = await bimApi.upload(projectId, file);
+
+            toast.success(
+                `BIM import successful (${result?.upserted || result?.inserted || 0} components)`
+            );
+        } catch (err) {
+            console.error("BIM upload failed:", err);
+            toast.error("BIM upload failed");
+        } finally {
+            setIsUploadingBim(false);
+            e.target.value = ""; // reset input
+        }
+    };
 
     const [cameraRequest, setCameraRequest] = useState({ type: "overview", nonce: 0 });
     const location = useLocation();
@@ -156,7 +182,22 @@ export default function DigitalTwinDashboard() {
                         >
                             <IconExpand />
                         </button>
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={!projectId || isUploadingBim}
+                            className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-xs font-semibold text-[#374151] hover:bg-[#F9FAFB] transition disabled:opacity-50"
+                            title="Upload BIM CSV"
+                        >
+                            {isUploadingBim ? "Uploading..." : "Upload BIM"}
+                        </button>
                     </div>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".csv"
+                        className="hidden"
+                        onChange={handleBimFileChange}
+                    />
 
                     <div className="relative h-[420px] overflow-hidden rounded-b-2xl bg-gradient-to-b from-[#F9FAFB] to-[#EEF2F7] min-w-0 min-h-0">
                         <ScenePreviewCanvas
