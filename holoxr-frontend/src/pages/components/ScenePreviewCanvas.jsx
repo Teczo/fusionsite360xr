@@ -156,6 +156,7 @@ export default function ScenePreviewCanvas({
     onBimElementSelect,
     // Issue props passed from TwinPage
     issues,
+    selectedIssueId,
     onIssuePinClick,
     pendingIssuePosition,
     setPendingIssuePosition,
@@ -335,6 +336,7 @@ export default function ScenePreviewCanvas({
                         setCurrentPoints={setCurrentPoints}
                         unit={unit}
                         issues={issues ?? []}
+                        selectedIssueId={selectedIssueId}
                         onIssuePinClick={onIssuePinClick}
                         onIssuePlaced={setPendingIssuePosition}
                     />
@@ -442,6 +444,7 @@ function SceneContent({
     setCurrentPoints,
     unit,
     issues,
+    selectedIssueId,
     onIssuePinClick,
     onIssuePlaced,
 }) {
@@ -596,6 +599,7 @@ function SceneContent({
                 <IssuePin
                     key={issue._id}
                     issue={issue}
+                    selected={issue._id === selectedIssueId}
                     onClick={onIssuePinClick}
                 />
             ))}

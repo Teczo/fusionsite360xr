@@ -108,15 +108,36 @@ router.patch('/issues/:issueId', auth, attachRole, async (req, res) => {
       return res.status(403).json({ error: 'Insufficient permissions' });
     }
 
+    const VALID_STATUSES   = ['Not Started', 'In Progress', 'Completed', 'Delayed', 'On Hold'];
+    const VALID_SEVERITIES = ['Critical', 'Warning', 'Info'];
+    const VALID_TYPES      = ['RFI', 'Observation', 'Safety', 'Clash', 'Defect'];
+
     const { title, description, severity, status, type } = req.body;
-    if (title !== undefined) issue.title = title;
+
+    if (title !== undefined) {
+      if (!String(title).trim()) return res.status(400).json({ error: 'title cannot be empty' });
+      issue.title = String(title).trim();
+    }
     if (description !== undefined) issue.description = description;
-    if (severity !== undefined) issue.severity = severity;
+    if (severity !== undefined) {
+      if (!VALID_SEVERITIES.includes(severity)) {
+        return res.status(400).json({ error: `severity must be one of: ${VALID_SEVERITIES.join(', ')}` });
+      }
+      issue.severity = severity;
+    }
     if (status !== undefined) {
+      if (!VALID_STATUSES.includes(status)) {
+        return res.status(400).json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` });
+      }
       issue.status = status;
       if (status === 'Completed') issue.resolvedAt = new Date();
     }
-    if (type !== undefined) issue.type = type;
+    if (type !== undefined) {
+      if (!VALID_TYPES.includes(type)) {
+        return res.status(400).json({ error: `type must be one of: ${VALID_TYPES.join(', ')}` });
+      }
+      issue.type = type;
+    }
 
     await issue.save();
     broadcast(issue.projectId, { type: 'issue_updated', issue });
