@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { Html, OrbitControls } from "@react-three/drei";
 import { EffectComposer, Outline, Selection, Select } from "@react-three/postprocessing";
 import * as THREE from "three";
 
@@ -13,6 +13,8 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
     const [published, setPublished] = useState(null);
     const [error, setError] = useState("");
     const [selectedId, setSelectedId] = useState(null);
+
+    const [measurePoints, setMeasurePoints] = useState([]);
 
     const [selectedBox, setSelectedBox] = useState(null); // THREE.Box3
     const [sceneBox, setSceneBox] = useState(null);       // THREE.Box3
@@ -66,6 +68,12 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
             cancelled = true;
         };
     }, [api, projectId]);
+
+    useEffect(() => {
+        if (activeTool !== "measure") {
+            setMeasurePoints([]);
+        }
+    }, [activeTool]);
 
     const models = useMemo(() => {
         if (!published) return [];
@@ -172,6 +180,8 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
                         onSelect={handleSelect}
                         activeTool={activeTool}
                         onBimElementSelect={onBimElementSelect}
+                        measurePoints={measurePoints}
+                        setMeasurePoints={setMeasurePoints}
                     />
 
 
@@ -258,7 +268,9 @@ function SceneContent({
     selectedId,
     onSelect,
     activeTool,
-    onBimElementSelect
+    onBimElementSelect,
+    measurePoints,
+    setMeasurePoints
 }) {
     const rootRef = useRef();
     const { camera } = useThree();
@@ -282,7 +294,12 @@ function SceneContent({
     useEffect(() => {
         const canvas = document.querySelector("canvas");
         if (canvas) {
-            canvas.style.cursor = activeTool === "bim" ? "crosshair" : "";
+            canvas.style.cursor =
+                activeTool === "bim"
+                    ? "crosshair"
+                    : activeTool === "measure"
+                        ? "crosshair"
+                        : "";
         }
         return () => {
             if (canvas) canvas.style.cursor = "";
@@ -298,6 +315,22 @@ function SceneContent({
             if (hitPoint) {
                 const dist = camera.position.distanceTo(hitPoint);
                 onFocusDistance(dist);
+            }
+
+            // ================================
+            // MEASUREMENT TOOL
+            // ================================
+            if (activeTool === "measure") {
+                const hitPoint = e.point?.clone?.();
+                if (!hitPoint) return;
+
+                setMeasurePoints(prev => {
+                    if (prev.length === 0) return [hitPoint];
+                    if (prev.length === 1) return [prev[0], hitPoint];
+                    return [hitPoint]; // reset after 2 points
+                });
+
+                return;
             }
 
             // ================================
@@ -318,9 +351,15 @@ function SceneContent({
                 return;
             }
 
+
             return;
         },
-        [camera, onFocusDistance, onSelect, activeTool, onBimElementSelect]
+        [camera,
+            onFocusDistance,
+            onSelect,
+            activeTool,
+            onBimElementSelect,
+            setMeasurePoints]
     );
 
     return (
@@ -345,13 +384,61 @@ function SceneContent({
                     </group>
                 </Select>
             ))}
+            {measurePoints.length === 2 && (
+                <MeasurementLine
+                    pointA={measurePoints[0]}
+                    pointB={measurePoints[1]}
+                />
+            )}
 
             <AutoFitCamera targetRef={rootRef} />
         </group>
     );
 }
 
+function MeasurementLine({ pointA, pointB }) {
+    const distance = useMemo(() => {
+        return pointA.distanceTo(pointB);
+    }, [pointA, pointB]);
 
+    const midPoint = useMemo(() => {
+        return new THREE.Vector3()
+            .addVectors(pointA, pointB)
+            .multiplyScalar(0.5);
+    }, [pointA, pointB]);
+
+    const geometry = useMemo(() => {
+        const geo = new THREE.BufferGeometry().setFromPoints([pointA, pointB]);
+        return geo;
+    }, [pointA, pointB]);
+
+    return (
+        <>
+            {/* Line */}
+            <line geometry={geometry}>
+                <lineBasicMaterial color="yellow" linewidth={2} />
+            </line>
+
+            {/* Points */}
+            <mesh position={pointA}>
+                <sphereGeometry args={[0.05, 16, 16]} />
+                <meshBasicMaterial color="red" />
+            </mesh>
+
+            <mesh position={pointB}>
+                <sphereGeometry args={[0.05, 16, 16]} />
+                <meshBasicMaterial color="red" />
+            </mesh>
+
+            {/* Distance Label */}
+            <Html position={midPoint} center>
+                <div className="bg-black text-white text-xs px-2 py-1 rounded">
+                    {distance.toFixed(2)} m
+                </div>
+            </Html>
+        </>
+    );
+}
 
 
 
