@@ -1,58 +1,122 @@
-import { useMemo } from 'react';
+// Category color dots — fallback to a neutral dot for unknown categories.
+const CATEGORY_DOT = {
+    Structure:  "bg-blue-400",
+    HVAC:       "bg-emerald-400",
+    Piping:     "bg-cyan-400",
+    Electrical: "bg-yellow-400",
+    Valve:      "bg-orange-400",
+    Pump:       "bg-red-400",
+};
 
-// Mirrors the categorize function in ScenePreviewCanvas (module-level)
-function categorize(name = "") {
-    const s = name.toLowerCase();
-    if (s.includes("pump"))                       return "Pump";
-    if (s.includes("valve"))                      return "Valve";
-    if (s.includes("hvac") || s.includes("duct")) return "HVAC";
-    if (s.includes("cable") || s.includes("elect")) return "Electrical";
-    if (s.includes("pipe"))                       return "Piping";
-    return "Structure";
-}
+export default function FilterPanel({
+    categories,
+    categoryCounts,
+    activeCategories,
+    setActiveCategories,
+    filterMode,
+    setFilterMode,
+}) {
+    const isFiltering = activeCategories.length > 0;
 
-export default function FilterPanel({ categories, models, activeCategories, setActiveCategories }) {
-    // Count models per category
-    const countByCategory = useMemo(() => {
-        const map = {};
-        models.forEach(m => {
-            const cat = categorize(m.name);
-            map[cat] = (map[cat] ?? 0) + 1;
-        });
-        return map;
-    }, [models]);
-
-    const toggleCategory = (cat) => {
-        setActiveCategories(prev =>
-            prev.includes(cat)
-                ? prev.filter(c => c !== cat)
-                : [...prev, cat]
-        );
+    // Checkbox "checked" represents "is this category currently visible?"
+    // In inclusive mode: visible = selected (or nothing selected = all visible).
+    // In exclusive mode: visible = NOT selected (or nothing selected = all visible).
+    const isCategoryVisible = (cat) => {
+        if (activeCategories.length === 0) return true;
+        return filterMode === "inclusive"
+            ? activeCategories.includes(cat)
+            : !activeCategories.includes(cat);
     };
 
-    const showAll = () => setActiveCategories([]);
+    const handleToggle = (cat) => {
+        const visible = isCategoryVisible(cat);
 
-    const isFiltering = activeCategories.length > 0;
+        if (filterMode === "inclusive") {
+            if (visible) {
+                // Uncheck → hide this category
+                if (activeCategories.length === 0) {
+                    // All were shown; exclude just this one
+                    setActiveCategories(categories.filter(c => c !== cat));
+                } else {
+                    setActiveCategories(prev => prev.filter(c => c !== cat));
+                }
+            } else {
+                // Check → show this category
+                setActiveCategories(prev => [...prev, cat]);
+            }
+        } else {
+            // Exclusive mode
+            if (visible) {
+                // Uncheck → hide this category (add to exclusion list)
+                if (activeCategories.length === 0) {
+                    setActiveCategories([cat]);
+                } else {
+                    setActiveCategories(prev => [...prev, cat]);
+                }
+            } else {
+                // Check → show this category (remove from exclusion list)
+                setActiveCategories(prev => prev.filter(c => c !== cat));
+            }
+        }
+    };
+
+    const handleIsolate = () => {
+        if (activeCategories.length === 0) return;
+        // Force inclusive mode so only selected categories are visible.
+        setFilterMode("inclusive");
+    };
+
+    const handleReset = () => {
+        setActiveCategories([]);
+        setFilterMode("inclusive");
+    };
+
+    const isDirty = isFiltering || filterMode !== "inclusive";
 
     return (
         <div className="absolute right-5 top-5 w-72 bg-[#0F172A]/95 backdrop-blur border border-white/10 rounded-2xl p-4 text-white z-20">
 
             {/* Header */}
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-3">
                 <div>
                     <h2 className="text-sm font-semibold">Filter</h2>
                     <p className="text-white/40 text-xs mt-0.5">
                         {categories.length} {categories.length === 1 ? 'category' : 'categories'} detected
                     </p>
                 </div>
-                {isFiltering && (
-                    <button
-                        onClick={showAll}
-                        className="text-xs text-white/50 hover:text-white transition-colors px-2 py-1 rounded-lg hover:bg-white/10"
-                    >
-                        Show All
-                    </button>
-                )}
+                <button
+                    onClick={handleReset}
+                    disabled={!isDirty}
+                    className="text-xs text-white/40 hover:text-white disabled:opacity-0 disabled:pointer-events-none transition-all px-2 py-1 rounded-lg hover:bg-white/10"
+                >
+                    Reset
+                </button>
+            </div>
+
+            {/* Mode toggle */}
+            <div className="flex gap-1 bg-white/5 rounded-xl p-1 mb-3">
+                <button
+                    onClick={() => setFilterMode("inclusive")}
+                    className={[
+                        "flex-1 text-xs py-1.5 rounded-lg transition-all font-medium",
+                        filterMode === "inclusive"
+                            ? "bg-white/15 text-white"
+                            : "text-white/40 hover:text-white/70",
+                    ].join(" ")}
+                >
+                    Inclusive
+                </button>
+                <button
+                    onClick={() => setFilterMode("exclusive")}
+                    className={[
+                        "flex-1 text-xs py-1.5 rounded-lg transition-all font-medium",
+                        filterMode === "exclusive"
+                            ? "bg-white/15 text-white"
+                            : "text-white/40 hover:text-white/70",
+                    ].join(" ")}
+                >
+                    Exclusive
+                </button>
             </div>
 
             {/* Category list */}
@@ -61,30 +125,32 @@ export default function FilterPanel({ categories, models, activeCategories, setA
                     No models loaded
                 </p>
             ) : (
-                <div className="space-y-1">
+                <div className="space-y-0.5 mb-3">
                     {categories.map(cat => {
-                        const checked = activeCategories.length === 0 || activeCategories.includes(cat);
-                        const count   = countByCategory[cat] ?? 0;
+                        const visible  = isCategoryVisible(cat);
+                        const selected = activeCategories.includes(cat);
+                        const count    = categoryCounts[cat] ?? 0;
+                        const dot      = CATEGORY_DOT[cat] ?? "bg-white/30";
 
                         return (
                             <label
                                 key={cat}
-                                className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-white/5 transition-colors group"
+                                className={[
+                                    "flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-colors group",
+                                    selected ? "bg-white/10" : "hover:bg-white/5",
+                                ].join(" ")}
                             >
                                 <input
                                     type="checkbox"
-                                    checked={checked}
-                                    onChange={() => {
-                                        if (activeCategories.length === 0) {
-                                            // First toggle: hide everything except this one
-                                            setActiveCategories(categories.filter(c => c !== cat));
-                                        } else {
-                                            toggleCategory(cat);
-                                        }
-                                    }}
-                                    className="w-4 h-4 rounded accent-cyan-400 cursor-pointer"
+                                    checked={visible}
+                                    onChange={() => handleToggle(cat)}
+                                    className="w-4 h-4 rounded accent-cyan-400 cursor-pointer flex-shrink-0"
                                 />
-                                <span className="flex-1 text-sm text-white/80 group-hover:text-white transition-colors">
+                                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dot}`} />
+                                <span className={[
+                                    "flex-1 text-sm transition-colors",
+                                    visible ? "text-white/85" : "text-white/30 line-through",
+                                ].join(" ")}>
                                     {cat}
                                 </span>
                                 <span className="text-xs text-white/30 tabular-nums">
@@ -96,15 +162,24 @@ export default function FilterPanel({ categories, models, activeCategories, setA
                 </div>
             )}
 
-            {/* Show All footer button — visible only when filtering */}
-            {isFiltering && (
+            {/* Action row: Isolate + Reset */}
+            <div className="flex gap-2">
                 <button
-                    onClick={showAll}
-                    className="mt-3 w-full text-xs text-white/50 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl py-2 transition-colors"
+                    onClick={handleIsolate}
+                    disabled={activeCategories.length === 0}
+                    title="Show only selected categories (inclusive mode)"
+                    className="flex-1 text-xs py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all"
                 >
-                    Show All Categories
+                    Isolate
                 </button>
-            )}
+                <button
+                    onClick={handleReset}
+                    disabled={!isDirty}
+                    className="flex-1 text-xs py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all"
+                >
+                    Reset
+                </button>
+            </div>
         </div>
     );
 }
