@@ -238,13 +238,16 @@ export default function ScenePreviewCanvas({
     }, [api, projectId]);
 
     // ── Filter state ───────────────────────────────────────────────────────────
-    // Empty array = show all; non-empty = only show listed categories.
+    // activeCategories: empty = show all; non-empty = apply filterMode logic.
+    // filterMode: "inclusive" (only selected visible) | "exclusive" (selected hidden).
     const [activeCategories, setActiveCategories] = useState([]);
+    const [filterMode, setFilterMode]             = useState("inclusive");
 
     // Reset filter when the user switches away from the filter tool.
     useEffect(() => {
         if (activeTool !== "filter") {
             setActiveCategories([]);
+            setFilterMode("inclusive");
         }
     }, [activeTool]);
 
@@ -276,6 +279,16 @@ export default function ScenePreviewCanvas({
         const set = new Set();
         models.forEach(m => set.add(categorize(m.name)));
         return Array.from(set).sort();
+    }, [models]);
+
+    // Model count per category — passed to FilterPanel for display.
+    const categoryCounts = useMemo(() => {
+        const counts = {};
+        models.forEach(m => {
+            const cat = categorize(m.name);
+            counts[cat] = (counts[cat] || 0) + 1;
+        });
+        return counts;
     }, [models]);
 
     const handleSelect = useCallback(
@@ -371,6 +384,7 @@ export default function ScenePreviewCanvas({
                         onIssuePinClick={onIssuePinClick}
                         onIssuePlaced={setPendingIssuePosition}
                         activeCategories={activeCategories}
+                        filterMode={filterMode}
                     />
                 </Selection>
 
@@ -412,9 +426,11 @@ export default function ScenePreviewCanvas({
             {activeTool === "filter" && (
                 <FilterPanel
                     categories={categories}
-                    models={models}
+                    categoryCounts={categoryCounts}
                     activeCategories={activeCategories}
                     setActiveCategories={setActiveCategories}
+                    filterMode={filterMode}
+                    setFilterMode={setFilterMode}
                 />
             )}
 
@@ -490,6 +506,7 @@ function SceneContent({
     onIssuePinClick,
     onIssuePlaced,
     activeCategories,
+    filterMode,
 }) {
     const rootRef = useRef();
     const { camera } = useThree();
@@ -589,10 +606,15 @@ function SceneContent({
     return (
         <group ref={rootRef}>
             {models.map((m) => {
-                const category  = categorize(m.name);
-                const isVisible =
-                    activeCategories.length === 0 ||
-                    activeCategories.includes(category);
+                const category = categorize(m.name);
+                let isVisible = true;
+                if (activeCategories.length > 0) {
+                    if (filterMode === "inclusive") {
+                        isVisible = activeCategories.includes(category);
+                    } else {
+                        isVisible = !activeCategories.includes(category);
+                    }
+                }
 
                 return (
                     <group key={m.id} visible={isVisible}>
