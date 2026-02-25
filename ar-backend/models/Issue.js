@@ -9,6 +9,15 @@ const HistoryEntrySchema = new mongoose.Schema({
   meta:      { type: mongoose.Schema.Types.Mixed }, // optional structured payload
 }, { _id: false });
 
+const AttachmentSchema = new mongoose.Schema({
+  url:        { type: String, required: true },
+  fileName:   { type: String, required: true },
+  fileType:   { type: String, required: true },
+  fileSize:   { type: Number, required: true },
+  uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  uploadedAt: { type: Date, default: Date.now },
+});
+
 const IssueSchema = new mongoose.Schema({
   projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', required: true, index: true },
   zoneId:    { type: String, default: '' },
@@ -40,6 +49,9 @@ const IssueSchema = new mongoose.Schema({
     enum: ['RFI', 'Observation', 'Safety', 'Clash', 'Defect'],
     default: 'Observation',
   },
+
+  // File attachments
+  attachments: { type: [AttachmentSchema], default: [] },
 }, { strict: true, timestamps: true });
 
 IssueSchema.index({ projectId: 1, zoneId: 1 });

@@ -157,6 +157,25 @@ export const issuesApi = {
   // Returns project owner + teamMembers as assignable users
   members: (projectId) =>
     request(`/api/projects/${projectId}/members`, { headers: headers() }),
+
+  // Upload a file attachment to an issue (multipart/form-data)
+  uploadAttachment: (issueId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request(`/api/issues/${issueId}/attachments`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: formData,
+    });
+  },
+
+  // Remove an attachment from an issue by its Blob URL
+  deleteAttachment: (issueId, attachmentUrl) =>
+    request(`/api/issues/${issueId}/attachments`, {
+      method: 'DELETE',
+      headers: headers(),
+      body: JSON.stringify({ attachmentUrl }),
+    }),
 };
 
 // BIM
