@@ -1,7 +1,8 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   X, Trash2, MapPin, ChevronDown, ChevronRight,
   User, Calendar, Clock, AlertTriangle,
+  Paperclip, FileText, Upload, Loader2,
 } from 'lucide-react';
 import { formatDistanceToNow, format, isPast } from 'date-fns';
 import { issuesApi } from '../../services/api.js';
@@ -31,11 +32,13 @@ const STATUS_BADGE = {
 };
 
 const ACTION_LABEL = {
-  created:        'Created issue',
-  status_changed: 'Status changed',
-  assigned:       'Assigned to',
-  unassigned:     'Unassigned',
-  due_date_set:   'Due date set',
+  created:            'Created issue',
+  status_changed:     'Status changed',
+  assigned:           'Assigned to',
+  unassigned:         'Unassigned',
+  due_date_set:       'Due date set',
+  attachment_added:   'Attached file',
+  attachment_removed: 'Removed attachment',
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -83,6 +86,8 @@ function HistoryTimeline({ history }) {
           detail = entry.meta.assigneeName || '';
         } else if (entry.action === 'due_date_set' && entry.meta) {
           detail = entry.meta.dueDate ? (fmtDate(entry.meta.dueDate) ?? '') : 'Cleared';
+        } else if ((entry.action === 'attachment_added' || entry.action === 'attachment_removed') && entry.meta) {
+          detail = entry.meta.fileName || '';
         }
 
         return (
@@ -104,6 +109,177 @@ function HistoryTimeline({ history }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ─── AttachmentRow ────────────────────────────────────────────────────────────
+
+function fmtBytes(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024)             return `${bytes} B`;
+  if (bytes < 1024 * 1024)      return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function AttachmentRow({ attachment, canDelete, isDeleting, onDelete }) {
+  const isImage = attachment.fileType?.startsWith('image/');
+  const isPdf   = attachment.fileType === 'application/pdf';
+
+  return (
+    <div className="flex items-center gap-2 bg-white/[0.03] border border-white/5 rounded-lg px-2 py-1.5 group/att">
+      {/* Thumbnail / icon */}
+      {isImage ? (
+        <img
+          src={attachment.url}
+          alt={attachment.fileName}
+          className="w-7 h-7 rounded object-cover shrink-0 bg-white/5"
+        />
+      ) : isPdf ? (
+        <div className="w-7 h-7 rounded bg-red-500/15 flex items-center justify-center shrink-0">
+          <FileText className="w-4 h-4 text-red-400" />
+        </div>
+      ) : (
+        <div className="w-7 h-7 rounded bg-white/5 flex items-center justify-center shrink-0">
+          <Paperclip className="w-4 h-4 text-white/30" />
+        </div>
+      )}
+
+      {/* File info */}
+      <div className="flex-1 min-w-0">
+        <a
+          href={attachment.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="text-[10px] text-white/70 hover:text-white truncate block transition-colors"
+          title={attachment.fileName}
+        >
+          {attachment.fileName}
+        </a>
+        <div className="text-[9px] text-white/25">{fmtBytes(attachment.fileSize)}</div>
+      </div>
+
+      {/* Delete */}
+      {canDelete && (
+        <button
+          onClick={(e) => { e.stopPropagation(); if (!isDeleting) onDelete(attachment.url); }}
+          disabled={isDeleting}
+          className="shrink-0 text-white/20 hover:text-red-400 transition-colors opacity-0 group-hover/att:opacity-100 disabled:opacity-40"
+          title="Remove attachment"
+        >
+          {isDeleting
+            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            : <X className="w-3.5 h-3.5" />
+          }
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── AttachmentsSection ───────────────────────────────────────────────────────
+
+function AttachmentsSection({ issue, currentUser }) {
+  const [isOpen,      setIsOpen]      = useState(true);
+  const [uploading,   setUploading]   = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+  const [deletingUrl, setDeletingUrl] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const isAdmin = currentUser?.role === 'admin';
+  const attachments = issue.attachments || [];
+
+  const canDeleteAttachment = (att) => {
+    if (isAdmin) return true;
+    return currentUser && String(att.uploadedBy?._id ?? att.uploadedBy) === String(currentUser._id);
+  };
+
+  const handleFileChange = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      for (const file of files) {
+        await issuesApi.uploadAttachment(issue._id, file);
+        // Updated issue arrives via WebSocket → TwinPage state → props
+      }
+    } catch (err) {
+      setUploadError(err.message || 'Upload failed');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleDelete = async (url) => {
+    setDeletingUrl(url);
+    try {
+      await issuesApi.deleteAttachment(issue._id, url);
+    } catch (err) {
+      console.error('Failed to remove attachment:', err.message);
+    } finally {
+      setDeletingUrl(null);
+    }
+  };
+
+  return (
+    <div>
+      <button
+        onClick={() => setIsOpen((p) => !p)}
+        className="flex items-center gap-1.5 w-full text-left"
+      >
+        <span className="text-[9px] text-white/30 uppercase tracking-wider">Attachments</span>
+        {attachments.length > 0 && (
+          <span className="bg-white/10 text-white/50 text-[9px] px-1.5 py-px rounded-full leading-none">
+            {attachments.length}
+          </span>
+        )}
+        <ChevronRight className={`w-2.5 h-2.5 text-white/25 ml-auto transition-transform duration-150 ${isOpen ? 'rotate-90' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="mt-1.5 space-y-1.5">
+          {/* Upload trigger */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="w-full border border-dashed border-white/10 rounded-lg py-1.5 text-[10px] text-white/30 hover:text-white/50 hover:border-white/20 transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5"
+          >
+            {uploading
+              ? <><Loader2 className="w-3 h-3 animate-spin" />Uploading…</>
+              : <><Upload className="w-3 h-3" />Attach file</>
+            }
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*,.pdf,.doc,.docx"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+
+          {uploadError && (
+            <p className="text-[10px] text-red-400">{uploadError}</p>
+          )}
+
+          {attachments.length === 0 && !uploading && (
+            <p className="text-[10px] text-white/20 text-center py-1">No attachments yet.</p>
+          )}
+
+          {attachments.map((att) => (
+            <AttachmentRow
+              key={att._id || att.url}
+              attachment={att}
+              canDelete={canDeleteAttachment(att)}
+              isDeleting={deletingUrl === att.url}
+              onDelete={handleDelete}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -225,6 +401,9 @@ function IssueDetail({ issue, members, currentUser, onUpdate }) {
           </div>
         )}
       </div>
+
+      {/* Attachments */}
+      <AttachmentsSection issue={issue} currentUser={currentUser} />
 
       {/* Activity timeline */}
       <div>

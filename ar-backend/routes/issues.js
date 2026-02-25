@@ -1,10 +1,32 @@
 import express from 'express';
 import mongoose from 'mongoose';
+import multer from 'multer';
+import { BlobServiceClient } from '@azure/storage-blob';
 import Issue from '../models/Issue.js';
 import Project from '../models/Project.js';
 import User from '../models/User.js';
 import auth from '../middleware/authMiddleware.js';
 import { attachRole } from '../middleware/rbac.js';
+
+// ─── Azure Blob (for attachments) ─────────────────────────────────────────────
+const _containerClient = process.env.AZURE_STORAGE_CONNECTION_STRING
+  ? BlobServiceClient
+      .fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING)
+      .getContainerClient('uploads')
+  : null;
+
+// ─── Multer (10 MB limit, memory storage) ─────────────────────────────────────
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits:  { fileSize: 10 * 1024 * 1024 },
+});
+
+const ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]);
 
 const router = express.Router();
 
@@ -30,13 +52,13 @@ function broadcast(projectId, payload) {
   if (_broadcast) _broadcast(String(projectId), payload);
 }
 
-// Attach populated user fields (createdBy, assignedTo, history.userId) to a lean issue.
-// Returns the issue with populated references resolved.
+// Attach populated user fields to a lean issue.
 async function populateIssue(issueDoc) {
   return Issue.findById(issueDoc._id ?? issueDoc.id)
-    .populate('createdBy',  'name email role')
-    .populate('assignedTo', 'name email role')
-    .populate('history.userId', 'name email')
+    .populate('createdBy',              'name email role')
+    .populate('assignedTo',             'name email role')
+    .populate('history.userId',         'name email')
+    .populate('attachments.uploadedBy', 'name email')
     .lean();
 }
 
@@ -77,9 +99,10 @@ router.get('/projects/:projectId/issues', auth, async (req, res) => {
 
     const issues = await Issue.find({ projectId })
       .sort({ createdAt: -1 })
-      .populate('createdBy',      'name email role')
-      .populate('assignedTo',     'name email role')
-      .populate('history.userId', 'name email')
+      .populate('createdBy',              'name email role')
+      .populate('assignedTo',             'name email role')
+      .populate('history.userId',         'name email')
+      .populate('attachments.uploadedBy', 'name email')
       .lean();
 
     res.json(issues);
@@ -311,6 +334,153 @@ router.delete('/issues/:issueId', auth, attachRole, async (req, res) => {
   } catch (err) {
     console.error('Failed to delete issue:', err);
     res.status(500).json({ error: 'Failed to delete issue' });
+  }
+});
+
+// ─── POST /api/issues/:issueId/attachments ────────────────────────────────────
+// Upload a file (image / PDF / Word). Auth required; creator, assignee, or admin.
+router.post(
+  '/issues/:issueId/attachments',
+  auth,
+  attachRole,
+  upload.single('file'),
+  async (req, res) => {
+    try {
+      const { issueId } = req.params;
+      if (!mongoose.Types.ObjectId.isValid(issueId)) {
+        return res.status(400).json({ error: 'Invalid issue id' });
+      }
+
+      const issue = await Issue.findById(issueId);
+      if (!issue) return res.status(404).json({ error: 'Issue not found' });
+
+      const isAdmin    = req.userRole === 'admin';
+      const isCreator  = String(issue.createdBy) === String(req.userId);
+      const isAssigned = issue.assignedTo && String(issue.assignedTo) === String(req.userId);
+
+      if (!isAdmin && !isCreator && !isAssigned) {
+        return res.status(403).json({ error: 'Insufficient permissions' });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file provided' });
+      }
+
+      const { mimetype, originalname, buffer, size } = req.file;
+
+      const isAllowed = ALLOWED_MIME_TYPES.has(mimetype) || mimetype.startsWith('image/');
+      if (!isAllowed) {
+        return res.status(400).json({
+          error: 'Unsupported file type. Allowed: images, PDF, Word documents',
+        });
+      }
+
+      if (!_containerClient) {
+        return res.status(500).json({ error: 'File storage not configured' });
+      }
+
+      const blobName  = `issues/${issueId}/${Date.now()}-${originalname}`;
+      const blockBlob = _containerClient.getBlockBlobClient(blobName);
+      await blockBlob.uploadData(buffer, {
+        blobHTTPHeaders: { blobContentType: mimetype },
+      });
+
+      issue.attachments.push({
+        url:        blockBlob.url,
+        fileName:   originalname,
+        fileType:   mimetype,
+        fileSize:   size,
+        uploadedBy: req.userId,
+        uploadedAt: new Date(),
+      });
+
+      issue.history.push({
+        action:    'attachment_added',
+        userId:    req.userId,
+        timestamp: new Date(),
+        meta:      { fileName: originalname },
+      });
+
+      await issue.save();
+
+      const populated = await populateIssue(issue);
+      broadcast(issue.projectId, { type: 'issue_updated', issue: populated });
+      res.status(201).json(populated);
+    } catch (err) {
+      console.error('Failed to upload attachment:', err);
+      // multer file-too-large error
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'File exceeds 10 MB limit' });
+      }
+      res.status(500).json({ error: 'Failed to upload attachment' });
+    }
+  },
+);
+
+// ─── DELETE /api/issues/:issueId/attachments ──────────────────────────────────
+// Remove an attachment by URL. Admin or the original uploader only.
+router.delete('/issues/:issueId/attachments', auth, attachRole, async (req, res) => {
+  try {
+    const { issueId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(issueId)) {
+      return res.status(400).json({ error: 'Invalid issue id' });
+    }
+
+    const { attachmentUrl } = req.body;
+    if (!attachmentUrl) {
+      return res.status(400).json({ error: 'attachmentUrl is required' });
+    }
+
+    const issue = await Issue.findById(issueId);
+    if (!issue) return res.status(404).json({ error: 'Issue not found' });
+
+    const attachment = issue.attachments.find((a) => a.url === attachmentUrl);
+    if (!attachment) {
+      return res.status(404).json({ error: 'Attachment not found' });
+    }
+
+    const isAdmin    = req.userRole === 'admin';
+    const isUploader = String(attachment.uploadedBy) === String(req.userId);
+
+    if (!isAdmin && !isUploader) {
+      return res.status(403).json({
+        error: 'Only the uploader or admin can remove this attachment',
+      });
+    }
+
+    const { fileName } = attachment;
+
+    // Remove from embedded array
+    issue.attachments = issue.attachments.filter((a) => a.url !== attachmentUrl);
+
+    issue.history.push({
+      action:    'attachment_removed',
+      userId:    req.userId,
+      timestamp: new Date(),
+      meta:      { fileName },
+    });
+
+    await issue.save();
+
+    // Best-effort blob deletion
+    if (_containerClient) {
+      try {
+        const urlObj    = new URL(attachmentUrl);
+        const pathParts = urlObj.pathname.split('/uploads/');
+        if (pathParts.length > 1) {
+          await _containerClient.getBlockBlobClient(pathParts[1]).deleteIfExists();
+        }
+      } catch (e) {
+        console.warn('Failed to delete blob from Azure:', e.message);
+      }
+    }
+
+    const populated = await populateIssue(issue);
+    broadcast(issue.projectId, { type: 'issue_updated', issue: populated });
+    res.json(populated);
+  } catch (err) {
+    console.error('Failed to remove attachment:', err);
+    res.status(500).json({ error: 'Failed to remove attachment' });
   }
 });
 
