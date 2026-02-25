@@ -8,29 +8,172 @@ import { ModelItem } from "../../components/viewer/ARViewerComponents";
 import DoFDevPanel from "../components/dev/DoFDevPanel";
 
 
+// ─── Unit conversion utility ─────────────────────────────────────────────────
+// Assumes world units = meters (confirm GLB export scale matches)
+function convertDistance(distance, unit) {
+    switch (unit) {
+        case "cm":        return distance * 100;
+        case "meter":     return distance;
+        case "kilometer": return distance / 1000;
+        case "inch":      return distance * 39.3701;
+        case "feet":      return distance * 3.28084;
+        default:          return distance;
+    }
+}
+
+const UNIT_LABELS = {
+    cm:        "cm",
+    meter:     "m",
+    kilometer: "km",
+    inch:      "in",
+    feet:      "ft",
+};
+
+// Cycle of border/bg colour pairs for measurement cards
+const CARD_COLORS = [
+    "border-blue-500/40 bg-blue-500/5",
+    "border-emerald-500/40 bg-emerald-500/5",
+    "border-violet-500/40 bg-violet-500/5",
+    "border-amber-500/40 bg-amber-500/5",
+    "border-rose-500/40 bg-rose-500/5",
+];
+
+
+// ─── MeasurementPanel ─────────────────────────────────────────────────────────
+function MeasurementPanel({ unit, setUnit, measurements, onDelete, onClearAll }) {
+    const handleCopy = (m) => {
+        const label = UNIT_LABELS[unit];
+        const dist  = convertDistance(m.distance, unit).toFixed(2);
+        const text  = [
+            `Length: ${dist} ${label}`,
+            `A: (${m.pointA.x.toFixed(3)}, ${m.pointA.y.toFixed(3)}, ${m.pointA.z.toFixed(3)})`,
+            `B: (${m.pointB.x.toFixed(3)}, ${m.pointB.y.toFixed(3)}, ${m.pointB.z.toFixed(3)})`,
+        ].join("\n");
+        navigator.clipboard?.writeText(text);
+    };
+
+    return (
+        <div className="absolute right-5 top-5 w-80 bg-[#0F172A]/95 backdrop-blur border border-white/10 rounded-2xl p-4 text-white z-20">
+
+            {/* Header */}
+            <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-semibold">Measure</h2>
+                {measurements.length > 0 && (
+                    <button
+                        onClick={onClearAll}
+                        className="text-white/40 hover:text-red-400 text-xs transition-colors"
+                    >
+                        Clear all
+                    </button>
+                )}
+            </div>
+
+            {/* Units Dropdown */}
+            <select
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-sm mb-4 outline-none focus:border-white/30"
+            >
+                <option value="cm">Centimeter</option>
+                <option value="meter">Meter</option>
+                <option value="kilometer">Kilometer</option>
+                <option value="inch">Inch</option>
+                <option value="feet">Feet</option>
+            </select>
+
+            {/* Empty state hint */}
+            {measurements.length === 0 ? (
+                <p className="text-white/30 text-xs text-center py-4">
+                    Click two points on the model to measure
+                </p>
+            ) : (
+                <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                    {measurements.map((m, i) => (
+                        <div
+                            key={m.id}
+                            className={`border rounded-xl p-3 ${CARD_COLORS[i % CARD_COLORS.length]}`}
+                        >
+                            {/* Card header row */}
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-xs text-white/50 font-medium uppercase tracking-wide">
+                                    #{i + 1} Length
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => handleCopy(m)}
+                                        className="text-white/30 hover:text-white/70 text-xs transition-colors"
+                                        title="Copy to clipboard"
+                                    >
+                                        Copy
+                                    </button>
+                                    <button
+                                        onClick={() => onDelete(m.id)}
+                                        className="text-white/30 hover:text-red-400 text-xs transition-colors"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Distance value */}
+                            <div className="text-lg font-semibold mb-2">
+                                {convertDistance(m.distance, unit).toFixed(2)}{" "}
+                                <span className="text-sm font-normal text-white/60">
+                                    {UNIT_LABELS[unit]}
+                                </span>
+                            </div>
+
+                            {/* Coordinates */}
+                            <div className="space-y-1 text-xs text-white/40 font-mono">
+                                <div>
+                                    A&nbsp;({m.pointA.x.toFixed(2)},&nbsp;
+                                    {m.pointA.y.toFixed(2)},&nbsp;
+                                    {m.pointA.z.toFixed(2)})
+                                </div>
+                                <div>
+                                    B&nbsp;({m.pointB.x.toFixed(2)},&nbsp;
+                                    {m.pointB.y.toFixed(2)},&nbsp;
+                                    {m.pointB.z.toFixed(2)})
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+
+// ─── Main component ───────────────────────────────────────────────────────────
 export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRequest, onSelectAsset, activeTool, onBimElementSelect }) {
 
     const [published, setPublished] = useState(null);
     const [error, setError] = useState("");
     const [selectedId, setSelectedId] = useState(null);
 
-    const [measurePoints, setMeasurePoints] = useState([]);
+    // ── Measurement state ──────────────────────────────────────────────────────
+    // measurements  : completed measurement objects [{id, pointA, pointB, distance}]
+    // currentPoints : in-progress clicks for the next measurement (0 or 1 point)
+    // unit          : selected display unit, shared with the panel
+    const [measurements, setMeasurements]   = useState([]);
+    const [currentPoints, setCurrentPoints] = useState([]);
+    const [unit, setUnit]                   = useState("cm");
 
     const [selectedBox, setSelectedBox] = useState(null); // THREE.Box3
-    const [sceneBox, setSceneBox] = useState(null);       // THREE.Box3
+    const [sceneBox, setSceneBox]       = useState(null); // THREE.Box3
 
-    // NEW: store focus distance in world units (camera-to-point)
     const [focusWorldDistance, setFocusWorldDistance] = useState(null);
 
-    const api = import.meta.env.VITE_API_URL;
+    const api             = import.meta.env.VITE_API_URL;
     const showDoFDevTools = import.meta.env.VITE_DOF_DEVTOOLS === "true";
 
     const [dofEnabled, setDofEnabled] = useState(true);
     const [dofSettings, setDofSettings] = useState({
-        bokehScale: 2.0,
-        focalLength: 0.02,
-        focusDistance: 0.15, // normalized 0..1 default
-        height: 480,
+        bokehScale:    2.0,
+        focalLength:   0.02,
+        focusDistance: 0.15,
+        height:        480,
     });
 
     useEffect(() => {
@@ -64,14 +207,14 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
         }
 
         load();
-        return () => {
-            cancelled = true;
-        };
+        return () => { cancelled = true; };
     }, [api, projectId]);
 
+    // Clear in-progress pick when switching away from the measure tool.
+    // Completed measurements are intentionally kept until explicitly deleted.
     useEffect(() => {
         if (activeTool !== "measure") {
-            setMeasurePoints([]);
+            setCurrentPoints([]);
         }
     }, [activeTool]);
 
@@ -81,17 +224,15 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
         return items
             .filter((it) => it.type === "model" && it.visible !== false && typeof it.url === "string")
             .map((it) => ({
-                id: it.id,
-                name: it.name,
-                url: it.url,
+                id:        it.id,
+                name:      it.name,
+                url:       it.url,
                 transform: it.transform,
-                autoplay: !!it.autoplay,
-                isPaused: !!it.isPaused,
+                autoplay:  !!it.autoplay,
+                isPaused:  !!it.isPaused,
             }));
     }, [published]);
 
-    // Stable callback — new inline arrow function every render would recreate
-    // handlePick inside SceneContent (onSelect is in its useCallback deps).
     const handleSelect = useCallback(
         (payload) => {
             setSelectedId(payload.id);
@@ -100,9 +241,6 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
         [onSelectAsset]
     );
 
-    // Clear outline whenever the BIM tool is deactivated.
-    // This effect depends only on activeTool, not on selectedId, so it
-    // cannot create a feedback loop.
     useEffect(() => {
         if (activeTool !== "bim") {
             setSelectedId(null);
@@ -162,8 +300,6 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
                 <directionalLight position={[10, 12, 6]} intensity={1.2} />
                 <directionalLight position={[-6, 6, -4]} intensity={0.6} />
 
-
-
                 <Selection>
                     <EffectComposer multisampling={4}>
                         <Outline
@@ -180,13 +316,13 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
                         onSelect={handleSelect}
                         activeTool={activeTool}
                         onBimElementSelect={onBimElementSelect}
-                        measurePoints={measurePoints}
-                        setMeasurePoints={setMeasurePoints}
+                        measurements={measurements}
+                        setMeasurements={setMeasurements}
+                        currentPoints={currentPoints}
+                        setCurrentPoints={setCurrentPoints}
+                        unit={unit}
                     />
-
-
                 </Selection>
-
 
                 <CameraPresetsController
                     request={cameraRequest}
@@ -194,8 +330,6 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
                     selectedBox={selectedBox}
                     humanEyeHeight={1.7}
                 />
-
-
 
                 {/* DoF Post Processing
                 <PostFX enabled={dofEnabled} settings={dofSettings} focusWorldDistance={focusWorldDistance} />*/}
@@ -210,6 +344,20 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
                     screenSpacePanning
                 />
             </Canvas>
+
+            {/* Measurement Panel — only visible when measure tool is active */}
+            {activeTool === "measure" && (
+                <MeasurementPanel
+                    unit={unit}
+                    setUnit={setUnit}
+                    measurements={measurements}
+                    onDelete={(id) =>
+                        setMeasurements(prev => prev.filter(m => m.id !== id))
+                    }
+                    onClearAll={() => setMeasurements([])}
+                />
+            )}
+
             {showDoFDevTools && (
                 <DoFDevPanel
                     enabled={dofEnabled}
@@ -218,11 +366,12 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
                     setSettings={setDofSettings}
                 />
             )}
-
         </div>
     );
 }
 
+
+// ─── CaptureController ────────────────────────────────────────────────────────
 function CaptureController({ captureRequest }) {
     const { gl } = useThree();
 
@@ -234,7 +383,7 @@ function CaptureController({ captureRequest }) {
                 const dataUrl = gl.domElement.toDataURL("image/png");
 
                 const a = document.createElement("a");
-                a.href = dataUrl;
+                a.href     = dataUrl;
                 a.download = `DigitalTwin_${formatTimestampForFilename()}.png`;
                 document.body.appendChild(a);
                 a.click();
@@ -254,14 +403,16 @@ function CaptureController({ captureRequest }) {
 function formatTimestampForFilename(d = new Date()) {
     const pad = (n) => String(n).padStart(2, "0");
     const yyyy = d.getFullYear();
-    const mm = pad(d.getMonth() + 1);
-    const dd = pad(d.getDate());
-    const hh = pad(d.getHours());
-    const mi = pad(d.getMinutes());
-    const ss = pad(d.getSeconds());
+    const mm   = pad(d.getMonth() + 1);
+    const dd   = pad(d.getDate());
+    const hh   = pad(d.getHours());
+    const mi   = pad(d.getMinutes());
+    const ss   = pad(d.getSeconds());
     return `${yyyy}${mm}${dd}_${hh}${mi}${ss}`;
 }
 
+
+// ─── SceneContent ─────────────────────────────────────────────────────────────
 function SceneContent({
     models,
     onFocusDistance,
@@ -269,19 +420,22 @@ function SceneContent({
     onSelect,
     activeTool,
     onBimElementSelect,
-    measurePoints,
-    setMeasurePoints
+    measurements,
+    setMeasurements,
+    currentPoints,
+    setCurrentPoints,
+    unit,
 }) {
     const rootRef = useRef();
     const { camera } = useThree();
 
     const categorize = (name = "") => {
         const s = name.toLowerCase();
-        if (s.includes("pump")) return "Pump";
-        if (s.includes("valve")) return "Valve";
+        if (s.includes("pump"))                     return "Pump";
+        if (s.includes("valve"))                    return "Valve";
         if (s.includes("hvac") || s.includes("duct")) return "HVAC";
         if (s.includes("cable") || s.includes("elect")) return "Electrical";
-        if (s.includes("pipe")) return "Piping";
+        if (s.includes("pipe"))                     return "Piping";
         return "Structure";
     };
 
@@ -290,16 +444,14 @@ function SceneContent({
         return n === 0 ? "Healthy" : n === 1 ? "Maintenance" : "Offline";
     };
 
-    // Cursor feedback for BIM tool
+    // Cursor feedback
     useEffect(() => {
         const canvas = document.querySelector("canvas");
         if (canvas) {
             canvas.style.cursor =
-                activeTool === "bim"
+                activeTool === "bim" || activeTool === "measure"
                     ? "crosshair"
-                    : activeTool === "measure"
-                        ? "crosshair"
-                        : "";
+                    : "";
         }
         return () => {
             if (canvas) canvas.style.cursor = "";
@@ -317,49 +469,56 @@ function SceneContent({
                 onFocusDistance(dist);
             }
 
-            // ================================
-            // MEASUREMENT TOOL
-            // ================================
+            // ── Measurement tool ──────────────────────────────────────────────
             if (activeTool === "measure") {
-                const hitPoint = e.point?.clone?.();
-                if (!hitPoint) return;
+                const hit = e.point?.clone?.();
+                if (!hit) return;
 
-                setMeasurePoints(prev => {
-                    if (prev.length === 0) return [hitPoint];
-                    if (prev.length === 1) return [prev[0], hitPoint];
-                    return [hitPoint]; // reset after 2 points
+                setCurrentPoints(prev => {
+                    if (prev.length === 0) {
+                        // First click — store pending point
+                        return [hit];
+                    }
+
+                    if (prev.length === 1) {
+                        // Second click — complete the measurement
+                        const newMeasurement = {
+                            id:       crypto.randomUUID(),
+                            pointA:   prev[0],
+                            pointB:   hit,
+                            distance: prev[0].distanceTo(hit),
+                        };
+                        setMeasurements(m => [...m, newMeasurement]);
+                        return []; // reset for next measurement
+                    }
+
+                    return [hit];
                 });
 
                 return;
             }
 
-            // ================================
-            // BIM MODE (MODEL-LEVEL MATCHING)
-            // ================================
+            // ── BIM mode ──────────────────────────────────────────────────────
             if (activeTool === "bim") {
-                const fileName = model.name;
-                const baseName = fileName.replace(".glb", "");
+                const fileName      = model.name;
+                const baseName      = fileName.replace(".glb", "");
                 const normalizedName = baseName.trim().toLowerCase();
 
                 onSelect?.({ id: model.id, _bimPick: true });
-
-                onBimElementSelect?.({
-                    name: normalizedName,
-                    originalName: baseName
-                });
+                onBimElementSelect?.({ name: normalizedName, originalName: baseName });
 
                 return;
             }
-
-
-            return;
         },
-        [camera,
+        [
+            camera,
             onFocusDistance,
             onSelect,
             activeTool,
             onBimElementSelect,
-            setMeasurePoints]
+            setMeasurements,
+            setCurrentPoints,
+        ]
     );
 
     return (
@@ -384,11 +543,23 @@ function SceneContent({
                     </group>
                 </Select>
             ))}
-            {measurePoints.length === 2 && (
+
+            {/* Render all completed measurements */}
+            {measurements.map(m => (
                 <MeasurementLine
-                    pointA={measurePoints[0]}
-                    pointB={measurePoints[1]}
+                    key={m.id}
+                    pointA={m.pointA}
+                    pointB={m.pointB}
+                    unit={unit}
                 />
+            ))}
+
+            {/* Pending first-click indicator */}
+            {currentPoints.length === 1 && (
+                <mesh position={currentPoints[0]}>
+                    <sphereGeometry args={[0.05, 16, 16]} />
+                    <meshBasicMaterial color="cyan" />
+                </mesh>
             )}
 
             <AutoFitCamera targetRef={rootRef} />
@@ -396,21 +567,21 @@ function SceneContent({
     );
 }
 
-function MeasurementLine({ pointA, pointB }) {
-    const distance = useMemo(() => {
-        return pointA.distanceTo(pointB);
-    }, [pointA, pointB]);
 
-    const midPoint = useMemo(() => {
-        return new THREE.Vector3()
-            .addVectors(pointA, pointB)
-            .multiplyScalar(0.5);
-    }, [pointA, pointB]);
+// ─── MeasurementLine ─────────────────────────────────────────────────────────
+function MeasurementLine({ pointA, pointB, unit }) {
+    const distance = useMemo(() => pointA.distanceTo(pointB), [pointA, pointB]);
 
-    const geometry = useMemo(() => {
-        const geo = new THREE.BufferGeometry().setFromPoints([pointA, pointB]);
-        return geo;
-    }, [pointA, pointB]);
+    const midPoint = useMemo(() => (
+        new THREE.Vector3().addVectors(pointA, pointB).multiplyScalar(0.5)
+    ), [pointA, pointB]);
+
+    const geometry = useMemo(() => (
+        new THREE.BufferGeometry().setFromPoints([pointA, pointB])
+    ), [pointA, pointB]);
+
+    const displayDist  = convertDistance(distance, unit).toFixed(2);
+    const displayLabel = UNIT_LABELS[unit];
 
     return (
         <>
@@ -419,21 +590,20 @@ function MeasurementLine({ pointA, pointB }) {
                 <lineBasicMaterial color="yellow" linewidth={2} />
             </line>
 
-            {/* Points */}
+            {/* Endpoint spheres */}
             <mesh position={pointA}>
                 <sphereGeometry args={[0.05, 16, 16]} />
                 <meshBasicMaterial color="red" />
             </mesh>
-
             <mesh position={pointB}>
                 <sphereGeometry args={[0.05, 16, 16]} />
                 <meshBasicMaterial color="red" />
             </mesh>
 
-            {/* Distance Label */}
+            {/* Distance label */}
             <Html position={midPoint} center>
-                <div className="bg-black text-white text-xs px-2 py-1 rounded">
-                    {distance.toFixed(2)} m
+                <div className="bg-black/80 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                    {displayDist} {displayLabel}
                 </div>
             </Html>
         </>
@@ -441,7 +611,7 @@ function MeasurementLine({ pointA, pointB }) {
 }
 
 
-
+// ─── AutoFitCamera ────────────────────────────────────────────────────────────
 function AutoFitCamera({ targetRef }) {
     const { camera, controls } = useThree();
 
@@ -458,17 +628,17 @@ function AutoFitCamera({ targetRef }) {
                 return;
             }
 
-            const size = box.getSize(new THREE.Vector3());
+            const size   = box.getSize(new THREE.Vector3());
             const center = box.getCenter(new THREE.Vector3());
 
             const maxDim = Math.max(size.x, size.y, size.z);
-            const fov = THREE.MathUtils.degToRad(camera.fov);
+            const fov    = THREE.MathUtils.degToRad(camera.fov);
             let distance = maxDim / (2 * Math.tan(fov / 2));
             distance *= 1.4;
 
             camera.position.set(center.x + distance, center.y + distance * 0.4, center.z + distance);
             camera.near = Math.max(0.01, distance / 100);
-            camera.far = distance * 100;
+            camera.far  = distance * 100;
             camera.updateProjectionMatrix();
 
             if (controls) {
@@ -484,6 +654,8 @@ function AutoFitCamera({ targetRef }) {
     return null;
 }
 
+
+// ─── CameraPresetsController ──────────────────────────────────────────────────
 function CameraPresetsController({ request, sceneBox, selectedBox, humanEyeHeight = 1.7 }) {
     const { camera, controls } = useThree();
     const tweenRef = useRef(null);
@@ -491,16 +663,16 @@ function CameraPresetsController({ request, sceneBox, selectedBox, humanEyeHeigh
     const startTween = useCallback((toPos, toTarget, duration = 650) => {
         if (!controls) return;
 
-        const fromPos = camera.position.clone();
+        const fromPos    = camera.position.clone();
         const fromTarget = controls.target.clone();
 
         tweenRef.current = {
             t0: performance.now(),
             duration,
             fromPos,
-            toPos: toPos.clone(),
+            toPos:       toPos.clone(),
             fromTarget,
-            toTarget: toTarget.clone(),
+            toTarget:    toTarget.clone(),
         };
     }, [camera, controls]);
 
@@ -511,7 +683,7 @@ function CameraPresetsController({ request, sceneBox, selectedBox, humanEyeHeigh
 
         const getBoxCenterSize = (box) => {
             const center = box.getCenter(new THREE.Vector3());
-            const size = box.getSize(new THREE.Vector3());
+            const size   = box.getSize(new THREE.Vector3());
             return { center, size };
         };
 
@@ -520,11 +692,11 @@ function CameraPresetsController({ request, sceneBox, selectedBox, humanEyeHeigh
             const maxDim = Math.max(size.x, size.y, size.z);
 
             const fov = THREE.MathUtils.degToRad(camera.fov);
-            let dist = maxDim / (2 * Math.tan(fov / 2));
+            let dist  = maxDim / (2 * Math.tan(fov / 2));
             dist *= pad;
 
-            const az = THREE.MathUtils.degToRad(azimuth);
-            const el = THREE.MathUtils.degToRad(elevation);
+            const az  = THREE.MathUtils.degToRad(azimuth);
+            const el  = THREE.MathUtils.degToRad(elevation);
 
             const dir = new THREE.Vector3(
                 Math.cos(el) * Math.cos(az),
@@ -536,12 +708,10 @@ function CameraPresetsController({ request, sceneBox, selectedBox, humanEyeHeigh
             return { pos, target: center };
         };
 
-        // Defaults if sceneBox isn't ready yet
         const fallbackBox = new THREE.Box3(
             new THREE.Vector3(-2, -2, -2),
             new THREE.Vector3(2, 2, 2)
         );
-
         const boxForScene = sceneBox && !sceneBox.isEmpty() ? sceneBox : fallbackBox;
 
         if (type === "overview") {
@@ -552,9 +722,9 @@ function CameraPresetsController({ request, sceneBox, selectedBox, humanEyeHeigh
 
         if (type === "top") {
             const { center, size } = getBoxCenterSize(boxForScene);
-            const maxDim = Math.max(size.x, size.y, size.z);
-            const dist = maxDim * 1.2 + 2.0;
-            const pos = new THREE.Vector3(center.x, center.y + dist, center.z + 0.001);
+            const maxDim  = Math.max(size.x, size.y, size.z);
+            const dist    = maxDim * 1.2 + 2.0;
+            const pos     = new THREE.Vector3(center.x, center.y + dist, center.z + 0.001);
             startTween(pos, center);
             return;
         }
@@ -562,8 +732,8 @@ function CameraPresetsController({ request, sceneBox, selectedBox, humanEyeHeigh
         if (type === "side") {
             const { center, size } = getBoxCenterSize(boxForScene);
             const maxDim = Math.max(size.x, size.y, size.z);
-            const dist = maxDim * 1.2 + 2.0;
-            const pos = new THREE.Vector3(center.x + dist, center.y + maxDim * 0.15, center.z);
+            const dist   = maxDim * 1.2 + 2.0;
+            const pos    = new THREE.Vector3(center.x + dist, center.y + maxDim * 0.15, center.z);
             startTween(pos, center);
             return;
         }
@@ -571,15 +741,14 @@ function CameraPresetsController({ request, sceneBox, selectedBox, humanEyeHeigh
         if (type === "ground") {
             const { center, size } = getBoxCenterSize(boxForScene);
             const maxDim = Math.max(size.x, size.y, size.z);
-
-            const eye = new THREE.Vector3(center.x, humanEyeHeight, center.z + maxDim * 1.2 + 2.5);
+            const eye    = new THREE.Vector3(center.x, humanEyeHeight, center.z + maxDim * 1.2 + 2.5);
             const lookAt = new THREE.Vector3(center.x, Math.max(0.6, humanEyeHeight * 0.6), center.z);
             startTween(eye, lookAt);
             return;
         }
 
         if (type === "focus") {
-            const box = selectedBox && !selectedBox.isEmpty() ? selectedBox : boxForScene;
+            const box         = selectedBox && !selectedBox.isEmpty() ? selectedBox : boxForScene;
             const { pos, target } = fitToBox(box, 35, 18, 1.25);
             startTween(pos, target);
             return;
@@ -594,14 +763,13 @@ function CameraPresetsController({ request, sceneBox, selectedBox, humanEyeHeigh
             const tw = tweenRef.current;
             if (tw && controls) {
                 const now = performance.now();
-                const u = Math.min(1, (now - tw.t0) / tw.duration);
+                const u   = Math.min(1, (now - tw.t0) / tw.duration);
 
                 // Smoothstep easing
                 const t = u * u * (3 - 2 * u);
 
                 camera.position.lerpVectors(tw.fromPos, tw.toPos, t);
                 controls.target.lerpVectors(tw.fromTarget, tw.toTarget, t);
-
                 controls.update();
 
                 if (u >= 1) tweenRef.current = null;
