@@ -51,6 +51,16 @@ export function ModelItem({
             loader.load(
                 blobUrl,
                 (gltf) => {
+                    // Clone every mesh material so each model owns independent
+                    // material instances — required for per-category opacity control.
+                    gltf.scene.traverse(child => {
+                        if (!child.isMesh) return;
+                        if (Array.isArray(child.material)) {
+                            child.material = child.material.map(mat => mat.clone());
+                        } else {
+                            child.material = child.material.clone();
+                        }
+                    });
                     setScene(gltf.scene);
                     setAnimations(gltf.animations || []);
                 },

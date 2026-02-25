@@ -15,12 +15,14 @@ export default function FilterPanel({
     setActiveCategories,
     filterMode,
     setFilterMode,
+    categoryOpacity,
+    setCategoryOpacity,
 }) {
-    const isFiltering = activeCategories.length > 0;
+    const isFiltering      = activeCategories.length > 0;
+    const hasOpacityChange = Object.values(categoryOpacity).some(v => v < 1);
+    const isDirty          = isFiltering || filterMode !== "inclusive" || hasOpacityChange;
 
-    // Checkbox "checked" represents "is this category currently visible?"
-    // In inclusive mode: visible = selected (or nothing selected = all visible).
-    // In exclusive mode: visible = NOT selected (or nothing selected = all visible).
+    // Checkbox "checked" = "is this category currently visible?"
     const isCategoryVisible = (cat) => {
         if (activeCategories.length === 0) return true;
         return filterMode === "inclusive"
@@ -33,48 +35,48 @@ export default function FilterPanel({
 
         if (filterMode === "inclusive") {
             if (visible) {
-                // Uncheck → hide this category
+                // Uncheck → hide: remove from active list
                 if (activeCategories.length === 0) {
-                    // All were shown; exclude just this one
                     setActiveCategories(categories.filter(c => c !== cat));
                 } else {
                     setActiveCategories(prev => prev.filter(c => c !== cat));
                 }
             } else {
-                // Check → show this category
                 setActiveCategories(prev => [...prev, cat]);
             }
         } else {
             // Exclusive mode
             if (visible) {
-                // Uncheck → hide this category (add to exclusion list)
+                // Uncheck → hide: add to exclusion list
                 if (activeCategories.length === 0) {
                     setActiveCategories([cat]);
                 } else {
                     setActiveCategories(prev => [...prev, cat]);
                 }
             } else {
-                // Check → show this category (remove from exclusion list)
+                // Check → show: remove from exclusion list
                 setActiveCategories(prev => prev.filter(c => c !== cat));
             }
         }
     };
 
+    const handleOpacityChange = (cat, value) => {
+        setCategoryOpacity(prev => ({ ...prev, [cat]: value }));
+    };
+
     const handleIsolate = () => {
         if (activeCategories.length === 0) return;
-        // Force inclusive mode so only selected categories are visible.
         setFilterMode("inclusive");
     };
 
     const handleReset = () => {
         setActiveCategories([]);
         setFilterMode("inclusive");
+        setCategoryOpacity({});
     };
 
-    const isDirty = isFiltering || filterMode !== "inclusive";
-
     return (
-        <div className="absolute right-5 top-5 w-72 bg-[#0F172A]/95 backdrop-blur border border-white/10 rounded-2xl p-4 text-white z-20">
+        <div className="absolute right-5 top-5 w-72 bg-[#0F172A]/95 backdrop-blur border border-white/10 rounded-2xl p-4 text-white z-20 max-h-[calc(100vh-3rem)] overflow-y-auto">
 
             {/* Header */}
             <div className="flex items-center justify-between mb-3">
@@ -131,32 +133,59 @@ export default function FilterPanel({
                         const selected = activeCategories.includes(cat);
                         const count    = categoryCounts[cat] ?? 0;
                         const dot      = CATEGORY_DOT[cat] ?? "bg-white/30";
+                        const opacity  = categoryOpacity[cat] ?? 1;
 
                         return (
-                            <label
+                            <div
                                 key={cat}
                                 className={[
-                                    "flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-colors group",
+                                    "rounded-xl transition-colors",
                                     selected ? "bg-white/10" : "hover:bg-white/5",
                                 ].join(" ")}
                             >
-                                <input
-                                    type="checkbox"
-                                    checked={visible}
-                                    onChange={() => handleToggle(cat)}
-                                    className="w-4 h-4 rounded accent-cyan-400 cursor-pointer flex-shrink-0"
-                                />
-                                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dot}`} />
-                                <span className={[
-                                    "flex-1 text-sm transition-colors",
-                                    visible ? "text-white/85" : "text-white/30 line-through",
-                                ].join(" ")}>
-                                    {cat}
-                                </span>
-                                <span className="text-xs text-white/30 tabular-nums">
-                                    {count}
-                                </span>
-                            </label>
+                                {/* Category row */}
+                                <label className="flex items-center gap-3 px-3 py-2.5 cursor-pointer group">
+                                    <input
+                                        type="checkbox"
+                                        checked={visible}
+                                        onChange={() => handleToggle(cat)}
+                                        className="w-4 h-4 rounded accent-cyan-400 cursor-pointer flex-shrink-0"
+                                    />
+                                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dot}`} />
+                                    <span className={[
+                                        "flex-1 text-sm transition-colors",
+                                        visible ? "text-white/85" : "text-white/30 line-through",
+                                    ].join(" ")}>
+                                        {cat}
+                                    </span>
+                                    <span className="text-xs text-white/30 tabular-nums">
+                                        {count}
+                                    </span>
+                                </label>
+
+                                {/* Opacity slider — only when category is selected */}
+                                {selected && (
+                                    <div className="px-3 pb-3">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <span className="text-xs text-white/40">Opacity</span>
+                                            <span className="text-xs text-white/60 tabular-nums w-9 text-right">
+                                                {Math.round(opacity * 100)}%
+                                            </span>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min="0"
+                                            max="1"
+                                            step="0.05"
+                                            value={opacity}
+                                            onChange={e =>
+                                                handleOpacityChange(cat, parseFloat(e.target.value))
+                                            }
+                                            className="w-full h-1 rounded-full appearance-none cursor-pointer accent-cyan-400 bg-white/10"
+                                        />
+                                    </div>
+                                )}
+                            </div>
                         );
                     })}
                 </div>
