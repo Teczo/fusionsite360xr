@@ -1,4 +1,9 @@
-// Category color dots — fallback to a neutral dot for unknown categories.
+import { Eye, EyeOff, Zap, RotateCcw } from 'lucide-react';
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const DEFAULT_CAT_STATE = { visible: true, opacity: 1, highlighted: false };
+
 const CATEGORY_DOT = {
     Structure:  "bg-blue-400",
     HVAC:       "bg-emerald-400",
@@ -8,72 +13,54 @@ const CATEGORY_DOT = {
     Pump:       "bg-red-400",
 };
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function patchCat(setCategoryState, cat, patch) {
+    setCategoryState(prev => ({
+        ...prev,
+        [cat]: { ...(prev[cat] ?? DEFAULT_CAT_STATE), ...patch },
+    }));
+}
+
+function isCatDirty(s) {
+    return !s.visible || s.opacity < 1 || s.highlighted;
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
 export default function FilterPanel({
     categories,
     categoryCounts,
-    activeCategories,
-    setActiveCategories,
-    filterMode,
-    setFilterMode,
-    categoryOpacity,
-    setCategoryOpacity,
+    categoryState,
+    setCategoryState,
+    dimOthers,
+    setDimOthers,
 }) {
-    const isFiltering      = activeCategories.length > 0;
-    const hasOpacityChange = Object.values(categoryOpacity).some(v => v < 1);
-    const isDirty          = isFiltering || filterMode !== "inclusive" || hasOpacityChange;
+    const anyDirty = categories.some(cat => isCatDirty(categoryState[cat] ?? DEFAULT_CAT_STATE));
+    const isDirty  = anyDirty || dimOthers;
 
-    // Checkbox "checked" = "is this category currently visible?"
-    const isCategoryVisible = (cat) => {
-        if (activeCategories.length === 0) return true;
-        return filterMode === "inclusive"
-            ? activeCategories.includes(cat)
-            : !activeCategories.includes(cat);
+    // ── Handlers ─────────────────────────────────────────────────────────────
+
+    const handleResetAll = () => {
+        setCategoryState(prev => {
+            const reset = {};
+            Object.keys(prev).forEach(cat => {
+                reset[cat] = { ...DEFAULT_CAT_STATE };
+            });
+            return reset;
+        });
+        setDimOthers(false);
     };
 
-    const handleToggle = (cat) => {
-        const visible = isCategoryVisible(cat);
-
-        if (filterMode === "inclusive") {
-            if (visible) {
-                // Uncheck → hide: remove from active list
-                if (activeCategories.length === 0) {
-                    setActiveCategories(categories.filter(c => c !== cat));
-                } else {
-                    setActiveCategories(prev => prev.filter(c => c !== cat));
-                }
-            } else {
-                setActiveCategories(prev => [...prev, cat]);
-            }
-        } else {
-            // Exclusive mode
-            if (visible) {
-                // Uncheck → hide: add to exclusion list
-                if (activeCategories.length === 0) {
-                    setActiveCategories([cat]);
-                } else {
-                    setActiveCategories(prev => [...prev, cat]);
-                }
-            } else {
-                // Check → show: remove from exclusion list
-                setActiveCategories(prev => prev.filter(c => c !== cat));
-            }
-        }
+    const handleResetCategory = (cat) => {
+        patchCat(setCategoryState, cat, { ...DEFAULT_CAT_STATE });
     };
 
-    const handleOpacityChange = (cat, value) => {
-        setCategoryOpacity(prev => ({ ...prev, [cat]: value }));
-    };
+    const toggleVisible    = (cat) => patchCat(setCategoryState, cat, { visible:     !(categoryState[cat]?.visible     ?? true)  });
+    const toggleHighlight  = (cat) => patchCat(setCategoryState, cat, { highlighted: !(categoryState[cat]?.highlighted ?? false) });
+    const setOpacity       = (cat, value) => patchCat(setCategoryState, cat, { opacity: value });
 
-    const handleIsolate = () => {
-        if (activeCategories.length === 0) return;
-        setFilterMode("inclusive");
-    };
-
-    const handleReset = () => {
-        setActiveCategories([]);
-        setFilterMode("inclusive");
-        setCategoryOpacity({});
-    };
+    // ── Render ────────────────────────────────────────────────────────────────
 
     return (
         <div className="absolute right-5 top-5 w-72 bg-[#0F172A]/95 backdrop-blur border border-white/10 rounded-2xl p-4 text-white z-20 max-h-[calc(100vh-3rem)] overflow-y-auto">
@@ -87,128 +74,136 @@ export default function FilterPanel({
                     </p>
                 </div>
                 <button
-                    onClick={handleReset}
+                    onClick={handleResetAll}
                     disabled={!isDirty}
                     className="text-xs text-white/40 hover:text-white disabled:opacity-0 disabled:pointer-events-none transition-all px-2 py-1 rounded-lg hover:bg-white/10"
                 >
-                    Reset
+                    Reset All
                 </button>
             </div>
 
-            {/* Mode toggle */}
-            <div className="flex gap-1 bg-white/5 rounded-xl p-1 mb-3">
-                <button
-                    onClick={() => setFilterMode("inclusive")}
-                    className={[
-                        "flex-1 text-xs py-1.5 rounded-lg transition-all font-medium",
-                        filterMode === "inclusive"
-                            ? "bg-white/15 text-white"
-                            : "text-white/40 hover:text-white/70",
-                    ].join(" ")}
-                >
-                    Inclusive
-                </button>
-                <button
-                    onClick={() => setFilterMode("exclusive")}
-                    className={[
-                        "flex-1 text-xs py-1.5 rounded-lg transition-all font-medium",
-                        filterMode === "exclusive"
-                            ? "bg-white/15 text-white"
-                            : "text-white/40 hover:text-white/70",
-                    ].join(" ")}
-                >
-                    Exclusive
-                </button>
-            </div>
+            {/* Dim Others toggle */}
+            <button
+                onClick={() => setDimOthers(p => !p)}
+                className={[
+                    "w-full flex items-center justify-between px-3 py-2.5 rounded-xl mb-3 transition-colors text-sm border",
+                    dimOthers
+                        ? "bg-cyan-500/15 border-cyan-500/30 text-cyan-300"
+                        : "bg-white/5 border-transparent text-white/50 hover:text-white/80 hover:bg-white/8",
+                ].join(" ")}
+            >
+                <span className="font-medium">Dim Others</span>
+                {/* Toggle pill */}
+                <span className={[
+                    "w-9 h-5 rounded-full relative flex-shrink-0 transition-colors",
+                    dimOthers ? "bg-cyan-500" : "bg-white/20",
+                ].join(" ")}>
+                    <span className={[
+                        "absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform",
+                        dimOthers ? "translate-x-4" : "translate-x-0.5",
+                    ].join(" ")} />
+                </span>
+            </button>
 
             {/* Category list */}
             {categories.length === 0 ? (
-                <p className="text-white/30 text-xs text-center py-4">
-                    No models loaded
-                </p>
+                <p className="text-white/30 text-xs text-center py-4">No models loaded</p>
             ) : (
-                <div className="space-y-0.5 mb-3">
+                <div className="space-y-1.5">
                     {categories.map(cat => {
-                        const visible  = isCategoryVisible(cat);
-                        const selected = activeCategories.includes(cat);
-                        const count    = categoryCounts[cat] ?? 0;
-                        const dot      = CATEGORY_DOT[cat] ?? "bg-white/30";
-                        const opacity  = categoryOpacity[cat] ?? 1;
+                        const s           = categoryState[cat] ?? DEFAULT_CAT_STATE;
+                        const { visible, opacity, highlighted } = s;
+                        const count       = categoryCounts[cat] ?? 0;
+                        const dot         = CATEGORY_DOT[cat] ?? "bg-white/30";
+                        const catDirty    = isCatDirty(s);
 
                         return (
                             <div
                                 key={cat}
                                 className={[
-                                    "rounded-xl transition-colors",
-                                    selected ? "bg-white/10" : "hover:bg-white/5",
+                                    "rounded-xl border px-3 py-2.5 transition-colors",
+                                    highlighted
+                                        ? "border-cyan-500/40 bg-cyan-500/10"
+                                        : !visible
+                                            ? "border-white/5 bg-white/[0.03] opacity-60"
+                                            : "border-white/[0.06] bg-white/[0.04]",
                                 ].join(" ")}
                             >
-                                {/* Category row */}
-                                <label className="flex items-center gap-3 px-3 py-2.5 cursor-pointer group">
-                                    <input
-                                        type="checkbox"
-                                        checked={visible}
-                                        onChange={() => handleToggle(cat)}
-                                        className="w-4 h-4 rounded accent-cyan-400 cursor-pointer flex-shrink-0"
-                                    />
+                                {/* ── Top row: dot · name · count · controls ── */}
+                                <div className="flex items-center gap-2 mb-2">
                                     <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dot}`} />
+
                                     <span className={[
-                                        "flex-1 text-sm transition-colors",
+                                        "flex-1 text-sm font-medium truncate transition-colors",
                                         visible ? "text-white/85" : "text-white/30 line-through",
                                     ].join(" ")}>
                                         {cat}
                                     </span>
-                                    <span className="text-xs text-white/30 tabular-nums">
-                                        {count}
-                                    </span>
-                                </label>
 
-                                {/* Opacity slider — only when category is selected */}
-                                {selected && (
-                                    <div className="px-3 pb-3">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <span className="text-xs text-white/40">Opacity</span>
-                                            <span className="text-xs text-white/60 tabular-nums w-9 text-right">
-                                                {Math.round(opacity * 100)}%
-                                            </span>
-                                        </div>
-                                        <input
-                                            type="range"
-                                            min="0"
-                                            max="1"
-                                            step="0.05"
-                                            value={opacity}
-                                            onChange={e =>
-                                                handleOpacityChange(cat, parseFloat(e.target.value))
-                                            }
-                                            className="w-full h-1 rounded-full appearance-none cursor-pointer accent-cyan-400 bg-white/10"
-                                        />
-                                    </div>
-                                )}
+                                    <span className="text-xs text-white/30 tabular-nums mr-1">{count}</span>
+
+                                    {/* Eye — toggle visibility */}
+                                    <button
+                                        onClick={() => toggleVisible(cat)}
+                                        title={visible ? "Hide category" : "Show category"}
+                                        className={[
+                                            "p-1 rounded-lg transition-colors",
+                                            visible
+                                                ? "text-white/50 hover:text-white hover:bg-white/10"
+                                                : "text-white/25 hover:text-white/60 hover:bg-white/10",
+                                        ].join(" ")}
+                                    >
+                                        {visible
+                                            ? <Eye    className="w-3.5 h-3.5" />
+                                            : <EyeOff className="w-3.5 h-3.5" />
+                                        }
+                                    </button>
+
+                                    {/* Zap — highlight toggle */}
+                                    <button
+                                        onClick={() => toggleHighlight(cat)}
+                                        title={highlighted ? "Remove highlight" : "Highlight category"}
+                                        className={[
+                                            "p-1 rounded-lg transition-colors",
+                                            highlighted
+                                                ? "text-cyan-400 bg-cyan-500/20 hover:bg-cyan-500/30"
+                                                : "text-white/30 hover:text-yellow-400 hover:bg-white/10",
+                                        ].join(" ")}
+                                    >
+                                        <Zap className="w-3.5 h-3.5" />
+                                    </button>
+
+                                    {/* RotateCcw — per-category reset */}
+                                    <button
+                                        onClick={() => handleResetCategory(cat)}
+                                        disabled={!catDirty}
+                                        title="Reset this category"
+                                        className="p-1 rounded-lg text-white/20 hover:text-white/60 hover:bg-white/10 transition-colors disabled:opacity-0 disabled:pointer-events-none"
+                                    >
+                                        <RotateCcw className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+
+                                {/* ── Opacity slider ── */}
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="1"
+                                        step="0.05"
+                                        value={opacity}
+                                        onChange={e => setOpacity(cat, parseFloat(e.target.value))}
+                                        className="flex-1 h-1 rounded-full appearance-none cursor-pointer accent-cyan-400 bg-white/10"
+                                    />
+                                    <span className="text-xs text-white/40 tabular-nums w-9 text-right">
+                                        {Math.round(opacity * 100)}%
+                                    </span>
+                                </div>
                             </div>
                         );
                     })}
                 </div>
             )}
-
-            {/* Action row: Isolate + Reset */}
-            <div className="flex gap-2">
-                <button
-                    onClick={handleIsolate}
-                    disabled={activeCategories.length === 0}
-                    title="Show only selected categories (inclusive mode)"
-                    className="flex-1 text-xs py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all"
-                >
-                    Isolate
-                </button>
-                <button
-                    onClick={handleReset}
-                    disabled={!isDirty}
-                    className="flex-1 text-xs py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all"
-                >
-                    Reset
-                </button>
-            </div>
         </div>
     );
 }
