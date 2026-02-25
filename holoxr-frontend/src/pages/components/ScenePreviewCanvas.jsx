@@ -238,19 +238,35 @@ export default function ScenePreviewCanvas({
     }, [api, projectId]);
 
     // ── Filter state ───────────────────────────────────────────────────────────
-    // activeCategories: empty = show all; non-empty = apply filterMode logic.
-    // filterMode: "inclusive" (only selected visible) | "exclusive" (selected hidden).
-    // categoryOpacity: { [category]: 0–1 }  default = 1 (fully opaque).
-    const [activeCategories, setActiveCategories] = useState([]);
-    const [filterMode, setFilterMode]             = useState("inclusive");
-    const [categoryOpacity, setCategoryOpacity]   = useState({});
+    // Unified per-category visual state: { visible, opacity, highlighted }.
+    // dimOthers: when true, non-highlighted categories are dimmed to 0.15 opacity.
+    const [categoryState, setCategoryState] = useState({});
+    const [dimOthers, setDimOthers]         = useState(false);
+
+    // Initialise categoryState whenever the category list changes (project load /
+    // project switch). Preserves existing per-category values when a category
+    // is still present in the new scene.
+    useEffect(() => {
+        setCategoryState(prev => {
+            const next = {};
+            categories.forEach(cat => {
+                next[cat] = prev[cat] ?? { visible: true, opacity: 1, highlighted: false };
+            });
+            return next;
+        });
+    }, [categories]);
 
     // Reset all filter state when the user switches away from the filter tool.
     useEffect(() => {
         if (activeTool !== "filter") {
-            setActiveCategories([]);
-            setFilterMode("inclusive");
-            setCategoryOpacity({});
+            setCategoryState(prev => {
+                const reset = {};
+                Object.keys(prev).forEach(cat => {
+                    reset[cat] = { visible: true, opacity: 1, highlighted: false };
+                });
+                return reset;
+            });
+            setDimOthers(false);
         }
     }, [activeTool]);
 
@@ -386,9 +402,8 @@ export default function ScenePreviewCanvas({
                         selectedIssueId={selectedIssueId}
                         onIssuePinClick={onIssuePinClick}
                         onIssuePlaced={setPendingIssuePosition}
-                        activeCategories={activeCategories}
-                        filterMode={filterMode}
-                        categoryOpacity={categoryOpacity}
+                        categoryState={categoryState}
+                        dimOthers={dimOthers}
                     />
                 </Selection>
 
@@ -431,12 +446,10 @@ export default function ScenePreviewCanvas({
                 <FilterPanel
                     categories={categories}
                     categoryCounts={categoryCounts}
-                    activeCategories={activeCategories}
-                    setActiveCategories={setActiveCategories}
-                    filterMode={filterMode}
-                    setFilterMode={setFilterMode}
-                    categoryOpacity={categoryOpacity}
-                    setCategoryOpacity={setCategoryOpacity}
+                    categoryState={categoryState}
+                    setCategoryState={setCategoryState}
+                    dimOthers={dimOthers}
+                    setDimOthers={setDimOthers}
                 />
             )}
 
@@ -511,9 +524,8 @@ function SceneContent({
     selectedIssueId,
     onIssuePinClick,
     onIssuePlaced,
-    activeCategories,
-    filterMode,
-    categoryOpacity,
+    categoryState,
+    dimOthers,
 }) {
     const rootRef = useRef();
     const { camera } = useThree();
@@ -613,22 +625,19 @@ function SceneContent({
     return (
         <group ref={rootRef}>
             {models.map((m) => {
-                const category = categorize(m.name);
-                let isVisible = true;
-                if (activeCategories.length > 0) {
-                    if (filterMode === "inclusive") {
-                        isVisible = activeCategories.includes(category);
-                    } else {
-                        isVisible = !activeCategories.includes(category);
-                    }
-                }
-                const opacity = categoryOpacity[category] ?? 1;
+                const category   = categorize(m.name);
+                const catState   = categoryState[category] ?? { visible: true, opacity: 1, highlighted: false };
+                const isVisible  = catState.visible;
+                const highlighted = catState.highlighted;
+                // dimOthers overrides opacity for non-highlighted categories.
+                const opacity    = (dimOthers && !highlighted) ? 0.15 : catState.opacity;
 
                 return (
-                    <ModelGroupWithOpacity
+                    <ModelGroupController
                         key={m.id}
                         isVisible={isVisible}
                         opacity={opacity}
+                        highlighted={highlighted}
                         enabled={selectedId === m.id}
                         assetId={m.id}
                         onPointerDown={(e) => handlePick(e, m)}
@@ -641,7 +650,7 @@ function SceneContent({
                             isPaused={m.isPaused}
                             behaviors={[]}
                         />
-                    </ModelGroupWithOpacity>
+                    </ModelGroupController>
                 );
             })}
 
@@ -679,18 +688,21 @@ function SceneContent({
 }
 
 
-// ─── ModelGroupWithOpacity ────────────────────────────────────────────────────
-// Wraps a model group and applies per-category opacity via useFrame.
-// useFrame is used (instead of useEffect) so that opacity is applied
-// after the GLTF loads asynchronously — it retries each frame until
-// meshes are present, then exits cheaply via a ref comparison.
-function ModelGroupWithOpacity({ isVisible, opacity, enabled, assetId, onPointerDown, children }) {
-    const groupRef    = useRef();
-    const lastApplied = useRef(null);
+// ─── ModelGroupController ─────────────────────────────────────────────────────
+// Applies per-category opacity and highlight (emissive) imperatively via
+// useFrame. Two independent refs track the last-applied values so that
+// either dimension can change without re-traversing unnecessarily.
+// useFrame handles the async GLTF load race: it retries each frame until
+// meshes are actually found, then becomes a near-free ref comparison.
+function ModelGroupController({ isVisible, opacity, highlighted, enabled, assetId, onPointerDown, children }) {
+    const groupRef        = useRef();
+    const lastOpacity     = useRef(null);
+    const lastHighlighted = useRef(null);
 
     useFrame(() => {
-        // Exit immediately if nothing has changed — costs only one ref comparison.
-        if (lastApplied.current === opacity) return;
+        const opUnchanged  = lastOpacity.current     === opacity;
+        const hiUnchanged  = lastHighlighted.current === highlighted;
+        if (opUnchanged && hiUnchanged) return;
 
         const g = groupRef.current;
         if (!g) return;
@@ -701,15 +713,26 @@ function ModelGroupWithOpacity({ isVisible, opacity, enabled, assetId, onPointer
             found = true;
             const mats = Array.isArray(child.material) ? child.material : [child.material];
             mats.forEach(mat => {
-                mat.transparent  = opacity < 1;
-                mat.opacity      = opacity;
-                mat.depthWrite   = opacity === 1;
-                mat.needsUpdate  = true;
+                // ── Opacity ──────────────────────────────────────────────────
+                mat.transparent = opacity < 1;
+                mat.opacity     = opacity;
+                mat.depthWrite  = opacity === 1;
+
+                // ── Highlight (emissive) — only materials that support it ───
+                if ('emissive' in mat) {
+                    mat.emissive.set(highlighted ? 0x00ffff : 0x000000);
+                    mat.emissiveIntensity = highlighted ? 0.4 : 0;
+                }
+
+                mat.needsUpdate = true;
             });
         });
 
-        // Only mark as applied once meshes were actually found (GLTF ready).
-        if (found) lastApplied.current = opacity;
+        // Only commit once meshes were found (GLTF may still be loading).
+        if (found) {
+            lastOpacity.current     = opacity;
+            lastHighlighted.current = highlighted;
+        }
     });
 
     return (
