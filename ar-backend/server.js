@@ -7,6 +7,8 @@ import cors from 'cors';
 import multer from 'multer';
 import mongoose from 'mongoose';
 import { BlobServiceClient } from '@azure/storage-blob';
+import http from 'http';
+import { WebSocketServer } from 'ws';
 
 import authRoutes from './routes/auth.js';
 import projectRoutes from './routes/project.js';
@@ -30,6 +32,7 @@ import intelligenceRoutes from './routes/intelligence.js';
 import intelligenceDevRoutes from './routes/dev/intelligenceDevRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import bimRoutes from './routes/bim.js';
+import issueRoutes, { setBroadcast } from './routes/issues.js';
 
 import requireActiveSubscription from './middleware/requireActiveSubscription.js';
 import authMiddleware from './middleware/authMiddleware.js';
@@ -148,6 +151,7 @@ app.use('/api', scheduleRoutes);
 app.use('/api', bimRoutes);
 app.use('/api', intelligenceRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api', issueRoutes);
 
 // DEV ONLY — Intelligence debug console routes.
 // Completely absent in production; safe to remove along with routes/dev/ and
@@ -165,7 +169,57 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
 });
 
+// ─── HTTP + WebSocket Server ──────────────────────────────────────────────────
+const httpServer = http.createServer(app);
+
+// Map: projectId (string) → Set<WebSocket>
+const projectRooms = new Map();
+
+const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+
+wss.on('connection', (ws) => {
+  let joinedProject = null;
+
+  ws.on('message', (raw) => {
+    try {
+      const msg = JSON.parse(raw);
+      if (msg.type === 'join' && msg.projectId) {
+        // Leave any previously joined room
+        if (joinedProject && projectRooms.has(joinedProject)) {
+          projectRooms.get(joinedProject).delete(ws);
+        }
+        joinedProject = String(msg.projectId);
+        if (!projectRooms.has(joinedProject)) {
+          projectRooms.set(joinedProject, new Set());
+        }
+        projectRooms.get(joinedProject).add(ws);
+      }
+    } catch {
+      // Ignore malformed messages
+    }
+  });
+
+  ws.on('close', () => {
+    if (joinedProject && projectRooms.has(joinedProject)) {
+      projectRooms.get(joinedProject).delete(ws);
+    }
+  });
+});
+
+// Provide broadcast function to issue routes
+setBroadcast((projectId, payload) => {
+  const room = projectRooms.get(projectId);
+  if (!room) return;
+  const data = JSON.stringify(payload);
+  for (const client of room) {
+    if (client.readyState === 1 /* OPEN */) {
+      client.send(data);
+    }
+  }
+});
+
 // Start
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
+  console.log(`🔌 WebSocket available at ws://localhost:${PORT}/ws`);
 });

@@ -1,8 +1,9 @@
-import { Database, Filter, Scissors, Layers, Ruler } from 'lucide-react';
+import { Database, Filter, Scissors, Layers, Ruler, Pin } from 'lucide-react';
 
 const TOOLS = [
   { id: 'bim', icon: Database, label: 'BIM Data', disabled: false },
-  { id: 'measure', icon: Ruler, label: 'Measure', disabled: false }, // NEW
+  { id: 'measure', icon: Ruler, label: 'Measure', disabled: false },
+  { id: 'issue', icon: Pin, label: 'Issues', disabled: false },
   { id: 'filter', icon: Filter, label: 'Filter', disabled: true },
   { id: 'section', icon: Scissors, label: 'Cross-Section', disabled: true },
   { id: 'isolate', icon: Layers, label: 'Isolate', disabled: true },

@@ -138,6 +138,24 @@ export const userApi = {
   me: () => request('/api/me', { headers: headers() }),
 };
 
+// Issues
+export const issuesApi = {
+  list: (projectId) =>
+    request(`/api/projects/${projectId}/issues`, { headers: headers() }),
+  create: (projectId, body) =>
+    request(`/api/projects/${projectId}/issues`, {
+      method: 'POST', headers: headers(), body: JSON.stringify(body),
+    }),
+  update: (issueId, body) =>
+    request(`/api/issues/${issueId}`, {
+      method: 'PATCH', headers: headers(), body: JSON.stringify(body),
+    }),
+  remove: (issueId) =>
+    request(`/api/issues/${issueId}`, {
+      method: 'DELETE', headers: headers(),
+    }),
+};
+
 // BIM
 export const bimApi = {
   upload: (projectId, file) => {

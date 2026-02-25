@@ -6,6 +6,7 @@ import * as THREE from "three";
 
 import { ModelItem } from "../../components/viewer/ARViewerComponents";
 import DoFDevPanel from "../components/dev/DoFDevPanel";
+import IssuePin from "../../components/twin/IssuePin";
 
 
 // ─── Unit conversion utility ─────────────────────────────────────────────────
@@ -146,7 +147,19 @@ function MeasurementPanel({ unit, setUnit, measurements, onDelete, onClearAll })
 
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRequest, onSelectAsset, activeTool, onBimElementSelect }) {
+export default function ScenePreviewCanvas({
+    projectId,
+    cameraRequest,
+    captureRequest,
+    onSelectAsset,
+    activeTool,
+    onBimElementSelect,
+    // Issue props passed from TwinPage
+    issues,
+    onIssuePinClick,
+    pendingIssuePosition,
+    setPendingIssuePosition,
+}) {
 
     const [published, setPublished] = useState(null);
     const [error, setError] = useState("");
@@ -321,6 +334,9 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
                         currentPoints={currentPoints}
                         setCurrentPoints={setCurrentPoints}
                         unit={unit}
+                        issues={issues ?? []}
+                        onIssuePinClick={onIssuePinClick}
+                        onIssuePlaced={setPendingIssuePosition}
                     />
                 </Selection>
 
@@ -425,6 +441,9 @@ function SceneContent({
     currentPoints,
     setCurrentPoints,
     unit,
+    issues,
+    onIssuePinClick,
+    onIssuePlaced,
 }) {
     const rootRef = useRef();
     const { camera } = useThree();
@@ -449,7 +468,7 @@ function SceneContent({
         const canvas = document.querySelector("canvas");
         if (canvas) {
             canvas.style.cursor =
-                activeTool === "bim" || activeTool === "measure"
+                activeTool === "bim" || activeTool === "measure" || activeTool === "issue"
                     ? "crosshair"
                     : "";
         }
@@ -467,6 +486,15 @@ function SceneContent({
             if (hitPoint) {
                 const dist = camera.position.distanceTo(hitPoint);
                 onFocusDistance(dist);
+            }
+
+            // ── Issue tool ────────────────────────────────────────────────────
+            if (activeTool === "issue") {
+                const hit = e.point?.clone?.();
+                if (!hit) return;
+                // Notify parent with the picked position to open modal
+                onIssuePlaced?.({ x: hit.x, y: hit.y, z: hit.z });
+                return;
             }
 
             // ── Measurement tool ──────────────────────────────────────────────
@@ -518,6 +546,7 @@ function SceneContent({
             onBimElementSelect,
             setMeasurements,
             setCurrentPoints,
+            onIssuePlaced,
         ]
     );
 
@@ -561,6 +590,15 @@ function SceneContent({
                     <meshBasicMaterial color="cyan" />
                 </mesh>
             )}
+
+            {/* Issue pins */}
+            {issues.map((issue) => (
+                <IssuePin
+                    key={issue._id}
+                    issue={issue}
+                    onClick={onIssuePinClick}
+                />
+            ))}
 
             <AutoFitCamera targetRef={rootRef} />
         </group>
@@ -750,6 +788,15 @@ function CameraPresetsController({ request, sceneBox, selectedBox, humanEyeHeigh
         if (type === "focus") {
             const box         = selectedBox && !selectedBox.isEmpty() ? selectedBox : boxForScene;
             const { pos, target } = fitToBox(box, 35, 18, 1.25);
+            startTween(pos, target);
+            return;
+        }
+
+        if (type === "focus-position" && request.position) {
+            const { x, y, z } = request.position;
+            const target = new THREE.Vector3(x, y, z);
+            const offset = new THREE.Vector3(3, 2, 3);
+            const pos    = target.clone().add(offset);
             startTween(pos, target);
             return;
         }
