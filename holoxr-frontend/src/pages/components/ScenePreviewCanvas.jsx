@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { Html, OrbitControls } from "@react-three/drei";
 import { EffectComposer, Outline, Selection, Select } from "@react-three/postprocessing";
 import * as THREE from "three";
@@ -240,14 +240,17 @@ export default function ScenePreviewCanvas({
     // ── Filter state ───────────────────────────────────────────────────────────
     // activeCategories: empty = show all; non-empty = apply filterMode logic.
     // filterMode: "inclusive" (only selected visible) | "exclusive" (selected hidden).
+    // categoryOpacity: { [category]: 0–1 }  default = 1 (fully opaque).
     const [activeCategories, setActiveCategories] = useState([]);
     const [filterMode, setFilterMode]             = useState("inclusive");
+    const [categoryOpacity, setCategoryOpacity]   = useState({});
 
-    // Reset filter when the user switches away from the filter tool.
+    // Reset all filter state when the user switches away from the filter tool.
     useEffect(() => {
         if (activeTool !== "filter") {
             setActiveCategories([]);
             setFilterMode("inclusive");
+            setCategoryOpacity({});
         }
     }, [activeTool]);
 
@@ -385,6 +388,7 @@ export default function ScenePreviewCanvas({
                         onIssuePlaced={setPendingIssuePosition}
                         activeCategories={activeCategories}
                         filterMode={filterMode}
+                        categoryOpacity={categoryOpacity}
                     />
                 </Selection>
 
@@ -431,6 +435,8 @@ export default function ScenePreviewCanvas({
                     setActiveCategories={setActiveCategories}
                     filterMode={filterMode}
                     setFilterMode={setFilterMode}
+                    categoryOpacity={categoryOpacity}
+                    setCategoryOpacity={setCategoryOpacity}
                 />
             )}
 
@@ -507,6 +513,7 @@ function SceneContent({
     onIssuePlaced,
     activeCategories,
     filterMode,
+    categoryOpacity,
 }) {
     const rootRef = useRef();
     const { camera } = useThree();
@@ -615,25 +622,26 @@ function SceneContent({
                         isVisible = !activeCategories.includes(category);
                     }
                 }
+                const opacity = categoryOpacity[category] ?? 1;
 
                 return (
-                    <group key={m.id} visible={isVisible}>
-                        <Select enabled={selectedId === m.id}>
-                            <group
-                                userData={{ assetId: m.id }}
-                                onPointerDown={(e) => handlePick(e, m)}
-                            >
-                                <ModelItem
-                                    id={m.id}
-                                    url={m.url}
-                                    transform={m.transform}
-                                    autoplay={m.autoplay}
-                                    isPaused={m.isPaused}
-                                    behaviors={[]}
-                                />
-                            </group>
-                        </Select>
-                    </group>
+                    <ModelGroupWithOpacity
+                        key={m.id}
+                        isVisible={isVisible}
+                        opacity={opacity}
+                        enabled={selectedId === m.id}
+                        assetId={m.id}
+                        onPointerDown={(e) => handlePick(e, m)}
+                    >
+                        <ModelItem
+                            id={m.id}
+                            url={m.url}
+                            transform={m.transform}
+                            autoplay={m.autoplay}
+                            isPaused={m.isPaused}
+                            behaviors={[]}
+                        />
+                    </ModelGroupWithOpacity>
                 );
             })}
 
@@ -666,6 +674,51 @@ function SceneContent({
             ))}
 
             <AutoFitCamera targetRef={rootRef} />
+        </group>
+    );
+}
+
+
+// ─── ModelGroupWithOpacity ────────────────────────────────────────────────────
+// Wraps a model group and applies per-category opacity via useFrame.
+// useFrame is used (instead of useEffect) so that opacity is applied
+// after the GLTF loads asynchronously — it retries each frame until
+// meshes are present, then exits cheaply via a ref comparison.
+function ModelGroupWithOpacity({ isVisible, opacity, enabled, assetId, onPointerDown, children }) {
+    const groupRef    = useRef();
+    const lastApplied = useRef(null);
+
+    useFrame(() => {
+        // Exit immediately if nothing has changed — costs only one ref comparison.
+        if (lastApplied.current === opacity) return;
+
+        const g = groupRef.current;
+        if (!g) return;
+
+        let found = false;
+        g.traverse(child => {
+            if (!child.isMesh) return;
+            found = true;
+            const mats = Array.isArray(child.material) ? child.material : [child.material];
+            mats.forEach(mat => {
+                mat.transparent  = opacity < 1;
+                mat.opacity      = opacity;
+                mat.depthWrite   = opacity === 1;
+                mat.needsUpdate  = true;
+            });
+        });
+
+        // Only mark as applied once meshes were actually found (GLTF ready).
+        if (found) lastApplied.current = opacity;
+    });
+
+    return (
+        <group ref={groupRef} visible={isVisible}>
+            <Select enabled={enabled}>
+                <group userData={{ assetId }} onPointerDown={onPointerDown}>
+                    {children}
+                </group>
+            </Select>
         </group>
     );
 }
