@@ -154,6 +154,9 @@ export const issuesApi = {
     request(`/api/issues/${issueId}`, {
       method: 'DELETE', headers: headers(),
     }),
+  // Returns project owner + teamMembers as assignable users
+  members: (projectId) =>
+    request(`/api/projects/${projectId}/members`, { headers: headers() }),
 };
 
 // BIM

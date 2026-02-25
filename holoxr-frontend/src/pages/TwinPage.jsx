@@ -173,17 +173,20 @@ export default function TwinPage() {
         setSelectedIssueId(issue._id);
     }, []);
 
-    // Status updated from panel dropdown
-    const handleStatusChange = useCallback(async (issueId, status) => {
+    // General issue update from panel (status, assignedTo, dueDate, etc.)
+    const handleUpdateIssue = useCallback(async (issueId, patch) => {
         // Optimistic update for instant feedback
         setIssues((prev) =>
-            prev.map((i) => (i._id === issueId ? { ...i, status } : i))
+            prev.map((i) => (i._id === issueId ? { ...i, ...patch } : i))
         );
         try {
-            await issuesApi.update(issueId, { status });
-            // WS broadcast from server will re-sync for other clients
+            const updated = await issuesApi.update(issueId, patch);
+            // Replace with server response (which includes populated history)
+            setIssues((prev) =>
+                prev.map((i) => (i._id === issueId ? updated : i))
+            );
         } catch (err) {
-            console.error("Status update failed:", err.message);
+            console.error("Issue update failed:", err.message);
             // Revert — reload full list
             issuesApi.list(projectId).then(setIssues).catch(() => {});
         }
@@ -291,11 +294,12 @@ export default function TwinPage() {
             {/* ── Issue Panel ── */}
             <IssuePanel
                 isOpen={issuePanelOpen}
+                projectId={projectId}
                 issues={issues}
                 selectedIssueId={selectedIssueId}
                 currentUser={currentUser}
                 onFocusIssue={handleIssueCellFocus}
-                onStatusChange={handleStatusChange}
+                onUpdateIssue={handleUpdateIssue}
                 onDeleteIssue={handleDeleteIssue}
                 onClose={handleIssuePanelClose}
             />
