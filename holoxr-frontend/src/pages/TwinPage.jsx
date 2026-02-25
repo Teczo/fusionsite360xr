@@ -1,19 +1,21 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { Maximize2, Minimize2, Camera, Eye } from "lucide-react";
 import ScenePreviewCanvas from "./components/ScenePreviewCanvas";
 import TwinToolbar from "../components/twin/TwinToolbar";
 import BimMetadataPanel from "../components/twin/BimMetadataPanel";
+import IssueModal from "../components/twin/IssueModal";
+import { issuesApi } from "../services/api.js";
 
 const CAMERA_PRESETS = ["overview", "top", "side", "ground"];
+
+const WS_URL = import.meta.env.VITE_WS_URL
+    ?? import.meta.env.VITE_API_URL?.replace(/^http/, "ws")
+    ?? "ws://localhost:4000";
 
 /**
  * Digital Twin full-page view.
  * Route: /twin?id=PROJECT_ID
- *
- * Renders ScenePreviewCanvas filling the entire available viewport area
- * (sidebar + header are provided by AppLayout; this component fills the rest).
- * The dashboard preview card in DigitalTwinDashboard is not affected.
  */
 export default function TwinPage() {
     const location = useLocation();
@@ -25,9 +27,14 @@ export default function TwinPage() {
     const [isFullscreen, setIsFullscreen] = useState(false);
 
     const [activeTool, setActiveTool] = useState(null);
-    // { name: string (normalized), originalName: string } | null
     const [selectedElement, setSelectedElement] = useState(null);
 
+    // ── Issue state ────────────────────────────────────────────────────────────
+    const [issues, setIssues] = useState([]);
+    const [pendingIssuePosition, setPendingIssuePosition] = useState(null); // {x,y,z} or null
+    const [selectedIssue, setSelectedIssue] = useState(null);
+
+    const wsRef = useRef(null);
     const containerRef = useRef(null);
 
     // Sync fullscreen state with browser fullscreen API
@@ -36,6 +43,65 @@ export default function TwinPage() {
         document.addEventListener("fullscreenchange", onFsChange);
         return () => document.removeEventListener("fullscreenchange", onFsChange);
     }, []);
+
+    // ── Load issues on mount ───────────────────────────────────────────────────
+    useEffect(() => {
+        if (!projectId) return;
+        issuesApi.list(projectId)
+            .then(setIssues)
+            .catch((err) => console.error("Failed to load issues:", err));
+    }, [projectId]);
+
+    // ── WebSocket client ───────────────────────────────────────────────────────
+    useEffect(() => {
+        if (!projectId) return;
+
+        let ws;
+        let reconnectTimer;
+
+        const connect = () => {
+            ws = new WebSocket(`${WS_URL}/ws`);
+            wsRef.current = ws;
+
+            ws.onopen = () => {
+                ws.send(JSON.stringify({ type: "join", projectId }));
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+                    if (msg.type === "issue_created") {
+                        setIssues((prev) => {
+                            if (prev.some((i) => i._id === msg.issue._id)) return prev;
+                            return [msg.issue, ...prev];
+                        });
+                    } else if (msg.type === "issue_updated") {
+                        setIssues((prev) =>
+                            prev.map((i) => (i._id === msg.issue._id ? msg.issue : i))
+                        );
+                    } else if (msg.type === "issue_deleted") {
+                        setIssues((prev) => prev.filter((i) => i._id !== msg.issueId));
+                    }
+                } catch {
+                    // Ignore malformed messages
+                }
+            };
+
+            ws.onclose = () => {
+                // Reconnect after 3 s unless component unmounted
+                reconnectTimer = setTimeout(connect, 3000);
+            };
+
+            ws.onerror = () => ws.close();
+        };
+
+        connect();
+
+        return () => {
+            clearTimeout(reconnectTimer);
+            wsRef.current?.close();
+        };
+    }, [projectId]);
 
     const requestCamera = (type) =>
         setCameraRequest((prev) => ({ type, nonce: prev.nonce + 1 }));
@@ -53,13 +119,36 @@ export default function TwinPage() {
 
     const handleToolChange = (tool) => {
         setActiveTool(tool);
-        if (!tool) setSelectedElement(null);
+        if (!tool) {
+            setSelectedElement(null);
+            setPendingIssuePosition(null);
+        }
     };
 
     const handleBimPanelClose = () => {
         setSelectedElement(null);
         setActiveTool(null);
     };
+
+    // Called when an issue pin is clicked in the scene
+    const handleIssuePinClick = useCallback((issue) => {
+        setSelectedIssue(issue);
+        // Focus camera on the issue position
+        setCameraRequest((prev) => ({
+            type: "focus-position",
+            position: issue.position,
+            nonce: prev.nonce + 1,
+        }));
+    }, []);
+
+    // Called when the issue modal is submitted and issue saved
+    const handleIssueCreated = useCallback((issue) => {
+        setIssues((prev) => {
+            if (prev.some((i) => i._id === issue._id)) return prev;
+            return [issue, ...prev];
+        });
+        setPendingIssuePosition(null);
+    }, []);
 
     if (!projectId) {
         return (
@@ -84,6 +173,10 @@ export default function TwinPage() {
                 onSelectAsset={setSelectedAsset}
                 activeTool={activeTool}
                 onBimElementSelect={setSelectedElement}
+                issues={issues}
+                onIssuePinClick={handleIssuePinClick}
+                pendingIssuePosition={pendingIssuePosition}
+                setPendingIssuePosition={setPendingIssuePosition}
             />
 
             {/* ── Overlay: camera preset strip + action buttons ── */}
@@ -125,6 +218,13 @@ export default function TwinPage() {
                 </div>
             </div>
 
+            {/* ── Issue count badge (when issue tool is active) ── */}
+            {activeTool === "issue" && (
+                <div className="absolute top-4 left-4 z-10 bg-black/50 backdrop-blur-sm border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white/70">
+                    {issues.length} issue{issues.length !== 1 ? "s" : ""} · click model to pin new
+                </div>
+            )}
+
             {/* ── Floating toolbar (bottom-center) ── */}
             <TwinToolbar activeTool={activeTool} onToolChange={handleToolChange} />
 
@@ -135,8 +235,43 @@ export default function TwinPage() {
                 onClose={handleBimPanelClose}
             />
 
+            {/* ── Issue Modal (opens after 3D click in issue mode) ── */}
+            {pendingIssuePosition && (
+                <IssueModal
+                    projectId={projectId}
+                    position={pendingIssuePosition}
+                    onClose={() => setPendingIssuePosition(null)}
+                    onCreated={handleIssueCreated}
+                />
+            )}
+
+            {/* ── Selected Issue info panel ── */}
+            {selectedIssue && activeTool === "issue" && (
+                <div className="absolute bottom-20 left-4 z-10 bg-black/60 backdrop-blur-sm border border-white/10 rounded-xl p-3 min-w-[220px] max-w-[300px]">
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                        <span className="text-sm font-semibold text-white leading-tight">
+                            {selectedIssue.title}
+                        </span>
+                        <button
+                            onClick={() => setSelectedIssue(null)}
+                            className="text-white/40 hover:text-white transition-colors text-xs shrink-0 mt-0.5"
+                            aria-label="Dismiss"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                    <div className="text-xs text-white/60 space-y-0.5">
+                        <div>{selectedIssue.type} · {selectedIssue.severity}</div>
+                        <div>Status: <span className="text-white/80">{selectedIssue.status}</span></div>
+                        {selectedIssue.description && (
+                            <div className="text-white/40 mt-1">{selectedIssue.description}</div>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {/* ── Asset info panel (bottom-left when an asset is selected in normal mode) ── */}
-            {selectedAsset && activeTool !== 'bim' && (
+            {selectedAsset && activeTool !== "bim" && activeTool !== "issue" && (
                 <div className="absolute bottom-4 left-4 z-10 bg-black/60 backdrop-blur-sm border border-white/10 rounded-xl p-3 min-w-[200px] max-w-[280px]">
                     <div className="flex items-start justify-between gap-2 mb-1.5">
                         <span className="text-sm font-semibold text-white leading-tight">
