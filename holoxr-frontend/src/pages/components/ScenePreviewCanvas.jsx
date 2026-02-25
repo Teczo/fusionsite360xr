@@ -7,6 +7,7 @@ import * as THREE from "three";
 import { ModelItem } from "../../components/viewer/ARViewerComponents";
 import DoFDevPanel from "../components/dev/DoFDevPanel";
 import IssuePin from "../../components/twin/IssuePin";
+import FilterPanel from "../../components/ProjectModules/FilterPanel";
 
 
 // ─── Unit conversion utility ─────────────────────────────────────────────────
@@ -38,6 +39,18 @@ const CARD_COLORS = [
     "border-amber-500/40 bg-amber-500/5",
     "border-rose-500/40 bg-rose-500/5",
 ];
+
+
+// ─── Category helper ──────────────────────────────────────────────────────────
+function categorize(name = "") {
+    const s = name.toLowerCase();
+    if (s.includes("pump"))                       return "Pump";
+    if (s.includes("valve"))                      return "Valve";
+    if (s.includes("hvac") || s.includes("duct")) return "HVAC";
+    if (s.includes("cable") || s.includes("elect")) return "Electrical";
+    if (s.includes("pipe"))                       return "Piping";
+    return "Structure";
+}
 
 
 // ─── MeasurementPanel ─────────────────────────────────────────────────────────
@@ -224,6 +237,17 @@ export default function ScenePreviewCanvas({
         return () => { cancelled = true; };
     }, [api, projectId]);
 
+    // ── Filter state ───────────────────────────────────────────────────────────
+    // Empty array = show all; non-empty = only show listed categories.
+    const [activeCategories, setActiveCategories] = useState([]);
+
+    // Reset filter when the user switches away from the filter tool.
+    useEffect(() => {
+        if (activeTool !== "filter") {
+            setActiveCategories([]);
+        }
+    }, [activeTool]);
+
     // Clear in-progress pick when switching away from the measure tool.
     // Completed measurements are intentionally kept until explicitly deleted.
     useEffect(() => {
@@ -246,6 +270,13 @@ export default function ScenePreviewCanvas({
                 isPaused:  !!it.isPaused,
             }));
     }, [published]);
+
+    // Unique categories derived from loaded models — updates when project changes.
+    const categories = useMemo(() => {
+        const set = new Set();
+        models.forEach(m => set.add(categorize(m.name)));
+        return Array.from(set).sort();
+    }, [models]);
 
     const handleSelect = useCallback(
         (payload) => {
@@ -339,6 +370,7 @@ export default function ScenePreviewCanvas({
                         selectedIssueId={selectedIssueId}
                         onIssuePinClick={onIssuePinClick}
                         onIssuePlaced={setPendingIssuePosition}
+                        activeCategories={activeCategories}
                     />
                 </Selection>
 
@@ -373,6 +405,16 @@ export default function ScenePreviewCanvas({
                         setMeasurements(prev => prev.filter(m => m.id !== id))
                     }
                     onClearAll={() => setMeasurements([])}
+                />
+            )}
+
+            {/* Filter Panel — only visible when filter tool is active */}
+            {activeTool === "filter" && (
+                <FilterPanel
+                    categories={categories}
+                    models={models}
+                    activeCategories={activeCategories}
+                    setActiveCategories={setActiveCategories}
                 />
             )}
 
@@ -447,19 +489,10 @@ function SceneContent({
     selectedIssueId,
     onIssuePinClick,
     onIssuePlaced,
+    activeCategories,
 }) {
     const rootRef = useRef();
     const { camera } = useThree();
-
-    const categorize = (name = "") => {
-        const s = name.toLowerCase();
-        if (s.includes("pump"))                     return "Pump";
-        if (s.includes("valve"))                    return "Valve";
-        if (s.includes("hvac") || s.includes("duct")) return "HVAC";
-        if (s.includes("cable") || s.includes("elect")) return "Electrical";
-        if (s.includes("pipe"))                     return "Piping";
-        return "Structure";
-    };
 
     const mockStatus = (id = "") => {
         const n = [...String(id)].reduce((a, c) => a + c.charCodeAt(0), 0) % 3;
@@ -555,26 +588,32 @@ function SceneContent({
 
     return (
         <group ref={rootRef}>
-            {models.map((m) => (
-                <Select
-                    key={m.id}
-                    enabled={selectedId === m.id}
-                >
-                    <group
-                        userData={{ assetId: m.id }}
-                        onPointerDown={(e) => handlePick(e, m)}
-                    >
-                        <ModelItem
-                            id={m.id}
-                            url={m.url}
-                            transform={m.transform}
-                            autoplay={m.autoplay}
-                            isPaused={m.isPaused}
-                            behaviors={[]}
-                        />
+            {models.map((m) => {
+                const category  = categorize(m.name);
+                const isVisible =
+                    activeCategories.length === 0 ||
+                    activeCategories.includes(category);
+
+                return (
+                    <group key={m.id} visible={isVisible}>
+                        <Select enabled={selectedId === m.id}>
+                            <group
+                                userData={{ assetId: m.id }}
+                                onPointerDown={(e) => handlePick(e, m)}
+                            >
+                                <ModelItem
+                                    id={m.id}
+                                    url={m.url}
+                                    transform={m.transform}
+                                    autoplay={m.autoplay}
+                                    isPaused={m.isPaused}
+                                    behaviors={[]}
+                                />
+                            </group>
+                        </Select>
                     </group>
-                </Select>
-            ))}
+                );
+            })}
 
             {/* Render all completed measurements */}
             {measurements.map(m => (
