@@ -9,11 +9,11 @@ const fmt = {
 
 function Card({ title, subtitle, right, children }) {
     return (
-        <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-3">
+        <div className="bg-surface border border-border rounded-xl p-5 shadow-card">
+            <div className="flex items-center justify-between mb-4">
                 <div>
-                    <div className="text-xs uppercase tracking-wider text-white/60">{subtitle}</div>
-                    <h3 className="text-lg font-semibold">{title}</h3>
+                    {subtitle && <div className="text-xs font-medium text-texttert uppercase tracking-wider mb-0.5">{subtitle}</div>}
+                    <h3 className="text-sm font-semibold text-textpri" style={{ fontFamily: "'Syne', 'Inter', sans-serif" }}>{title}</h3>
                 </div>
                 {right}
             </div>
@@ -34,19 +34,19 @@ export default function AnalyticsEngagement({ projectId, range }) {
             .catch(setErr);
     }, [projectId, range]);
 
-    if (err) return <div className="text-red-400">Failed to load analytics: {err.message || String(err)}</div>;
-    if (!data) return <div className="text-white/60">Loading engagement…</div>;
+    if (err) return <div className="text-error text-sm">Failed to load analytics: {err.message || String(err)}</div>;
+    if (!data) return <div className="text-texttert text-sm">Loading engagement…</div>;
 
     return (
         <div className="grid grid-cols-1 gap-4">
             <Card title="3D Heatmap" subtitle="Tap hotspots on model">
-                <div className="h-56 grid place-items-center text-white/60">
+                <div className="h-56 grid place-items-center text-texttert">
                     Coming soon: interactive 3D heatmap overlay on selected model.
                 </div>
             </Card>
 
             <Card title="Quiz Insights" subtitle="Question-by-question">
-                <div className="text-white/70 text-sm space-y-1">
+                <div className="text-textsec text-sm space-y-1">
                     {(data.quiz || []).map((q) => (
                         <div key={q.quizId}>
                             {q.quizId}: {fmt.n(q.attempts)} attempts • {fmt.pct(q.correctRate)} correct
@@ -56,7 +56,7 @@ export default function AnalyticsEngagement({ projectId, range }) {
             </Card>
 
             <Card title="Button Conversions" subtitle="CTAs">
-                <div className="text-white/70 text-sm space-y-1">
+                <div className="text-textsec text-sm space-y-1">
                     {(data.ctas || []).map((c) => (
                         <div key={c.ctaId}>{c.ctaId}: {fmt.n(c.clicks)} clicks</div>
                     ))}

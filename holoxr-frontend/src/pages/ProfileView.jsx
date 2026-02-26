@@ -67,7 +67,7 @@ export default function ProfileView({ setActiveView }) {
     return (
         <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
             {/* Header / Identity */}
-            <section className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+            <section className="relative overflow-hidden rounded-2xl border border-white/10 bg-surface/5">
                 {/* Cover */}
                 <div className="relative h-40 sm:h-48">
                     {profile.coverUrl ? (
@@ -77,7 +77,7 @@ export default function ProfileView({ setActiveView }) {
                     )}
                     {/* Avatar */}
                     <div className="absolute -bottom-10 left-6">
-                        <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full border-4 border-[#0b0c0f] overflow-hidden bg-white/10">
+                        <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full border-4 border-[#0b0c0f] overflow-hidden bg-surface/10">
                             {profile.avatarUrl ? (
                                 <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                             ) : (
@@ -103,7 +103,7 @@ export default function ProfileView({ setActiveView }) {
                         <div className="flex gap-2">
                             <button
                                 onClick={() => setActiveView('profileedit')}
-                                className="inline-flex items-center gap-2 rounded-xl px-3 py-2 bg-white/10 hover:bg-white/15 border border-white/10 text-title"
+                                className="inline-flex items-center gap-2 rounded-xl px-3 py-2 bg-surface/10 hover:bg-surface/15 border border-white/10 text-title"
                             >
                                 <Pencil className="w-4 h-4" /> Edit Profile
                             </button>
@@ -158,7 +158,7 @@ export default function ProfileView({ setActiveView }) {
                             <Info label="Sign-in method" value={user?.authProvider || (user?.providers?.join(', ') || 'Email & password')} />
                             <Info label="Email verified" value={user?.emailVerified ? 'Yes' : 'No'} />
                             <Info label="Last updated" value={lastUpdated} />
-                            <button onClick={() => setActiveView('profileedit')} className="mt-2 inline-flex items-center gap-2 rounded-lg px-3 py-2 bg-white/10 hover:bg-white/15 border border-white/10 text-title">
+                            <button onClick={() => setActiveView('profileedit')} className="mt-2 inline-flex items-center gap-2 rounded-lg px-3 py-2 bg-surface/10 hover:bg-surface/15 border border-white/10 text-title">
                                 <ShieldCheck className="w-4 h-4" /> Update password / 2FA
                             </button>
                         </div>
@@ -194,7 +194,7 @@ export default function ProfileView({ setActiveView }) {
 
 function ActionCard({ icon, title, subtitle, onClick }) {
     return (
-        <button onClick={onClick} className="group text-left rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors p-4 w-full">
+        <button onClick={onClick} className="group text-left rounded-2xl border border-white/10 bg-surface/5 hover:bg-surface/10 transition-colors p-4 w-full">
             <div className="flex items-center gap-3 text-title">
                 <div className="rounded-xl bg-black/30 p-2 border border-white/10">{icon}</div>
                 <div className="font-medium">{title}</div>
@@ -206,7 +206,7 @@ function ActionCard({ icon, title, subtitle, onClick }) {
 
 function Card({ children }) {
     return (
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">{children}</div>
+        <div className="rounded-2xl border border-white/10 bg-surface/5 p-4">{children}</div>
     );
 }
 

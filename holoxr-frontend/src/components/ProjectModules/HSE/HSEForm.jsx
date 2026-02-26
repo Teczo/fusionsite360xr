@@ -17,20 +17,20 @@ export default function HSEForm({ initial, onSave, onCancel }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-xl border border-[#FCA5A5] bg-[#FEF2F2] p-4 mb-4 space-y-3">
+    <form onSubmit={handleSubmit} className="space-y-3">
       <input
         value={form.title}
         onChange={(e) => setForm({ ...form, title: e.target.value })}
         placeholder="Incident Title"
         required
-        className="w-full rounded-lg border border-[#E6EAF0] bg-white px-3 py-2 text-sm text-[#111827] outline-none focus:ring-2 focus:ring-[#EF4444]/20"
+        className="w-full rounded-lg border border-border bg-appbg px-3 py-2 text-sm text-textpri outline-none focus:ring-2 focus:ring-[#2C97D4]/20 focus:border-[#2C97D4]/40"
       />
       <textarea
         value={form.description}
         onChange={(e) => setForm({ ...form, description: e.target.value })}
         placeholder="Description (optional)"
         rows={2}
-        className="w-full rounded-lg border border-[#E6EAF0] bg-white px-3 py-2 text-sm text-[#111827] outline-none focus:ring-2 focus:ring-[#EF4444]/20 resize-none"
+        className="w-full rounded-lg border border-border bg-appbg px-3 py-2 text-sm text-textpri outline-none focus:ring-2 focus:ring-[#2C97D4]/20 focus:border-[#2C97D4]/40 resize-none"
       />
       <div className="flex gap-3">
         <input
@@ -38,12 +38,12 @@ export default function HSEForm({ initial, onSave, onCancel }) {
           value={form.date}
           onChange={(e) => setForm({ ...form, date: e.target.value })}
           required
-          className="flex-1 rounded-lg border border-[#E6EAF0] bg-white px-3 py-2 text-sm text-[#111827] outline-none focus:ring-2 focus:ring-[#EF4444]/20"
+          className="flex-1 rounded-lg border border-border bg-appbg px-3 py-2 text-sm text-textpri outline-none focus:ring-2 focus:ring-[#2C97D4]/20 focus:border-[#2C97D4]/40"
         />
         <select
           value={form.severity}
           onChange={(e) => setForm({ ...form, severity: e.target.value })}
-          className="flex-1 rounded-lg border border-[#E6EAF0] bg-white px-3 py-2 text-sm text-[#111827] outline-none focus:ring-2 focus:ring-[#EF4444]/20"
+          className="flex-1 rounded-lg border border-border bg-appbg px-3 py-2 text-sm text-textpri outline-none focus:ring-2 focus:ring-[#2C97D4]/20 focus:border-[#2C97D4]/40"
         >
           {SEVERITIES.map((s) => (
             <option key={s} value={s}>{s}</option>
@@ -51,8 +51,8 @@ export default function HSEForm({ initial, onSave, onCancel }) {
         </select>
       </div>
       <div className="flex justify-end gap-2">
-        <button type="button" onClick={onCancel} className="rounded-lg border border-[#E6EAF0] bg-white px-4 py-2 text-xs font-semibold text-[#374151] hover:bg-[#F9FAFB]">Cancel</button>
-        <button type="submit" className="rounded-lg bg-[#EF4444] px-4 py-2 text-xs font-semibold text-white hover:bg-[#DC2626]">{initial ? 'Update' : 'Report'}</button>
+        <button type="button" onClick={onCancel} className="rounded-lg border border-border bg-surface px-4 py-2 text-xs font-semibold text-textpri hover:bg-appbg">Cancel</button>
+        <button type="submit" className="rounded-lg bg-[#2C97D4] px-4 py-2 text-xs font-semibold text-white hover:bg-[#2286be]">{initial ? 'Update' : 'Report'}</button>
       </div>
     </form>
   );

@@ -46,7 +46,7 @@ export default function MediaGallery({ projectId }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-[#111827]">Media Gallery</h2>
+        <h2 className="text-lg font-semibold text-textpri" style={{ fontFamily: "'Syne', 'Inter', sans-serif" }}>Media Gallery</h2>
         {canUploadMedia && (
           <div>
             <input
@@ -59,7 +59,7 @@ export default function MediaGallery({ projectId }) {
             <button
               onClick={() => fileRef.current?.click()}
               disabled={uploading}
-              className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-xs font-semibold text-[#374151] hover:bg-[#F9FAFB] transition disabled:opacity-50"
+              className="rounded-xl border border-border bg-surface px-3 py-2 text-xs font-semibold text-textpri hover:bg-appbg transition disabled:opacity-50"
             >
               {uploading ? 'Uploading...' : '+ Upload Media'}
             </button>
@@ -72,7 +72,7 @@ export default function MediaGallery({ projectId }) {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {items.map((item) => (
-            <div key={item._id} className="group relative rounded-xl border border-[#E6EAF0] overflow-hidden bg-[#F9FAFB]">
+            <div key={item._id} className="group relative rounded-xl border border-border overflow-hidden bg-appbg">
               {item.type === 'video' ? (
                 <video
                   src={item.url}
@@ -89,13 +89,13 @@ export default function MediaGallery({ projectId }) {
                 />
               )}
               <div className="px-2 py-1.5">
-                <p className="text-xs text-[#374151] truncate">{item.name}</p>
-                <p className="text-[10px] text-[#9CA3AF]">{item.type}</p>
+                <p className="text-xs text-textpri truncate">{item.name}</p>
+                <p className="text-[10px] text-texttert">{item.type}</p>
               </div>
               {canEdit && (
                 <button
                   onClick={() => handleDelete(item._id)}
-                  className="absolute top-1 right-1 hidden group-hover:flex items-center justify-center h-6 w-6 rounded-full bg-white/90 border border-[#E6EAF0] text-[#EF4444] text-xs"
+                  className="absolute top-1 right-1 hidden group-hover:flex items-center justify-center h-6 w-6 rounded-full bg-surface/90 border border-border text-error text-xs"
                 >
                   X
                 </button>

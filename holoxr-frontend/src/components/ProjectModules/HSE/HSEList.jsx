@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { hseApi } from '../../../services/api';
 import { useRole } from '../../hooks/useRole';
 import Badge from '../../ui/Badge';
@@ -9,8 +10,8 @@ import HSEForm from './HSEForm';
 export default function HSEList({ projectId }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const { canEdit } = useRole();
 
   const load = () => {
@@ -23,14 +24,15 @@ export default function HSEList({ projectId }) {
 
   useEffect(() => { if (projectId) load(); }, [projectId]);
 
-  const handleSave = async (data) => {
-    if (editing) {
-      await hseApi.update(projectId, editing._id, data);
-    } else {
-      await hseApi.create(projectId, data);
-    }
-    setShowForm(false);
-    setEditing(null);
+  const handleAdd = async (data) => {
+    await hseApi.create(projectId, data);
+    setShowAddModal(false);
+    load();
+  };
+
+  const handleEdit = async (data) => {
+    await hseApi.update(projectId, editingId, data);
+    setEditingId(null);
     load();
   };
 
@@ -43,17 +45,21 @@ export default function HSEList({ projectId }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-[#111827]">HSE Incidents</h2>
+      {/* Header */}
+      <div className="flex items-start justify-between mb-5">
+        <div>
+          <h2 className="text-xl font-bold text-textpri" style={{ fontFamily: "'Syne', 'Inter', sans-serif" }}>HSE Incidents</h2>
+          <p className="text-sm text-textsec mt-1">Health, safety &amp; environmental incident records</p>
+        </div>
         {canEdit && (
           <div className="flex gap-2">
             <button
-              onClick={() => { setEditing(null); setShowForm(true); }}
-              className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-xs font-semibold text-[#374151] hover:bg-[#F9FAFB] transition"
+              onClick={() => setShowAddModal(true)}
+              className="rounded-lg bg-[#2C97D4] px-3 py-2 text-xs font-semibold text-white hover:bg-[#2286be] transition"
             >
               + Report Incident
             </button>
-            <label className="cursor-pointer rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-xs font-semibold text-[#374151] hover:bg-[#F9FAFB] transition">
+            <label className="cursor-pointer rounded-lg border border-border bg-surface px-3 py-2 text-xs font-semibold text-textpri hover:bg-appbg transition">
               Import CSV
               <input
                 type="file"
@@ -70,7 +76,7 @@ export default function HSEList({ projectId }) {
                       alert('Import failed: ' + err.message);
                       setLoading(false);
                     }
-                    e.target.value = ''; // Reset input
+                    e.target.value = '';
                   }
                 }}
               />
@@ -79,46 +85,91 @@ export default function HSEList({ projectId }) {
         )}
       </div>
 
-      {
-        showForm && (
-          <HSEForm
-            initial={editing}
-            onSave={handleSave}
-            onCancel={() => { setShowForm(false); setEditing(null); }}
-          />
-        )
-      }
-
-      {
-        items.length === 0 ? (
-          <EmptyState title="No HSE incidents" description="No health, safety, or environmental incidents recorded." />
-        ) : (
-          <div className="space-y-3">
-            {items.map((item) => (
-              <div key={item._id} className="flex items-start gap-3 rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge label={item.severity} variant={item.severity} />
-                    <span className="text-sm font-semibold text-[#111827]">{item.title}</span>
-                  </div>
-                  {item.description && (
-                    <p className="text-xs text-[#6B7280] mb-1">{item.description}</p>
-                  )}
-                  <span className="text-xs text-[#9CA3AF]">
-                    {new Date(item.date).toLocaleDateString()}
-                  </span>
-                </div>
-                {canEdit && (
-                  <div className="flex gap-2 flex-shrink-0">
-                    <button onClick={() => { setEditing(item); setShowForm(true); }} className="text-xs text-[#2563EB] hover:underline">Edit</button>
-                    <button onClick={() => handleDelete(item._id)} className="text-xs text-[#EF4444] hover:underline">Delete</button>
-                  </div>
-                )}
-              </div>
-            ))}
+      {/* Add Modal */}
+      {showAddModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowAddModal(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl shadow-2xl border border-border bg-surface overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h3 className="text-base font-semibold text-textpri" style={{ fontFamily: "'Syne', 'Inter', sans-serif" }}>
+                Report Incident
+              </h3>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="p-1 rounded-lg text-textsec hover:text-textpri hover:bg-appbg transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-5">
+              <HSEForm
+                initial={null}
+                onSave={handleAdd}
+                onCancel={() => setShowAddModal(false)}
+              />
+            </div>
           </div>
-        )
-      }
-    </div >
+        </div>
+      )}
+
+      {items.length === 0 ? (
+        <EmptyState title="No HSE incidents" description="No health, safety, or environmental incidents recorded." />
+      ) : (
+        <div className="space-y-3">
+          {items.map((item) => (
+            <div key={item._id}>
+              {editingId === item._id ? (
+                <div className="rounded-xl border border-[#2C97D4]/30 bg-surface p-4 shadow-card">
+                  <p className="text-xs font-semibold text-[#2C97D4] mb-3 uppercase tracking-wide">Editing: {item.title}</p>
+                  <HSEForm
+                    initial={item}
+                    onSave={handleEdit}
+                    onCancel={() => setEditingId(null)}
+                  />
+                </div>
+              ) : (
+                <div className="flex items-start gap-3 rounded-xl border border-border bg-surface p-4 shadow-card hover:shadow-card-hover transition-shadow">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge label={item.severity} variant={item.severity} />
+                      <span className="text-sm font-semibold text-textpri">{item.title}</span>
+                    </div>
+                    {item.description && (
+                      <p className="text-xs text-textsec mb-1">{item.description}</p>
+                    )}
+                    <span className="text-xs text-texttert">
+                      {new Date(item.date).toLocaleDateString()}
+                    </span>
+                  </div>
+                  {canEdit && (
+                    <div className="flex gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => setEditingId(item._id)}
+                        className="p-1.5 rounded-lg text-textsec hover:text-[#2C97D4] hover:bg-[#2C97D4]/8 transition-colors"
+                        title="Edit"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(item._id)}
+                        className="p-1.5 rounded-lg text-textsec hover:text-error hover:bg-error/8 transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

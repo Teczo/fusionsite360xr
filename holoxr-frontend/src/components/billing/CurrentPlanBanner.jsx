@@ -24,9 +24,9 @@ export default function CurrentPlanBanner() {
     const renews = info.currentPeriodEnd ? new Date(info.currentPeriodEnd).toLocaleDateString() : '';
 
     return (
-        <div className="mb-6 rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white">
-            <div className="font-semibold">Current plan: {planLabel}</div>
-            <div className="text-gray-300">
+        <div className="mb-6 rounded-lg border border-border bg-surface p-4 text-sm text-textpri shadow-card">
+            <div className="font-semibold text-textpri">Current plan: {planLabel}</div>
+            <div className="text-textsec mt-0.5">
                 Status: {info.status}{info.cancelAtPeriodEnd ? ' (cancels at period end)' : ''}{renews ? ` · Renews on ${renews}` : ''}
             </div>
         </div>

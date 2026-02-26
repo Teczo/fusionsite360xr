@@ -1,0 +1,20 @@
+/* fonts.css — Energy Studio font stack for FusionSite360XR */
+
+/* Google Fonts: Inter + Syne loaded via <link> in index.html for reliable Vite bundling */
+
+/* Local Lato fallback (hosted in /public/fonts/Lato/) */
+@font-face {
+  font-family: 'Lato';
+  src: url('/fonts/Lato/Lato-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lato';
+  src: url('/fonts/Lato/Lato-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}

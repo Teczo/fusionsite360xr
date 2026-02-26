@@ -12,11 +12,11 @@ const fmt = {
 
 function Card({ title, subtitle, right, children }) {
     return (
-        <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-3">
+        <div className="bg-surface border border-border rounded-xl p-5 shadow-card">
+            <div className="flex items-center justify-between mb-4">
                 <div>
-                    <div className="text-xs uppercase tracking-wider text-white/60">{subtitle}</div>
-                    <h3 className="text-lg font-semibold">{title}</h3>
+                    {subtitle && <div className="text-xs font-medium text-texttert uppercase tracking-wider mb-0.5">{subtitle}</div>}
+                    <h3 className="text-sm font-semibold text-textpri" style={{ fontFamily: "'Syne', 'Inter', sans-serif" }}>{title}</h3>
                 </div>
                 {right}
             </div>
@@ -40,8 +40,8 @@ export default function AnalyticsAudience({ range, projectId }) {
             .catch(setErr);
     }, [projectId, range]);
 
-    if (err) return <div className="text-red-400">Failed to load analytics: {err.message || String(err)}</div>;
-    if (!data) return <div className="text-white/60">Loading audience…</div>;
+    if (err) return <div className="text-error text-sm">Failed to load analytics: {err.message || String(err)}</div>;
+    if (!data) return <div className="text-texttert text-sm">Loading audience…</div>;
 
     return (
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
@@ -67,7 +67,7 @@ export default function AnalyticsAudience({ range, projectId }) {
                     <div className="h-56">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={data.langs} margin={{ left: 8, right: 8, top: 8, bottom: 8 }}>
-                                <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                                 <XAxis dataKey="_id" tick={{ fontSize: 12 }} />
                                 <YAxis tick={{ fontSize: 12 }} />
                                 <Tooltip />

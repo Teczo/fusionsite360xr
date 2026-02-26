@@ -31,21 +31,21 @@ export default function HSEWidget({ projects }) {
       ) : (
         <div className="space-y-2">
           {items.map((item) => (
-            <div key={item._id} className="flex items-center gap-3 rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] px-3 py-2">
+            <div key={item._id} className="flex items-center gap-3 rounded-xl border border-border bg-appbg px-3 py-2">
               <Badge label={item.severity} variant={item.severity} />
               <div className="min-w-0 flex-1">
-                <span className="text-sm text-[#111827]">{item.title}</span>
-                <div className="text-xs text-[#9CA3AF]">{new Date(item.date).toLocaleDateString()}</div>
+                <span className="text-sm text-textpri">{item.title}</span>
+                <div className="text-xs text-texttert">{new Date(item.date).toLocaleDateString()}</div>
               </div>
             </div>
           ))}
         </div>
       )}
       {projects?.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-[#E6EAF0]">
+        <div className="mt-3 pt-3 border-t border-border">
           <Link
             to={`/hse?id=${projects[0]._id}`}
-            className="text-xs font-semibold text-[#2563EB] hover:underline"
+            className="text-xs font-semibold text-accent hover:underline"
           >
             View all →
           </Link>

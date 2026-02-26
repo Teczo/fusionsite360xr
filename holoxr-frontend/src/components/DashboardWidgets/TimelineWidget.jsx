@@ -31,24 +31,24 @@ export default function TimelineWidget({ projects }) {
           {items.map((item) => (
             <div key={item._id} className="flex items-start gap-3">
               <div className="flex-shrink-0 mt-1.5">
-                <div className="h-2 w-2 rounded-full bg-[#2563EB]" />
+                <div className="h-2 w-2 rounded-full bg-accent" />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-[#111827] truncate">{item.title}</span>
+                  <span className="text-sm font-medium text-textpri truncate">{item.title}</span>
                   <Badge label={item.type?.replace('_', ' ')} variant={item.type} />
                 </div>
-                <span className="text-xs text-[#9CA3AF]">{new Date(item.date).toLocaleDateString()}</span>
+                <span className="text-xs text-texttert">{new Date(item.date).toLocaleDateString()}</span>
               </div>
             </div>
           ))}
         </div>
       )}
       {projects?.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-[#E6EAF0]">
+        <div className="mt-3 pt-3 border-t border-border">
           <Link
             to={`/timeline?id=${projects[0]._id}`}
-            className="text-xs font-semibold text-[#2563EB] hover:underline"
+            className="text-xs font-semibold text-accent hover:underline"
           >
             View all →
           </Link>

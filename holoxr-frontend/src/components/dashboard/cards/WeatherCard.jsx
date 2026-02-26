@@ -76,16 +76,16 @@ export default function WeatherCard({ project }) {
     };
 
     return (
-        <div className="rounded-2xl border border-[#E6EAF0] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+        <div className="rounded-lg border border-border bg-surface shadow-card">
             <div className="flex items-center justify-between p-4 pb-0">
-                <h3 className="text-sm font-semibold text-[#111827]">Site Weather</h3>
+                <h3 className="text-sm font-semibold text-textpri">Site Weather</h3>
             </div>
 
             <div className="p-4 pt-3">
                 {/* Loading state */}
                 {loading && (
                     <div className="flex items-center justify-center h-40">
-                        <div className="h-6 w-6 border-2 border-[#3BB2A5] border-t-transparent rounded-full animate-spin" />
+                        <div className="h-6 w-6 border-2 border-brand border-t-transparent rounded-full animate-spin" />
                     </div>
                 )}
 
@@ -93,8 +93,8 @@ export default function WeatherCard({ project }) {
                 {!loading && error && (
                     <div className="flex flex-col items-center justify-center h-40 text-center">
                         <div className="text-2xl mb-2">--</div>
-                        <p className="text-sm text-[#6B7280]">{error}</p>
-                        <p className="text-xs text-[#9CA3AF] mt-1">Weather data unavailable</p>
+                        <p className="text-sm text-textsec">{error}</p>
+                        <p className="text-xs text-texttert mt-1">Weather data unavailable</p>
                     </div>
                 )}
 
@@ -111,10 +111,10 @@ export default function WeatherCard({ project }) {
                                 />
                             )}
                             <div>
-                                <div className="text-3xl font-semibold text-[#111827]">
+                                <div className="text-3xl font-semibold text-textpri">
                                     {Math.round(weather.main?.temp ?? 0)}°C
                                 </div>
-                                <div className="text-sm text-[#6B7280] capitalize">
+                                <div className="text-sm text-textsec capitalize">
                                     {weather.weather?.[0]?.description || '—'}
                                 </div>
                             </div>
@@ -122,11 +122,11 @@ export default function WeatherCard({ project }) {
 
                         {/* Wind + Humidity */}
                         <div className="flex items-center gap-5 mt-3">
-                            <div className="flex items-center gap-1.5 text-xs text-[#6B7280]">
+                            <div className="flex items-center gap-1.5 text-xs text-textsec">
                                 <Wind className="h-3.5 w-3.5" />
                                 <span>{weather.wind?.speed ?? '—'} m/s</span>
                             </div>
-                            <div className="flex items-center gap-1.5 text-xs text-[#6B7280]">
+                            <div className="flex items-center gap-1.5 text-xs text-textsec">
                                 <Droplets className="h-3.5 w-3.5" />
                                 <span>{weather.main?.humidity ?? '—'}%</span>
                             </div>
@@ -134,11 +134,11 @@ export default function WeatherCard({ project }) {
 
                         {/* 5-day forecast strip */}
                         {forecast.length > 0 && (
-                            <div className="mt-4 pt-3 border-t border-[#E6EAF0]">
+                            <div className="mt-4 pt-3 border-t border-border">
                                 <div className="grid grid-cols-5 gap-1 text-center">
                                     {forecast.map((day) => (
                                         <div key={day.dt} className="flex flex-col items-center gap-0.5">
-                                            <span className="text-[11px] font-medium text-[#6B7280]">
+                                            <span className="text-[11px] font-medium text-textsec">
                                                 {dayLabel(day.dt_txt)}
                                             </span>
                                             {day.weather?.[0]?.icon && (
@@ -148,7 +148,7 @@ export default function WeatherCard({ project }) {
                                                     className="h-8 w-8"
                                                 />
                                             )}
-                                            <span className="text-xs font-semibold text-[#111827]">
+                                            <span className="text-xs font-semibold text-textpri">
                                                 {Math.round(day.main?.temp ?? 0)}°
                                             </span>
                                         </div>

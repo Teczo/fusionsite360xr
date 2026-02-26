@@ -1,7 +1,7 @@
 // src/pages/DashboardPage.jsx
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useOutletContext } from 'react-router-dom';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Plus } from 'lucide-react';
 import DashboardPanel from '../components/dashboard/DashboardPanel';
 
 // Phase 1 Team feature components
@@ -316,22 +316,41 @@ export default function DashboardPage() {
         <>
             {/* Page Title */}
             <div className="mb-6">
-                <h1 className="text-[26px] font-bold text-textpri">
-                    {activeView === 'your-designs' ? 'Projects' :
-                        activeView === 'digital-twin' ? 'Digital Twin Operations' :
-                            activeView === 'team' ? 'Team' :
-                                activeView === 'analytics' ? 'Analytics' :
-                                    activeView === 'billing' ? 'Billing & Plans' :
-                                        activeView === 'profile' ? 'Profile' :
-                                            activeView.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())
-                    }
-                </h1>
-                <p className="text-sm text-textsec mt-1">
-                    {activeView === 'your-designs' ? 'Manage and track all your projects in one place' :
-                        activeView === 'digital-twin' ? 'Monitor your digital twin operations and analytics' :
-                            ''
-                    }
-                </p>
+                {activeView === 'your-designs' ? (
+                    <div className="flex items-start justify-between gap-4">
+                        <div>
+                            <div className="text-2xl font-bold text-textpri" style={{ fontFamily: "'Syne', 'Inter', sans-serif" }}>
+                                Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}!
+                            </div>
+                            <p className="text-[14px] text-textsec mt-1">Here's your project overview</p>
+                        </div>
+                        <button
+                            onClick={() => setShowModal(true)}
+                            className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white btn-gradient-primary transition-all shadow-sm hover:shadow-md"
+                        >
+                            <Plus size={16} />
+                            New Project
+                        </button>
+                    </div>
+                ) : (
+                    <>
+                        <div className="text-2xl font-bold text-textpri" style={{ fontFamily: "'Syne', 'Inter', sans-serif" }}>
+                            {activeView === 'digital-twin' ? 'Digital Twin Operations' :
+                                activeView === 'team' ? 'Team' :
+                                    activeView === 'analytics' ? 'Analytics' :
+                                        activeView === 'billing' ? 'Billing & Plans' :
+                                            activeView === 'profile' ? 'Profile' :
+                                                activeView.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </div>
+                        <p className="text-sm text-textsec mt-1">
+                            {activeView === 'digital-twin' ? 'Monitor your digital twin operations and analytics' :
+                             activeView === 'team' ? 'Manage your workspace members and collaboration settings' :
+                             activeView === 'analytics' ? 'Track project performance, engagement, and audience insights' :
+                             activeView === 'billing' ? 'Manage your subscription and billing details' :
+                             activeView === 'profile' ? 'Update your personal information and preferences' : ''}
+                        </p>
+                    </>
+                )}
             </div>
 
             {/* Digital Twin Overview panel */}
@@ -384,9 +403,9 @@ export default function DashboardPage() {
             {/* Create Project Modal — Light theme */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 backdrop-blur-sm">
-                    <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-md shadow-xl mx-4 flex flex-col max-h-[85vh]">
+                    <div className="bg-surface border border-border rounded-2xl w-full max-w-md shadow-xl mx-4 flex flex-col max-h-[85vh]">
                         <div className="p-7 pb-0 shrink-0">
-                            <h2 className="text-xl font-bold text-textpri mb-5">Create New Project</h2>
+                            <h2 className="text-xl font-bold text-textpri mb-5 tracking-tight" style={{ fontFamily: "'Syne', 'Inter', sans-serif" }}>Create New Project</h2>
                         </div>
 
                         {/* Scrollable body */}
@@ -402,7 +421,7 @@ export default function DashboardPage() {
                                         value={form.name}
                                         onChange={handleChange}
                                         placeholder="Enter project name"
-                                        className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri placeholder:text-textsec/60 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
+                                        className="w-full bg-appbg border border-border px-4 py-2.5 rounded-lg text-sm text-textpri placeholder:text-textsec/60 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50 transition-all"
                                     />
                                 </div>
                                 <div>
@@ -412,7 +431,7 @@ export default function DashboardPage() {
                                         value={form.description}
                                         onChange={handleChange}
                                         placeholder="Give your project a short description"
-                                        className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri placeholder:text-textsec/60 h-20 resize-none focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
+                                        className="w-full bg-appbg border border-border px-4 py-2.5 rounded-lg text-sm text-textpri placeholder:text-textsec/60 h-20 resize-none focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50 transition-all"
                                     />
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
@@ -423,7 +442,7 @@ export default function DashboardPage() {
                                             name="startDate"
                                             value={form.startDate}
                                             onChange={handleChange}
-                                            className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
+                                            className="w-full bg-appbg border border-border px-4 py-2.5 rounded-lg text-sm text-textpri focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50 transition-all"
                                         />
                                     </div>
                                     <div>
@@ -433,7 +452,7 @@ export default function DashboardPage() {
                                             name="endDate"
                                             value={form.endDate}
                                             onChange={handleChange}
-                                            className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
+                                            className="w-full bg-appbg border border-border px-4 py-2.5 rounded-lg text-sm text-textpri focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50 transition-all"
                                         />
                                     </div>
                                 </div>
@@ -443,7 +462,7 @@ export default function DashboardPage() {
                                         name="status"
                                         value={form.status}
                                         onChange={handleChange}
-                                        className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
+                                        className="w-full bg-appbg border border-border px-4 py-2.5 rounded-lg text-sm text-textpri focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50 transition-all"
                                     >
                                         <option value="Planning">Planning</option>
                                         <option value="Active">Active</option>
@@ -454,7 +473,7 @@ export default function DashboardPage() {
                             </div>
 
                             {/* ── Section 2: Classification (collapsible) ── */}
-                            <div className="border-t border-gray-100 mt-5 pt-3">
+                            <div className="border-t border-borderlight mt-5 pt-3">
                                 <button
                                     type="button"
                                     onClick={() => setShowClassification(v => !v)}
@@ -475,7 +494,7 @@ export default function DashboardPage() {
                                                 value={form.tags}
                                                 onChange={handleChange}
                                                 placeholder="e.g. structural, phase-1, urgent"
-                                                className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri placeholder:text-textsec/60 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
+                                                className="w-full bg-appbg border border-border px-4 py-2.5 rounded-lg text-sm text-textpri placeholder:text-textsec/60 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50 transition-all"
                                             />
                                         </div>
                                         <div>
@@ -485,7 +504,7 @@ export default function DashboardPage() {
                                                 value={form.projectCode}
                                                 onChange={handleChange}
                                                 placeholder="e.g. PRJ-2026-001"
-                                                className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri placeholder:text-textsec/60 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
+                                                className="w-full bg-appbg border border-border px-4 py-2.5 rounded-lg text-sm text-textpri placeholder:text-textsec/60 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50 transition-all"
                                             />
                                         </div>
                                     </div>
@@ -493,7 +512,7 @@ export default function DashboardPage() {
                             </div>
 
                             {/* ── Section 3: Team Members (collapsible) ── */}
-                            <div className="border-t border-gray-100 mt-3 pt-3">
+                            <div className="border-t border-borderlight mt-3 pt-3">
                                 <button
                                     type="button"
                                     onClick={() => setShowTeam(v => !v)}
@@ -513,14 +532,14 @@ export default function DashboardPage() {
                                             value={form.teamMembers}
                                             onChange={handleChange}
                                             placeholder="Enter member IDs, comma-separated"
-                                            className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri placeholder:text-textsec/60 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
+                                            className="w-full bg-appbg border border-border px-4 py-2.5 rounded-lg text-sm text-textpri placeholder:text-textsec/60 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50 transition-all"
                                         />
                                     </div>
                                 </div>
                             </div>
 
                             {/* ── Section 4: Location (collapsible) ── */}
-                            <div className="border-t border-gray-100 mt-3 pt-3">
+                            <div className="border-t border-borderlight mt-3 pt-3">
                                 <button
                                     type="button"
                                     onClick={() => setShowLocation(v => !v)}
@@ -541,7 +560,7 @@ export default function DashboardPage() {
                                                 value={form.locationAddress}
                                                 onChange={handleChange}
                                                 placeholder="e.g. 123 Main St, City"
-                                                className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri placeholder:text-textsec/60 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
+                                                className="w-full bg-appbg border border-border px-4 py-2.5 rounded-lg text-sm text-textpri placeholder:text-textsec/60 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50 transition-all"
                                             />
                                         </div>
                                         <div className="grid grid-cols-2 gap-3">
@@ -554,7 +573,7 @@ export default function DashboardPage() {
                                                     value={form.locationLat}
                                                     onChange={handleChange}
                                                     placeholder="e.g. -26.2041"
-                                                    className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri placeholder:text-textsec/60 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
+                                                    className="w-full bg-appbg border border-border px-4 py-2.5 rounded-lg text-sm text-textpri placeholder:text-textsec/60 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50 transition-all"
                                                 />
                                             </div>
                                             <div>
@@ -566,7 +585,7 @@ export default function DashboardPage() {
                                                     value={form.locationLng}
                                                     onChange={handleChange}
                                                     placeholder="e.g. 28.0473"
-                                                    className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 rounded-xl text-sm text-textpri placeholder:text-textsec/60 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all"
+                                                    className="w-full bg-appbg border border-border px-4 py-2.5 rounded-lg text-sm text-textpri placeholder:text-textsec/60 focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/50 transition-all"
                                                 />
                                             </div>
                                         </div>
@@ -576,16 +595,16 @@ export default function DashboardPage() {
                         </div>
 
                         {/* Fixed footer */}
-                        <div className="flex justify-end gap-3 p-7 pt-5 border-t border-gray-100 shrink-0">
+                        <div className="flex justify-end gap-3 p-7 pt-5 border-t border-borderlight shrink-0">
                             <button
                                 onClick={() => setShowModal(false)}
-                                className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-textpri rounded-xl text-sm font-medium transition-colors"
+                                className="px-5 py-2.5 bg-borderlight hover:bg-border text-textpri rounded-lg text-sm font-medium transition-colors"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleCreate}
-                                className="px-5 py-2.5 rounded-xl text-sm font-semibold btn-gradient-primary"
+                                className="px-5 py-2.5 rounded-lg text-sm font-semibold btn-gradient-primary"
                             >
                                 Create Project
                             </button>

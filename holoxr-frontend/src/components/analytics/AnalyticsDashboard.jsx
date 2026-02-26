@@ -1,11 +1,24 @@
 import { useMemo, useState } from "react";
+import { LayoutDashboard, FolderKanban, Users, BarChart3, FileText } from "lucide-react";
 import AnalyticsOverview from "./AnalyticsOverview";
 import AnalyticsProjects from "./AnalyticsProjects";
 import AnalyticsAudience from "./AnalyticsAudience";
 import AnalyticsEngagement from "./AnalyticsEngagement";
 import AnalyticsReports from "./AnalyticsReports";
 
-const TABS = ["Overview", "Projects", "Audience", "Engagement", "Reports"];
+const TABS = [
+    { id: "Overview",   label: "Overview",   icon: LayoutDashboard },
+    { id: "Projects",   label: "Projects",   icon: FolderKanban },
+    { id: "Audience",   label: "Audience",   icon: Users },
+    { id: "Engagement", label: "Engagement", icon: BarChart3 },
+    { id: "Reports",    label: "Reports",    icon: FileText },
+];
+
+const RANGES = [
+    { value: 7,  label: "Last 7 days" },
+    { value: 30, label: "Last 30 days" },
+    { value: 90, label: "Last 90 days" },
+];
 
 export default function AnalyticsDashboard({ projects = [] }) {
     const [tab, setTab] = useState("Overview");
@@ -18,65 +31,73 @@ export default function AnalyticsDashboard({ projects = [] }) {
     );
 
     return (
-        <div className="flex flex-col gap-4">
-            {/* Tabs + Filters */}
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex flex-wrap gap-2">
-                    {TABS.map((t) => (
+        <div className="flex flex-col gap-0">
+            {/* Tab bar */}
+            <div className="border-b border-border">
+                <div className="flex gap-0">
+                    {TABS.map(({ id, label, icon: Icon }) => (
                         <button
-                            key={t}
-                            onClick={() => setTab(t)}
-                            className={`px-3 py-1.5 rounded-xl text-sm border transition ${tab === t
-                                    ? "bg-indigo-600/20 border-indigo-500/40 text-indigo-200"
-                                    : "bg-white/5 border-white/10 text-white/80 hover:bg-white/10"
-                                }`}
+                            key={id}
+                            onClick={() => setTab(id)}
+                            className={
+                                "flex items-center gap-2 px-5 py-3 font-medium text-sm transition-all border-b-2 " +
+                                (tab === id
+                                    ? "border-[#2C97D4] text-[#2C97D4] bg-[#2C97D4]/5"
+                                    : "border-transparent text-textsec hover:text-textpri hover:bg-appbg")
+                            }
                         >
-                            {t}
+                            <Icon size={16} />
+                            {label}
                         </button>
                     ))}
                 </div>
+            </div>
 
-                <div className="flex items-center gap-2">
-                    {/* Range */}
+            {/* Filters row — below tabs, right-aligned */}
+            <div className="flex items-center justify-end gap-2 py-3">
+                {projects.length > 0 && (
                     <select
-                        className="bg-[#0b0b0d] text-white border border-white/10 rounded-xl px-3 py-1.5 text-sm"
-                        value={range}
-                        onChange={(e) => setRange(Number(e.target.value))}
+                        className="border border-[#2C97D4] rounded-lg px-3 py-1.5 text-sm font-medium text-[#2C97D4] bg-surface focus:outline-none focus:ring-2 focus:ring-[#2C97D4]/20 transition-all"
+                        value={projectId}
+                        onChange={(e) => setProjectId(e.target.value)}
                     >
-                        <option className="text-black bg-white" value={7}>Last 7 days</option>
-                        <option className="text-black bg-white" value={30}>Last 30 days</option>
-                        <option className="text-black bg-white" value={90}>Last 90 days</option>
+                        {projects.map((p) => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
                     </select>
-
-                    {/* Project (hide on Overview) */}
-                    {tab !== "Overview" && (
-                        <select
-                            className="bg-[#0b0b0d] text-white border border-white/10 rounded-xl px-3 py-1.5 text-sm"
-                            value={projectId}
-                            onChange={(e) => setProjectId(e.target.value)}
+                )}
+                <div className="flex items-center gap-1">
+                    {RANGES.map((r) => (
+                        <button
+                            key={r.value}
+                            onClick={() => setRange(r.value)}
+                            className={
+                                "px-3 py-1.5 rounded-lg text-sm font-medium transition-all " +
+                                (range === r.value
+                                    ? "bg-[#2C97D4] text-white shadow-sm"
+                                    : "border border-border text-textsec hover:border-[#2C97D4] bg-surface")
+                            }
                         >
-                            {projects.map((p) => (
-                                <option className="text-black bg-white" key={p.id} value={p.id}>
-                                    {p.name}
-                                </option>
-                            ))}
-                        </select>
-                    )}
+                            {r.label}
+                        </button>
+                    ))}
                 </div>
             </div>
 
-            {/* Sections */}
-            {tab === "Overview" && <AnalyticsOverview range={range} />}
-            {tab === "Projects" && currentProject && (
-                <AnalyticsProjects range={range} projectId={currentProject.id} />
-            )}
-            {tab === "Audience" && (
-                <AnalyticsAudience range={range} projectId={currentProject?.id} />
-            )}
-            {tab === "Engagement" && currentProject && (
-                <AnalyticsEngagement range={range} projectId={currentProject.id} />
-            )}
-            {tab === "Reports" && <AnalyticsReports />}
+            {/* Tab content */}
+            <div className="flex flex-col gap-5 mt-1">
+                {tab === "Overview" && <AnalyticsOverview range={range} />}
+                {tab === "Projects" && currentProject && (
+                    <AnalyticsProjects range={range} projectId={currentProject.id} />
+                )}
+                {tab === "Audience" && (
+                    <AnalyticsAudience range={range} projectId={currentProject?.id} />
+                )}
+                {tab === "Engagement" && currentProject && (
+                    <AnalyticsEngagement range={range} projectId={currentProject.id} />
+                )}
+                {tab === "Reports" && <AnalyticsReports />}
+            </div>
         </div>
     );
 }

@@ -28,14 +28,14 @@ export default function AlertsWidget({ projects }) {
       ) : (
         <div className="space-y-2">
           {items.map((item) => (
-            <div key={item._id} className="flex items-center gap-3 rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] px-3 py-2">
+            <div key={item._id} className="flex items-center gap-3 rounded-xl border border-border bg-appbg px-3 py-2">
               <Badge label={item.severity} variant={item.severity} />
               <div className="min-w-0 flex-1">
-                <span className="text-sm text-[#111827]">{item.title}</span>
+                <span className="text-sm text-textpri">{item.title}</span>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-xs text-[#9CA3AF]">{new Date(item.date).toLocaleDateString()}</span>
-                  <span className="text-xs text-[#D1D5DB]">|</span>
-                  <span className="text-xs text-[#9CA3AF]">{item.source}</span>
+                  <span className="text-xs text-texttert">{new Date(item.date).toLocaleDateString()}</span>
+                  <span className="text-xs text-borderlight">|</span>
+                  <span className="text-xs text-texttert">{item.source}</span>
                 </div>
               </div>
             </div>

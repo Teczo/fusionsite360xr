@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Sidebar from '../components/dashboard/Sidebar';
 import DashboardHeader from '../components/dashboard/DashboardHeader';
 import useSidebarState from '../components/hooks/useSidebarState';
+import { useTheme } from '../App';
 
 export default function AppLayout() {
     const {
@@ -18,9 +19,9 @@ export default function AppLayout() {
 
     const [searchQuery, setSearchQuery] = useState('');
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const { darkMode, toggleDarkMode } = useTheme();
 
     const [user, setUser] = useState(null);
-
 
     const navigate = useNavigate();
     const location = useLocation();
@@ -47,7 +48,7 @@ export default function AppLayout() {
 
                 setUser({
                     name: data?.name,
-                    plan: data?.plan || "Free", // adjust if you store plan elsewhere
+                    plan: data?.plan || "Free",
                     avatar: data?.profile?.avatarUrl,
                 });
 
@@ -58,10 +59,6 @@ export default function AppLayout() {
 
         fetchUser();
     }, []);
-
-
-
-
 
     // Outlet context so children can read shared state
     const outletCtx = useMemo(
@@ -79,7 +76,7 @@ export default function AppLayout() {
     );
 
     return (
-        <div className="flex h-dvh overflow-hidden bg-[#f7f7f9] text-slate-900">
+        <div className="flex h-dvh overflow-hidden bg-appbg text-textpri">
             {/* Mobile overlay backdrop */}
             {isMobile && sidebarOpen && (
                 <div
@@ -113,17 +110,19 @@ export default function AppLayout() {
                     avatarUrl={user?.avatar}
                     setShowModal={setShowCreateModal}
                     onToggleSidebar={toggleSidebar}
+                    darkMode={darkMode}
+                    onToggleDarkMode={toggleDarkMode}
                 />
 
                 {/* Main scrollable content area */}
                 <main
-                    className={`flex-1 min-h-0 ${isFullPageRoute ? 'overflow-hidden' : 'overflow-auto p-4 sm:p-6'}`}
+                    className={`flex-1 min-h-0 bg-appbg ${isFullPageRoute ? 'overflow-hidden' : 'overflow-auto'}`}
                     aria-label="Dashboard content"
                 >
                     {isFullPageRoute ? (
                         <Outlet context={outletCtx} />
                     ) : (
-                        <div className="p-4 sm:p-6 lg:p-8">
+                        <div className="px-6 pt-6 pb-8 sm:px-8 sm:pt-8">
                             <Outlet context={outletCtx} />
                         </div>
                     )}

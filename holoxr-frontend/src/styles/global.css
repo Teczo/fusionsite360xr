@@ -1,0 +1,276 @@
+/* global.css — FusionSite360XR base styles using Energy Studio design tokens */
+
+@import "./fonts.css";
+@import "./theme.css";
+
+/* ─── Box sizing reset ───────────────────────────────────────────────────────── */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* ─── Global outline reset (Energy Studio) ───────────────────────────────────── */
+
+* {
+  outline: none;
+}
+
+/* Restore accessibility for keyboard-only navigation */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--color-accent) !important;
+  outline-offset: 2px;
+}
+
+/* ─── Scrollbar hiding (Energy Studio) ───────────────────────────────────────── */
+
+* {
+  scrollbar-width: none;        /* Firefox */
+  -ms-overflow-style: none;     /* IE / Edge */
+}
+
+*::-webkit-scrollbar {
+  display: none;                /* Chrome / Safari / Webkit */
+}
+
+/* ─── Document & HTML roots ──────────────────────────────────────────────────── */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* ─── Body ───────────────────────────────────────────────────────────────────── */
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-weight: var(--weight-regular);
+  color: var(--color-text);
+  background-color: var(--color-background);
+  line-height: 1.6;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior: none;
+}
+
+/* ─── Headings ───────────────────────────────────────────────────────────────── */
+
+/* Reset shared properties on all headings.
+   font-family and font-weight are NOT set here so Tailwind utilities override freely. */
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1.2;
+  color: var(--color-text);
+  margin: 0;
+}
+
+/* Syne only applies to bare headings without a class (markdown prose, etc.).
+   Dashboard/app headings set font-sans explicitly via Tailwind and are unaffected. */
+h1:not([class]), h2:not([class]), h3:not([class]),
+h4:not([class]), h5:not([class]), h6:not([class]) {
+  font-family: var(--font-heading);
+  letter-spacing: -0.02em;
+}
+
+h1:not([class]) { font-size: 2.5rem;   font-weight: var(--weight-extrabold); }
+h2:not([class]) { font-size: 2rem; }
+h3:not([class]) { font-size: 1.5rem; }
+h4:not([class]) { font-size: 1.25rem; }
+h5:not([class]) { font-size: 1.125rem; }
+h6:not([class]) { font-size: 1rem; }
+
+/* ─── Paragraphs ─────────────────────────────────────────────────────────────── */
+
+p {
+  font-family: var(--font-ui);
+  font-weight: var(--weight-regular);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ─── Links ──────────────────────────────────────────────────────────────────── */
+
+/* Scoped to prose/content links only — excludes nav, buttons, and UI elements
+   that set their own colour via Tailwind utilities. */
+a:not([class]) {
+  font-weight: var(--weight-medium);
+  color: var(--color-accent);
+  text-decoration: none;
+  transition: var(--transition-base);
+}
+
+a:not([class]):hover {
+  color: var(--color-accent-dark);
+}
+
+/* ─── Button base classes (Energy Studio) ────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-ui);
+  font-weight: var(--weight-medium);
+  font-size: 0.875rem;
+  border-radius: var(--radius-md);
+  padding: 10px 20px;
+  border: none;
+  cursor: pointer;
+  transition: var(--transition-base);
+  text-decoration: none;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.btn-primary {
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  box-shadow: var(--shadow-soft);
+}
+
+.btn-primary:hover {
+  background-color: var(--color-primary-dark);
+  box-shadow: var(--shadow-hover);
+}
+
+.btn-secondary {
+  background-color: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-accent);
+}
+
+.btn-secondary:hover {
+  background-color: var(--color-primary-light);
+}
+
+.btn-accent {
+  background-color: var(--color-accent);
+  color: var(--color-white);
+}
+
+.btn-accent:hover {
+  background-color: var(--color-accent-dark);
+  box-shadow: var(--shadow-medium);
+}
+
+.btn-ghost {
+  background-color: transparent;
+  color: var(--color-text-secondary);
+}
+
+.btn-ghost:hover {
+  background-color: var(--color-border-light);
+  color: var(--color-text);
+}
+
+/* ─── Card classes (Energy Studio) ──────────────────────────────────────────── */
+
+.card {
+  background: var(--color-white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border-light);
+  transition: var(--transition-smooth);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-hover);
+}
+
+/* ─── Input / Form elements (Energy Studio) ──────────────────────────────────── */
+
+.input {
+  display: block;
+  width: 100%;
+  font-family: var(--font-ui);
+  font-weight: var(--weight-regular);
+  font-size: 0.875rem;
+  color: var(--color-text);
+  background-color: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  transition: var(--transition-base);
+}
+
+.input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.input:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(46, 166, 215, 0.10);
+  background-color: var(--color-white);
+}
+
+/* ─── Label ──────────────────────────────────────────────────────────────────── */
+
+.label {
+  display: block;
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  font-weight: var(--weight-medium);
+  color: var(--color-text);
+  margin-bottom: 6px;
+}
+
+/* ─── Link utility ───────────────────────────────────────────────────────────── */
+
+.link {
+  color: var(--color-accent);
+  text-decoration: none;
+  transition: var(--transition-base);
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+/* ─── Login-specific classes (retained from existing design) ─────────────────── */
+
+.login-pattern-bg {
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+@keyframes loginFadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.login-fade-in         { animation: loginFadeIn 0.6s ease-out both; }
+.login-fade-in-delay   { animation: loginFadeIn 0.6s ease-out 0.15s both; }
+.login-fade-in-delay-2 { animation: loginFadeIn 0.6s ease-out 0.30s both; }
+
+/* ─── Shimmer animation ──────────────────────────────────────────────────────── */
+
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+.btn-shimmer:hover {
+  background-size: 200% auto;
+  animation: shimmer 2s linear infinite;
+}
+
+/* ─── PWA safe-area handling ─────────────────────────────────────────────────── */
+
+.app-container {
+  padding-top:    env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left:   env(safe-area-inset-left);
+  padding-right:  env(safe-area-inset-right);
+  height: 100dvh;
+}

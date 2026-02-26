@@ -90,7 +90,7 @@ export default function BimMetadataPanel({ projectId, selected, onClose }) {
         <span className="text-sm font-semibold">BIM Metadata</span>
         <button
           onClick={onClose}
-          className="text-white/50 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
+          className="text-white/50 hover:text-white transition-colors p-1 rounded-lg hover:bg-surface/10"
           aria-label="Close panel"
         >
           <X className="w-4 h-4" />
@@ -107,7 +107,7 @@ export default function BimMetadataPanel({ projectId, selected, onClose }) {
 
         {!loading && notFound && (
           <div className="px-4 py-6">
-            <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-4 text-xs space-y-2">
+            <div className="rounded-lg border border-white/10 bg-surface/5 px-4 py-4 text-xs space-y-2">
               <div className="text-white/70 font-semibold text-sm">Selected Element</div>
               <div className="flex justify-between items-start gap-2 py-0.5">
                 <span className="text-white/50 shrink-0">Name</span>

@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { TrendingUp, Zap, Users, Clock, ArrowUpRight, ArrowDownRight } from "lucide-react";
 
 import ScenePreviewCanvas from "./components/ScenePreviewCanvas";
 import TimelineList from "../components/ProjectModules/Timeline/TimelineList";
@@ -99,10 +100,19 @@ export default function DigitalTwinDashboard() {
 
     return (
         <div className="w-full">
+            {/* Page title — matches ES "Document Management" heading style */}
+            <div className="mb-6">
+                <h1 className="text-2xl font-bold text-textpri mb-1" style={{ fontFamily: "'Syne', 'Inter', sans-serif" }}>
+                    Project Dashboard
+                </h1>
+                <p className="text-sm text-textsec">Monitor your digital twin operations and analytics</p>
+            </div>
+
             {/* KPI cards */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
                 <KpiCard
                     icon={<IconChart />}
+                    iconBg="bg-[#2C97D4]/10"
                     title="Production Output"
                     value="47,032"
                     sub="Units today"
@@ -112,6 +122,7 @@ export default function DigitalTwinDashboard() {
                 />
                 <KpiCard
                     icon={<IconBolt />}
+                    iconBg="bg-emerald-400/10"
                     title="Overall OEE"
                     value="92.3%"
                     sub="Target: 90%"
@@ -121,6 +132,7 @@ export default function DigitalTwinDashboard() {
                 />
                 <KpiCard
                     icon={<IconUsers />}
+                    iconBg="bg-[#76C267]/10"
                     title="Active Workforce"
                     value="3,247"
                     sub="Across all facilities"
@@ -130,6 +142,7 @@ export default function DigitalTwinDashboard() {
                 />
                 <KpiCard
                     icon={<IconClock />}
+                    iconBg="bg-error/10"
                     title="Downtime Hours"
                     value="12.4"
                     sub="vs. last week"
@@ -147,7 +160,7 @@ export default function DigitalTwinDashboard() {
                     <SCurvePanel projectId={projectId} />
                 </Card>
                 {/* 3D Digital Twin Panel */}
-                <div className="rounded-2xl border border-[#E6EAF0] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
+                <div className="rounded-lg border border-border bg-surface shadow-card">
                     <div className="flex items-center gap-3 p-4 flex-wrap">
                         {projectId && (
                             <button
@@ -155,8 +168,8 @@ export default function DigitalTwinDashboard() {
                                     const deepLink = `fusionxr://open?projectId=${projectId}`;
                                     window.location.href = deepLink;
                                 }}
-                                className="rounded-xl btn-gradient-primary px-4 py-2 text-xs font-semibold text-white
-                   hover:bg-[#1D4ED8] transition focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30"
+                                className="rounded-lg btn-gradient-primary px-4 py-2 text-xs font-semibold text-white
+                   hover:bg-accent transition focus:outline-none focus:ring-2 focus:ring-accent/30"
                                 title="Open in AR (iOS App)"
                             >
                                 View in AR
@@ -168,7 +181,7 @@ export default function DigitalTwinDashboard() {
 
                         <button
                             onClick={requestCapture}
-                            className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-xs font-semibold text-[#374151] hover:bg-[#F9FAFB] transition focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
+                            className="rounded-lg border border-border bg-surface px-3 py-2 text-xs font-semibold text-textpri hover:bg-appbg transition focus:outline-none focus:ring-2 focus:ring-accent/20"
                             title="Capture View"
                         >
                             Capture View
@@ -176,7 +189,7 @@ export default function DigitalTwinDashboard() {
 
                         <button
                             onClick={() => setIsTwinFullscreen(true)}
-                            className="inline-flex items-center justify-center rounded-xl border border-[#E6EAF0] bg-white p-2 hover:bg-[#F9FAFB] transition"
+                            className="inline-flex items-center justify-center rounded-lg border border-border bg-surface p-2 hover:bg-appbg transition"
                             aria-label="Expand"
                             title="Expand"
                         >
@@ -185,7 +198,7 @@ export default function DigitalTwinDashboard() {
                         <button
                             onClick={() => fileInputRef.current?.click()}
                             disabled={!projectId || isUploadingBim}
-                            className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-xs font-semibold text-[#374151] hover:bg-[#F9FAFB] transition disabled:opacity-50"
+                            className="rounded-lg border border-border bg-surface px-3 py-2 text-xs font-semibold text-textpri hover:bg-appbg transition disabled:opacity-50"
                             title="Upload BIM CSV"
                         >
                             {isUploadingBim ? "Uploading..." : "Upload BIM"}
@@ -199,7 +212,7 @@ export default function DigitalTwinDashboard() {
                         onChange={handleBimFileChange}
                     />
 
-                    <div className="relative h-[420px] overflow-hidden rounded-b-2xl bg-gradient-to-b from-[#F9FAFB] to-[#EEF2F7] min-w-0 min-h-0">
+                    <div className="relative h-[420px] overflow-hidden rounded-b-xl bg-gradient-to-b from-appbg to-appbg min-w-0 min-h-0">
                         <ScenePreviewCanvas
                             projectId={projectId}
                             cameraRequest={cameraRequest}
@@ -300,18 +313,18 @@ export default function DigitalTwinDashboard() {
                 >
                     {/* Dialog */}
                     <div
-                        className="absolute inset-4 md:inset-8 rounded-2xl border border-[#E6EAF0] bg-white
+                        className="absolute inset-4 md:inset-8 rounded-2xl border border-border bg-surface
                  shadow-[0_20px_60px_rgba(0,0,0,0.25)] overflow-hidden"
                         onMouseDown={(e) => e.stopPropagation()}
                     >
                         {/* Header */}
-                        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E6EAF0]">
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
                             <div className="flex items-center gap-3 flex-wrap">
 
                                 <div className="inline-flex items-center gap-2">
-                                    <div className="inline-flex items-center gap-2 rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] px-3 py-2">
-                                        <span className="text-sm font-semibold text-[#111827]">3D Digital Twin</span>
-                                        <span className="text-xs text-[#6B7280]">Fullscreen</span>
+                                    <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-appbg px-3 py-2">
+                                        <span className="text-sm font-semibold text-textpri">3D Digital Twin</span>
+                                        <span className="text-xs text-textsec">Fullscreen</span>
                                     </div>
                                 </div>
 
@@ -319,8 +332,8 @@ export default function DigitalTwinDashboard() {
 
                                 <button
                                     onClick={requestCapture}
-                                    className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-xs font-semibold text-[#374151]
-             hover:bg-[#F9FAFB] transition focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
+                                    className="rounded-lg border border-border bg-surface px-3 py-2 text-xs font-semibold text-textpri
+             hover:bg-appbg transition focus:outline-none focus:ring-2 focus:ring-accent/20"
                                     title="Capture View"
                                 >
                                     Capture View
@@ -328,8 +341,8 @@ export default function DigitalTwinDashboard() {
 
                                 <button
                                     onClick={() => setIsTwinFullscreen(false)}
-                                    className="inline-flex items-center justify-center rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-sm
-                     hover:bg-[#F9FAFB] transition"
+                                    className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm
+                     hover:bg-appbg transition"
                                     aria-label="Exit fullscreen"
                                     title="Exit fullscreen (Esc)"
                                 >
@@ -341,7 +354,7 @@ export default function DigitalTwinDashboard() {
                         </div>
 
                         {/* Content */}
-                        <div className="relative h-[calc(100%-64px)] bg-gradient-to-b from-[#F9FAFB] to-[#EEF2F7] min-w-0 min-h-0">
+                        <div className="relative h-[calc(100%-64px)] bg-gradient-to-b from-appbg to-appbg min-w-0 min-h-0">
                             <ScenePreviewCanvas
                                 projectId={projectId}
                                 cameraRequest={cameraRequest}
@@ -366,23 +379,23 @@ function AssetInfoPanel({ asset, onClear, className = "" }) {
 
     const badge =
         asset.status === "Healthy"
-            ? "bg-green-50 text-green-700 border-green-200"
+            ? "bg-emerald-400/10 text-emerald-500 border-emerald-400/20"
             : asset.status === "Maintenance"
-                ? "bg-amber-50 text-amber-700 border-amber-200"
-                : "bg-red-50 text-red-700 border-red-200";
+                ? "bg-amber-400/10 text-amber-500 border-amber-400/20"
+                : "bg-error/10 text-error border-error/20";
 
     return (
         <div
             className={
-                "w-[320px] max-w-[calc(100vw-2rem)] rounded-2xl border border-[#E6EAF0] bg-white shadow-sm overflow-hidden " +
+                "w-[320px] max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-surface shadow-sm overflow-hidden " +
                 className
             }
         >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#E6EAF0]">
-                <div className="text-sm font-semibold text-[#111827]">Asset Info</div>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                <div className="text-sm font-semibold text-textpri">Asset Info</div>
                 <button
                     onClick={onClear}
-                    className="text-xs font-semibold text-[#6B7280] hover:text-[#111827]"
+                    className="text-xs font-semibold text-textsec hover:text-textpri"
                 >
                     Clear
                 </button>
@@ -390,38 +403,38 @@ function AssetInfoPanel({ asset, onClear, className = "" }) {
 
             <div className="px-4 py-3 space-y-3">
                 <div>
-                    <div className="text-xs text-[#6B7280]">Asset Name</div>
-                    <div className="text-sm font-semibold text-[#111827]">{asset.name || "—"}</div>
+                    <div className="text-xs text-textsec">Asset Name</div>
+                    <div className="text-sm font-semibold text-textpri">{asset.name || "—"}</div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                     <div>
-                        <div className="text-xs text-[#6B7280]">Type</div>
-                        <div className="text-sm font-semibold text-[#111827]">{asset.type || "—"}</div>
+                        <div className="text-xs text-textsec">Type</div>
+                        <div className="text-sm font-semibold text-textpri">{asset.type || "—"}</div>
                     </div>
                     <div>
-                        <div className="text-xs text-[#6B7280]">Category</div>
-                        <div className="text-sm font-semibold text-[#111827]">{asset.category || "—"}</div>
+                        <div className="text-xs text-textsec">Category</div>
+                        <div className="text-sm font-semibold text-textpri">{asset.category || "—"}</div>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 items-end">
                     <div>
-                        <div className="text-xs text-[#6B7280]">Status</div>
+                        <div className="text-xs text-textsec">Status</div>
                         <div className={"inline-flex items-center rounded-xl border px-2 py-1 text-xs font-semibold " + badge}>
                             {asset.status || "—"}
                         </div>
                     </div>
                     <div>
-                        <div className="text-xs text-[#6B7280]">Last Updated</div>
-                        <div className="text-sm font-semibold text-[#111827]">
+                        <div className="text-xs text-textsec">Last Updated</div>
+                        <div className="text-sm font-semibold text-textpri">
                             {asset.lastUpdated || "—"}
                         </div>
                     </div>
                 </div>
 
                 {asset.hint && (
-                    <div className="text-xs text-[#6B7280]">
+                    <div className="text-xs text-textsec">
                         {asset.hint}
                     </div>
                 )}
@@ -435,8 +448,7 @@ function CameraPresetBar({ onPreset }) {
     const Btn = ({ label, type }) => (
         <button
             onClick={() => onPreset(type)}
-            className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-xs font-semibold text-[#374151]
-                 hover:bg-[#F9FAFB] transition focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
+            className="rounded-lg border border-border bg-surface px-3 py-2 text-xs font-semibold text-textpri hover:bg-appbg transition focus:outline-none focus:ring-2 focus:ring-accent/20"
             title={label}
         >
             {label}
@@ -456,33 +468,24 @@ function CameraPresetBar({ onPreset }) {
 
 /* ------------------------- KPI ------------------------- */
 
-function KpiCard({ icon, title, value, sub, delta, deltaTone, foot }) {
-    const deltaStyles =
-        deltaTone === "up"
-            ? "bg-[#DCFCE7] text-[#16A34A] border-[#BBF7D0]"
-            : "bg-[#FEE2E2] text-[#DC2626] border-[#FCA5A5]";
+function KpiCard({ icon, iconBg, title, value, sub, delta, deltaTone, foot }) {
+    const deltaUp = deltaTone === "up";
 
     return (
-        <div className="rounded-2xl border border-[#E6EAF0] bg-white p-4 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
-            <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                    <div className="h-11 w-11 rounded-2xl border border-[#E6EAF0] bg-[#F3F6FB] flex items-center justify-center">
-                        {icon}
-                    </div>
-                    <div className="text-sm font-semibold text-[#111827]">{title}</div>
+        <div className="bg-surface p-5 rounded-lg border border-border hover:shadow-card-hover transition-all group">
+            {/* Top row: icon left, badge right */}
+            <div className="flex items-start justify-between mb-3">
+                <div className={`${iconBg || "bg-appbg"} p-2.5 rounded-lg`}>
+                    {icon}
                 </div>
-
-                <div className={`inline-flex items-center gap-1 rounded-lg border px-2 py-[2px] text-xs font-semibold ${deltaStyles}`}>
-                    {deltaTone === "up" ? "↗" : "↘"} {delta}
-                </div>
+                <span className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold ${deltaUp ? 'bg-emerald-400/10 text-emerald-500' : 'bg-error/10 text-error'}`}>
+                    {deltaUp ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+                    {delta}
+                </span>
             </div>
-
-            <div className="mt-3">
-                <div className="text-3xl font-semibold text-[#111827] leading-none">{value}</div>
-                <div className="mt-1 text-sm text-[#6B7280]">{sub}</div>
-            </div>
-
-            <div className="mt-2 text-xs text-[#9CA3AF]">{foot}</div>
+            {/* Number + label */}
+            <h3 className="text-2xl font-bold text-textpri mb-1" style={{ fontFamily: "'Syne', 'Inter', sans-serif" }}>{value}</h3>
+            <p className="text-sm text-textsec">{title}</p>
         </div>
     );
 }
@@ -491,10 +494,10 @@ function KpiCard({ icon, title, value, sub, delta, deltaTone, foot }) {
 
 function Card({ title, menu, children }) {
     return (
-        <div className="rounded-2xl border border-[#E6EAF0] bg-white p-4 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+        <div className="rounded-lg border border-border bg-surface p-5 shadow-card">
             <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold text-[#111827]">{title}</div>
-                {menu && <button className="text-[#9CA3AF] hover:text-[#6B7280]">•••</button>}
+                <div className="text-sm font-semibold text-textpri" style={{ fontFamily: "'Syne', 'Inter', sans-serif" }}>{title}</div>
+                {menu && <button className="text-texttert hover:text-textsec">•••</button>}
             </div>
             <div className="mt-3">{children}</div>
         </div>
@@ -519,12 +522,12 @@ function MockBars() {
                 {data.map((d) => (
                     <div key={d.label} className="flex-1 flex items-end gap-1 justify-center">
                         <div
-                            className="w-3 rounded-t-md bg-[#3B82F6]"
+                            className="w-3 rounded-t-md bg-accent"
                             style={{ height: `${d.a}px` }}
                             title="Line A"
                         />
                         <div
-                            className="w-3 rounded-t-md bg-[#22C55E]"
+                            className="w-3 rounded-t-md bg-brandend"
                             style={{ height: `${d.b}px` }}
                             title="Line B"
                         />
@@ -532,11 +535,11 @@ function MockBars() {
                 ))}
             </div>
 
-            <div className="mt-3 grid grid-cols-6 gap-2 text-[11px] text-[#6B7280]">
+            <div className="mt-3 grid grid-cols-6 gap-2 text-[11px] text-textsec">
                 {data.map((d) => (
                     <div key={d.label} className="text-center">
                         <div>{d.label}</div>
-                        <div className="text-[#9CA3AF]">P1</div>
+                        <div className="text-texttert">P1</div>
                     </div>
                 ))}
             </div>
@@ -556,23 +559,23 @@ function Utilization() {
 function UtilRow({ label, value, pct, tone }) {
     const bar =
         tone === "green"
-            ? "bg-[#22C55E]"
-            : "bg-[#3B82F6]";
+            ? "bg-brandend"
+            : "bg-accent";
 
     return (
         <div>
-            <div className="flex items-center justify-between text-xs text-[#6B7280]">
+            <div className="flex items-center justify-between text-xs text-textsec">
                 <span>{label}</span>
                 <span className="inline-flex items-center gap-2">
-                    <span className="rounded-md border border-[#E6EAF0] bg-white px-2 py-[2px] text-[11px] font-semibold text-[#111827]">
+                    <span className="rounded-md border border-border bg-surface px-2 py-[2px] text-[11px] font-semibold text-textpri">
                         {value}
                     </span>
                 </span>
             </div>
-            <div className="mt-2 h-2 rounded-full bg-[#EEF2F7] overflow-hidden">
+            <div className="mt-2 h-2 rounded-full bg-appbg overflow-hidden">
                 <div className={`h-full ${bar}`} style={{ width: `${pct}%` }} />
             </div>
-            <div className="mt-1 flex justify-between text-[10px] text-[#9CA3AF]">
+            <div className="mt-1 flex justify-between text-[10px] text-texttert">
                 <span>0</span>
                 <span>300</span>
                 <span>600</span>
@@ -598,10 +601,10 @@ function Alerts() {
             {items.map((it, idx) => (
                 <div
                     key={idx}
-                    className="flex items-center gap-3 rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] px-3 py-2"
+                    className="flex items-center gap-3 rounded-lg border border-border bg-appbg px-3 py-2"
                 >
                     <SeverityBadge level={it.level} tone={it.tone} />
-                    <div className="text-sm text-[#111827]">{it.text}</div>
+                    <div className="text-sm text-textpri">{it.text}</div>
                 </div>
             ))}
         </div>
@@ -611,8 +614,8 @@ function Alerts() {
 function SeverityBadge({ level, tone }) {
     const styles =
         tone === "red"
-            ? "bg-[#FEE2E2] text-[#B91C1C] border-[#FCA5A5]"
-            : "bg-[#FEF3C7] text-[#92400E] border-[#FCD34D]";
+            ? "bg-error/10 text-error border-error/20"
+            : "bg-amber-400/10 text-warning border-amber-400/20";
 
     return (
         <span className={`inline-flex items-center rounded-lg border px-2 py-[2px] text-xs font-semibold ${styles}`}>
@@ -623,14 +626,14 @@ function SeverityBadge({ level, tone }) {
 
 function CctvMock() {
     return (
-        <div className="h-[170px] rounded-xl border border-[#E6EAF0] bg-gradient-to-b from-[#EEF2F7] to-[#E5E7EB] overflow-hidden relative">
+        <div className="h-[170px] rounded-xl border border-border bg-gradient-to-b from-appbg to-border overflow-hidden relative">
             <div className="absolute inset-0 opacity-50">
-                <div className="absolute left-4 top-4 h-10 w-16 rounded-md bg-white/60" />
-                <div className="absolute left-24 top-6 h-12 w-20 rounded-md bg-white/60" />
-                <div className="absolute right-6 bottom-6 h-16 w-24 rounded-md bg-white/60" />
-                <div className="absolute left-8 bottom-8 h-8 w-20 rounded-md bg-white/60" />
+                <div className="absolute left-4 top-4 h-10 w-16 rounded-md bg-surface/60" />
+                <div className="absolute left-24 top-6 h-12 w-20 rounded-md bg-surface/60" />
+                <div className="absolute right-6 bottom-6 h-16 w-24 rounded-md bg-surface/60" />
+                <div className="absolute left-8 bottom-8 h-8 w-20 rounded-md bg-surface/60" />
             </div>
-            <div className="absolute bottom-3 left-3 rounded-lg bg-white/80 border border-[#E6EAF0] px-2 py-1 text-[11px] text-[#374151]">
+            <div className="absolute bottom-3 left-3 rounded-lg bg-surface/80 border border-border px-2 py-1 text-[11px] text-textpri">
                 Live feed (mock)
             </div>
         </div>
@@ -641,10 +644,9 @@ function CctvMock() {
 
 function IconExpand() {
     return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-textsec" stroke="currentColor">
             <path
                 d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6"
-                stroke="#6B7280"
                 strokeWidth="2"
                 strokeLinecap="round"
             />
@@ -653,14 +655,14 @@ function IconExpand() {
 }
 
 function IconChart() {
-    return <span className="text-[#2563EB] text-lg">📈</span>;
+    return <TrendingUp size={22} className="text-[#2C97D4]" />;
 }
 function IconBolt() {
-    return <span className="text-[#16A34A] text-lg">⚡</span>;
+    return <Zap size={22} className="text-[#76C267]" />;
 }
 function IconUsers() {
-    return <span className="text-[#16A34A] text-lg">👤</span>;
+    return <Users size={22} className="text-emerald-600" />;
 }
 function IconClock() {
-    return <span className="text-[#DC2626] text-lg">🕒</span>;
+    return <Clock size={22} className="text-error" />;
 }

@@ -158,7 +158,7 @@ export default function ProfileEdit({ setActiveView }) {
                         <Input type="email" value={form.email} onChange={(e) => setTop('email', e.target.value)} placeholder="jane@school.edu" />
                     </Field>
                     <Field className="sm:col-span-2" label="Username (public link)">
-                        <div className="flex items-center rounded-xl bg-white/5 pl-3 border border-white/10 focus-within:ring-2 focus-within:ring-brand/40">
+                        <div className="flex items-center rounded-xl bg-surface/5 pl-3 border border-white/10 focus-within:ring-2 focus-within:ring-brand/40">
                             <div className="shrink-0 text-sm text-subtle select-none">holoxr.teczo.co/</div>
                             <input
                                 className="min-w-0 grow bg-transparent py-2 pr-3 pl-2 text-title outline-none"
@@ -239,7 +239,7 @@ export default function ProfileEdit({ setActiveView }) {
                     <SwitchRow label="Offers" checked={form.profile.notifications.offers} onChange={(v) => setNotif('offers', v)} />
                     <Field label="Push mode">
                         <select
-                            className="w-full rounded-xl bg-white/5 border border-white/10 p-2 text-title"
+                            className="w-full rounded-xl bg-surface/5 border border-white/10 p-2 text-title"
                             value={form.profile.notifications.push}
                             onChange={(e) => setNotif('push', e.target.value)}
                         >
@@ -273,7 +273,7 @@ export default function ProfileEdit({ setActiveView }) {
 }
 
 function Card({ children }) {
-    return <div className="rounded-2xl border border-white/10 bg-white/5 p-4">{children}</div>;
+    return <div className="rounded-2xl border border-white/10 bg-surface/5 p-4">{children}</div>;
 }
 
 function CardHeader({ icon, title, subtitle }) {
@@ -301,7 +301,7 @@ function Input(props) {
     return (
         <input
             {...props}
-            className={`w-full rounded-xl bg-white/5 border border-white/10 p-2 text-title outline-none focus:ring-2 focus:ring-brand/40 ${props.className || ''
+            className={`w-full rounded-xl bg-surface/5 border border-white/10 p-2 text-title outline-none focus:ring-2 focus:ring-accent/40 ${props.className || ''
                 }`}
         />
     );
@@ -311,7 +311,7 @@ function Textarea(props) {
     return (
         <textarea
             {...props}
-            className={`w-full rounded-xl bg-white/5 border border-white/10 p-2 text-title outline-none focus:ring-2 focus:ring-brand/40 ${props.className || ''
+            className={`w-full rounded-xl bg-surface/5 border border-white/10 p-2 text-title outline-none focus:ring-2 focus:ring-accent/40 ${props.className || ''
                 }`}
         />
     );
@@ -326,10 +326,10 @@ function SwitchRow({ label, checked, onChange }) {
                 role="switch"
                 aria-checked={checked}
                 onClick={() => onChange(!checked)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${checked ? 'bg-brand' : 'bg-white/20'}`}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${checked ? 'bg-brand' : 'bg-surface/20'}`}
             >
                 <span
-                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${checked ? 'translate-x-5' : 'translate-x-1'}`}
+                    className={`inline-block h-5 w-5 transform rounded-full bg-surface transition-transform ${checked ? 'translate-x-5' : 'translate-x-1'}`}
                 />
             </button>
         </div>

@@ -17,20 +17,20 @@ export default function TimelineForm({ initial, onSave, onCancel }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-xl border border-[#D7E6FF] bg-[#EAF2FF] p-4 mb-4 space-y-3">
+    <form onSubmit={handleSubmit} className="space-y-3">
       <input
         value={form.title}
         onChange={(e) => setForm({ ...form, title: e.target.value })}
         placeholder="Title"
         required
-        className="w-full rounded-lg border border-[#E6EAF0] bg-white px-3 py-2 text-sm text-[#111827] outline-none focus:ring-2 focus:ring-[#2563EB]/20"
+        className="w-full rounded-lg border border-border bg-appbg px-3 py-2 text-sm text-textpri outline-none focus:ring-2 focus:ring-[#2C97D4]/20"
       />
       <textarea
         value={form.description}
         onChange={(e) => setForm({ ...form, description: e.target.value })}
         placeholder="Description (optional)"
         rows={2}
-        className="w-full rounded-lg border border-[#E6EAF0] bg-white px-3 py-2 text-sm text-[#111827] outline-none focus:ring-2 focus:ring-[#2563EB]/20 resize-none"
+        className="w-full rounded-lg border border-border bg-appbg px-3 py-2 text-sm text-textpri outline-none focus:ring-2 focus:ring-[#2C97D4]/20 resize-none"
       />
       <div className="flex gap-3">
         <input
@@ -38,12 +38,12 @@ export default function TimelineForm({ initial, onSave, onCancel }) {
           value={form.date}
           onChange={(e) => setForm({ ...form, date: e.target.value })}
           required
-          className="flex-1 rounded-lg border border-[#E6EAF0] bg-white px-3 py-2 text-sm text-[#111827] outline-none focus:ring-2 focus:ring-[#2563EB]/20"
+          className="flex-1 rounded-lg border border-border bg-appbg px-3 py-2 text-sm text-textpri outline-none focus:ring-2 focus:ring-[#2C97D4]/20"
         />
         <select
           value={form.type}
           onChange={(e) => setForm({ ...form, type: e.target.value })}
-          className="flex-1 rounded-lg border border-[#E6EAF0] bg-white px-3 py-2 text-sm text-[#111827] outline-none focus:ring-2 focus:ring-[#2563EB]/20"
+          className="flex-1 rounded-lg border border-border bg-appbg px-3 py-2 text-sm text-textpri outline-none focus:ring-2 focus:ring-[#2C97D4]/20"
         >
           {TYPES.map((t) => (
             <option key={t} value={t}>{t.replace('_', ' ')}</option>
@@ -54,13 +54,13 @@ export default function TimelineForm({ initial, onSave, onCancel }) {
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg border border-[#E6EAF0] bg-white px-4 py-2 text-xs font-semibold text-[#374151] hover:bg-[#F9FAFB]"
+          className="rounded-lg border border-border bg-surface px-4 py-2 text-xs font-semibold text-textpri hover:bg-appbg"
         >
           Cancel
         </button>
         <button
           type="submit"
-          className="rounded-lg bg-[#2563EB] px-4 py-2 text-xs font-semibold text-white hover:bg-[#1D4ED8]"
+          className="rounded-lg bg-[#2C97D4] px-4 py-2 text-xs font-semibold text-white hover:bg-[#2286be]"
         >
           {initial ? 'Update' : 'Create'}
         </button>

@@ -11,15 +11,15 @@ const API = import.meta.env.VITE_API_URL ?? '';
 
 function SectionCard({ title, children }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-      <h2 className="text-base font-semibold text-gray-800 mb-4">{title}</h2>
+    <div className="bg-surface border border-border rounded-xl p-6 shadow-sm">
+      <h2 className="text-base font-semibold text-textpri mb-4">{title}</h2>
       {children}
     </div>
   );
 }
 
 function Label({ children }) {
-  return <label className="block text-sm font-medium text-gray-600 mb-1">{children}</label>;
+  return <label className="block text-sm font-medium text-textsec mb-1">{children}</label>;
 }
 
 function Input({ value, onChange, placeholder, type = 'text' }) {
@@ -29,7 +29,7 @@ function Input({ value, onChange, placeholder, type = 'text' }) {
       value={value}
       onChange={onChange}
       placeholder={placeholder}
-      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
+      className="w-full border border-border rounded-lg px-3 py-2 text-sm text-textpri focus:outline-none focus:ring-2 focus:ring-teal-500"
     />
   );
 }
@@ -119,7 +119,7 @@ function SimulateDelaySection() {
 
       {result && (
         <div className="mt-5">
-          <p className="text-sm text-gray-700 mb-3 font-medium">
+          <p className="text-sm text-textpri mb-3 font-medium">
             Total Project Delay:{' '}
             <span className={delayColor(result.totalProjectDelay)}>
               {result.totalProjectDelay} days
@@ -128,20 +128,20 @@ function SimulateDelaySection() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm border-collapse">
               <thead>
-                <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wide">
-                  <th className="px-3 py-2 border border-gray-200">Activity</th>
-                  <th className="px-3 py-2 border border-gray-200">Original Finish</th>
-                  <th className="px-3 py-2 border border-gray-200">New Finish</th>
-                  <th className="px-3 py-2 border border-gray-200">Propagated Delay</th>
+                <tr className="bg-appbg text-left text-xs text-textsec uppercase tracking-wide">
+                  <th className="px-3 py-2 border border-border">Activity</th>
+                  <th className="px-3 py-2 border border-border">Original Finish</th>
+                  <th className="px-3 py-2 border border-border">New Finish</th>
+                  <th className="px-3 py-2 border border-border">Propagated Delay</th>
                 </tr>
               </thead>
               <tbody>
                 {result.impactedActivities.map((a, i) => (
-                  <tr key={i} className="odd:bg-white even:bg-gray-50">
-                    <td className="px-3 py-2 border border-gray-200 font-mono text-xs text-gray-700">{a.activityId}</td>
-                    <td className="px-3 py-2 border border-gray-200 text-gray-600">{formatDate(a.originalFinish)}</td>
-                    <td className="px-3 py-2 border border-gray-200 text-gray-600">{formatDate(a.newFinish)}</td>
-                    <td className={`px-3 py-2 border border-gray-200 ${delayColor(a.propagatedDelay)}`}>
+                  <tr key={i} className="odd:bg-surface even:bg-appbg">
+                    <td className="px-3 py-2 border border-border font-mono text-xs text-textpri">{a.activityId}</td>
+                    <td className="px-3 py-2 border border-border text-textsec">{formatDate(a.originalFinish)}</td>
+                    <td className="px-3 py-2 border border-border text-textsec">{formatDate(a.newFinish)}</td>
+                    <td className={`px-3 py-2 border border-border ${delayColor(a.propagatedDelay)}`}>
                       {a.propagatedDelay} days
                     </td>
                   </tr>
@@ -150,7 +150,7 @@ function SimulateDelaySection() {
             </table>
           </div>
           {result.impactedActivities.length === 0 && (
-            <p className="mt-2 text-sm text-gray-500">No activities impacted.</p>
+            <p className="mt-2 text-sm text-textsec">No activities impacted.</p>
           )}
         </div>
       )}
@@ -198,31 +198,31 @@ function OverdueSection() {
 
       {activities !== null && (
         activities.length === 0 ? (
-          <p className="mt-2 text-sm text-gray-500">No overdue activities found.</p>
+          <p className="mt-2 text-sm text-textsec">No overdue activities found.</p>
         ) : (
           <div className="overflow-x-auto mt-4">
             <table className="w-full text-sm border-collapse">
               <thead>
-                <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wide">
-                  <th className="px-3 py-2 border border-gray-200">Activity ID</th>
-                  <th className="px-3 py-2 border border-gray-200">Name</th>
-                  <th className="px-3 py-2 border border-gray-200">Planned Finish</th>
-                  <th className="px-3 py-2 border border-gray-200">Status</th>
-                  <th className="px-3 py-2 border border-gray-200">Delay (days)</th>
+                <tr className="bg-appbg text-left text-xs text-textsec uppercase tracking-wide">
+                  <th className="px-3 py-2 border border-border">Activity ID</th>
+                  <th className="px-3 py-2 border border-border">Name</th>
+                  <th className="px-3 py-2 border border-border">Planned Finish</th>
+                  <th className="px-3 py-2 border border-border">Status</th>
+                  <th className="px-3 py-2 border border-border">Delay (days)</th>
                 </tr>
               </thead>
               <tbody>
                 {activities.map((a, i) => (
-                  <tr key={i} className="odd:bg-white even:bg-gray-50">
-                    <td className="px-3 py-2 border border-gray-200 font-mono text-xs text-gray-700">
+                  <tr key={i} className="odd:bg-surface even:bg-appbg">
+                    <td className="px-3 py-2 border border-border font-mono text-xs text-textpri">
                       {a.activityId ?? a._id}
                     </td>
-                    <td className="px-3 py-2 border border-gray-200 text-gray-700">{a.name ?? '—'}</td>
-                    <td className="px-3 py-2 border border-gray-200 text-gray-600">
+                    <td className="px-3 py-2 border border-border text-textpri">{a.name ?? '—'}</td>
+                    <td className="px-3 py-2 border border-border text-textsec">
                       {a.plannedFinish ? new Date(a.plannedFinish).toLocaleDateString('en-GB') : '—'}
                     </td>
-                    <td className="px-3 py-2 border border-gray-200 text-gray-600">{a.status ?? '—'}</td>
-                    <td className="px-3 py-2 border border-gray-200 text-red-500 font-semibold">
+                    <td className="px-3 py-2 border border-border text-textsec">{a.status ?? '—'}</td>
+                    <td className="px-3 py-2 border border-border text-red-500 font-semibold">
                       {a.delayDays ?? '—'}
                     </td>
                   </tr>
@@ -270,13 +270,13 @@ function PortfolioDriversSection() {
       {data && (
         <div className="mt-4 space-y-3">
           <div className="flex gap-6">
-            <div className="bg-gray-50 rounded-lg px-4 py-3 text-center">
-              <p className="text-xs text-gray-500 uppercase tracking-wide">Completed Projects</p>
-              <p className="text-2xl font-bold text-gray-800 mt-1">{data.completedProjectCount}</p>
+            <div className="bg-appbg rounded-lg px-4 py-3 text-center">
+              <p className="text-xs text-textsec uppercase tracking-wide">Completed Projects</p>
+              <p className="text-2xl font-bold text-textpri mt-1">{data.completedProjectCount}</p>
             </div>
-            <div className="bg-gray-50 rounded-lg px-4 py-3 text-center">
-              <p className="text-xs text-gray-500 uppercase tracking-wide">Avg Delay %</p>
-              <p className="text-2xl font-bold text-gray-800 mt-1">
+            <div className="bg-appbg rounded-lg px-4 py-3 text-center">
+              <p className="text-xs text-textsec uppercase tracking-wide">Avg Delay %</p>
+              <p className="text-2xl font-bold text-textpri mt-1">
                 {typeof data.avgDelayPercent === 'number' ? data.avgDelayPercent.toFixed(1) : '—'}%
               </p>
             </div>
@@ -284,12 +284,12 @@ function PortfolioDriversSection() {
 
           {data.topRiskFactors && data.topRiskFactors.length > 0 && (
             <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Top Risk Factors</p>
+              <p className="text-xs font-medium text-textsec uppercase tracking-wide mb-2">Top Risk Factors</p>
               <ul className="space-y-1">
                 {data.topRiskFactors.map((f, i) => (
-                  <li key={i} className="flex justify-between text-sm bg-gray-50 rounded px-3 py-2">
-                    <span className="text-gray-700">{f.factor}</span>
-                    <span className="text-gray-500 font-medium">{f.frequency}×</span>
+                  <li key={i} className="flex justify-between text-sm bg-appbg rounded px-3 py-2">
+                    <span className="text-textpri">{f.factor}</span>
+                    <span className="text-textsec font-medium">{f.frequency}×</span>
                   </li>
                 ))}
               </ul>
@@ -297,7 +297,7 @@ function PortfolioDriversSection() {
           )}
 
           {(!data.topRiskFactors || data.topRiskFactors.length === 0) && (
-            <p className="text-sm text-gray-500">No risk factor data available (schema fields not yet populated).</p>
+            <p className="text-sm text-textsec">No risk factor data available (schema fields not yet populated).</p>
           )}
         </div>
       )}
@@ -309,16 +309,16 @@ function PortfolioDriversSection() {
 
 export default function DevIntelligence() {
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="min-h-screen bg-borderlight p-6">
       <div className="max-w-5xl mx-auto space-y-6">
         <div className="mb-2">
           <span className="inline-block bg-yellow-100 text-yellow-800 text-xs font-semibold px-2.5 py-1 rounded-full border border-yellow-300 mb-3">
             DEV MODE — not visible in production
           </span>
-          <h1 className="text-2xl font-bold text-gray-900">Intelligence Debug Console</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-bold text-textpri">Intelligence Debug Console</h1>
+          <p className="text-sm text-textsec mt-1">
             Direct access to intelligence services. No auth required. Available only when{' '}
-            <code className="bg-gray-200 rounded px-1 text-xs">NODE_ENV !== production</code>.
+            <code className="bg-border rounded px-1 text-xs">NODE_ENV !== production</code>.
           </p>
         </div>
 

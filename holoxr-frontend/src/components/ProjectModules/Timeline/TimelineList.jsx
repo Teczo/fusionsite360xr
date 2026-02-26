@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { timelineApi, scheduleApi } from '../../../services/api';
 import { useRole } from '../../hooks/useRole';
 import Badge from '../../ui/Badge';
@@ -13,8 +14,8 @@ export default function TimelineList({ projectId }) {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingId, setEditingId] = useState(null); // id of item being edited inline
   const [mode, setMode] = useState('manual'); // 'manual' | 'gantt'
   const fileInputRef = useRef(null);
   const { canEdit } = useRole();
@@ -41,14 +42,15 @@ export default function TimelineList({ projectId }) {
       .finally(() => setLoading(false));
   }, [projectId]);
 
-  const handleSave = async (data) => {
-    if (editing) {
-      await timelineApi.update(projectId, editing._id, data);
-    } else {
-      await timelineApi.create(projectId, data);
-    }
-    setShowForm(false);
-    setEditing(null);
+  const handleAdd = async (data) => {
+    await timelineApi.create(projectId, data);
+    setShowAddModal(false);
+    loadTimeline();
+  };
+
+  const handleEdit = async (data) => {
+    await timelineApi.update(projectId, editingId, data);
+    setEditingId(null);
     loadTimeline();
   };
 
@@ -60,9 +62,7 @@ export default function TimelineList({ projectId }) {
   const handleUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Reset input so the same file can be re-selected
     e.target.value = '';
-
     setUploading(true);
     setUploadError('');
     try {
@@ -82,13 +82,16 @@ export default function TimelineList({ projectId }) {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <h2 className="text-lg font-semibold text-[#111827]">Project Timeline</h2>
+      <div className="flex items-start justify-between mb-5 flex-wrap gap-2">
+        <div>
+          <h2 className="text-xl font-bold text-textpri" style={{ fontFamily: "'Syne', 'Inter', sans-serif" }}>Project Timeline</h2>
+          <p className="text-sm text-textsec mt-1">Milestones, progress updates and uploaded schedules</p>
+        </div>
         <div className="flex items-center gap-2">
           {hasSchedule && (
             <button
               onClick={() => setMode(mode === 'gantt' ? 'manual' : 'gantt')}
-              className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-xs font-semibold text-[#374151] hover:bg-[#F9FAFB] transition"
+              className="rounded-lg border border-border bg-surface px-3 py-2 text-xs font-semibold text-textpri hover:bg-appbg transition"
             >
               {mode === 'gantt' ? 'Milestones' : 'Gantt Chart'}
             </button>
@@ -98,7 +101,7 @@ export default function TimelineList({ projectId }) {
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="rounded-xl border border-[#2563EB] bg-[#2563EB] px-3 py-2 text-xs font-semibold text-white hover:bg-[#1D4ED8] transition disabled:opacity-50"
+                className="rounded-lg bg-[#2C97D4] px-3 py-2 text-xs font-semibold text-white hover:bg-[#2286be] transition disabled:opacity-50"
               >
                 {uploading ? 'Uploading...' : 'Upload Schedule'}
               </button>
@@ -113,8 +116,8 @@ export default function TimelineList({ projectId }) {
           )}
           {canEdit && mode === 'manual' && (
             <button
-              onClick={() => { setEditing(null); setShowForm(true); }}
-              className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-xs font-semibold text-[#374151] hover:bg-[#F9FAFB] transition"
+              onClick={() => setShowAddModal(true)}
+              className="rounded-lg border border-border bg-surface px-3 py-2 text-xs font-semibold text-textpri hover:bg-appbg transition"
             >
               + Add Item
             </button>
@@ -124,64 +127,104 @@ export default function TimelineList({ projectId }) {
 
       {/* Upload error */}
       {uploadError && (
-        <div className="rounded-lg border border-[#FCA5A5] bg-[#FEF2F2] px-3 py-2 mb-4 text-xs text-[#B91C1C]">
+        <div className="rounded-lg border border-error/30 bg-error/5 px-3 py-2 mb-4 text-xs text-error">
           {uploadError}
         </div>
       )}
 
       {/* Gantt Chart View */}
       {mode === 'gantt' && hasSchedule && (
-        <div className="mb-6 rounded-xl border border-[#E6EAF0] bg-white p-4 overflow-hidden">
+        <div className="mb-6 rounded-lg border border-border bg-surface p-4 overflow-hidden">
           <GanttChart data={scheduleData} />
+        </div>
+      )}
+
+      {/* Add Modal */}
+      {showAddModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowAddModal(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl shadow-2xl border border-border bg-surface overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h3 className="text-base font-semibold text-textpri" style={{ fontFamily: "'Syne', 'Inter', sans-serif" }}>
+                Add Timeline Item
+              </h3>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="p-1 rounded-lg text-textsec hover:text-textpri hover:bg-appbg transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-5">
+              <TimelineForm
+                initial={null}
+                onSave={handleAdd}
+                onCancel={() => setShowAddModal(false)}
+              />
+            </div>
+          </div>
         </div>
       )}
 
       {/* Manual Timeline View */}
       {mode === 'manual' && (
         <>
-          {showForm && (
-            <TimelineForm
-              initial={editing}
-              onSave={handleSave}
-              onCancel={() => { setShowForm(false); setEditing(null); }}
-            />
-          )}
-
           {items.length === 0 ? (
             <EmptyState title="No timeline items yet" description="Add milestones and progress updates to track this project." />
           ) : (
             <div className="space-y-3">
               {items.map((item) => (
-                <div key={item._id} className="flex items-start gap-4 rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-4">
-                  <div className="flex-shrink-0 mt-1">
-                    <div className="h-3 w-3 rounded-full bg-[#2563EB]" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-semibold text-[#111827]">{item.title}</span>
-                      <Badge label={item.type?.replace('_', ' ')} variant={item.type} />
+                <div key={item._id}>
+                  {/* Inline edit form */}
+                  {editingId === item._id ? (
+                    <div className="rounded-xl border border-[#2C97D4]/30 bg-surface p-4 shadow-card">
+                      <p className="text-xs font-semibold text-[#2C97D4] mb-3 uppercase tracking-wide">Editing: {item.title}</p>
+                      <TimelineForm
+                        initial={item}
+                        onSave={handleEdit}
+                        onCancel={() => setEditingId(null)}
+                      />
                     </div>
-                    {item.description && (
-                      <p className="text-xs text-[#6B7280] mb-1">{item.description}</p>
-                    )}
-                    <span className="text-xs text-[#9CA3AF]">
-                      {new Date(item.date).toLocaleDateString()}
-                    </span>
-                  </div>
-                  {canEdit && (
-                    <div className="flex gap-2 flex-shrink-0">
-                      <button
-                        onClick={() => { setEditing(item); setShowForm(true); }}
-                        className="text-xs text-[#2563EB] hover:underline"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(item._id)}
-                        className="text-xs text-[#EF4444] hover:underline"
-                      >
-                        Delete
-                      </button>
+                  ) : (
+                    <div className="flex items-start gap-4 rounded-xl border border-border bg-surface p-4 shadow-card hover:shadow-card-hover transition-shadow">
+                      <div className="flex-shrink-0 mt-1">
+                        <div className="h-3 w-3 rounded-full bg-[#2C97D4]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-semibold text-textpri">{item.title}</span>
+                          <Badge label={item.type?.replace('_', ' ')} variant={item.type} />
+                        </div>
+                        {item.description && (
+                          <p className="text-xs text-textsec mb-1">{item.description}</p>
+                        )}
+                        <span className="text-xs text-texttert">
+                          {new Date(item.date).toLocaleDateString()}
+                        </span>
+                      </div>
+                      {canEdit && (
+                        <div className="flex gap-1 flex-shrink-0">
+                          <button
+                            onClick={() => setEditingId(item._id)}
+                            className="p-1.5 rounded-lg text-textsec hover:text-[#2C97D4] hover:bg-[#2C97D4]/8 transition-colors"
+                            title="Edit"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(item._id)}
+                            className="p-1.5 rounded-lg text-textsec hover:text-error hover:bg-error/8 transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

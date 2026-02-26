@@ -95,7 +95,7 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
     if (!projectId) {
         return (
             <div className="h-full w-full flex items-center justify-center">
-                <div className="rounded-xl border border-[#E6EAF0] bg-white px-4 py-3 text-sm text-[#374151]">
+                <div className="rounded-xl border border-border bg-white px-4 py-3 text-sm text-textpri">
                     No project selected.
                 </div>
             </div>
@@ -105,7 +105,7 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
     if (!published) {
         return (
             <div className="h-full w-full flex items-center justify-center">
-                <div className="rounded-xl border border-[#E6EAF0] bg-white px-4 py-3 text-sm text-[#374151]">
+                <div className="rounded-xl border border-border bg-white px-4 py-3 text-sm text-textpri">
                     Loading digital twin scene…
                 </div>
             </div>
@@ -115,7 +115,7 @@ export default function ScenePreviewCanvas({ projectId, cameraRequest, captureRe
     if (models.length === 0) {
         return (
             <div className="h-full w-full flex items-center justify-center">
-                <div className="rounded-xl border border-[#E6EAF0] bg-white px-4 py-3 text-sm text-[#374151]">
+                <div className="rounded-xl border border-border bg-white px-4 py-3 text-sm text-textpri">
                     No 3D models found in this scene.
                 </div>
             </div>

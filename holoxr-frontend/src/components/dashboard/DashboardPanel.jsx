@@ -1,6 +1,6 @@
 // DashboardPanel.jsx — Light enterprise theme redesign
 import { useEffect, useMemo, useState } from 'react';
-import { MoreHorizontal, Briefcase, CheckCircle2, Clock, PauseCircle, TrendingUp, TrendingDown } from 'lucide-react';
+import { MoreHorizontal, Briefcase, CheckCircle2, Clock, PauseCircle, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import ProfileEdit from '../../pages/ProfilePage';
@@ -44,11 +44,11 @@ function getProjectProgress(proj) {
 }
 
 const STATUS_STYLES = {
-    'Active': { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
-    'In Progress': { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
-    'Completed': { bg: 'bg-violet-50', text: 'text-violet-700', dot: 'bg-violet-500' },
-    'On Hold': { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
-    'Trashed': { bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-500' },
+    'Active': { bg: 'bg-emerald-400/10', text: 'text-emerald-500', dot: 'bg-emerald-500' },
+    'In Progress': { bg: 'bg-[#2C97D4]/10', text: 'text-[#2C97D4]', dot: 'bg-[#2C97D4]' },
+    'Completed': { bg: 'bg-violet-400/10', text: 'text-violet-500', dot: 'bg-violet-500' },
+    'On Hold': { bg: 'bg-amber-400/10', text: 'text-amber-500', dot: 'bg-amber-500' },
+    'Trashed': { bg: 'bg-error/10', text: 'text-error', dot: 'bg-error' },
 };
 
 const PROJECT_COLORS = [
@@ -62,22 +62,26 @@ const PROJECT_COLORS = [
 
 /* ─── KPI Card ─── */
 
-function KPICard({ label, value, icon: Icon, iconBg, delta, deltaUp }) {
+function KPICard({ label, value, icon: Icon, iconBg, iconColor, delta, deltaUp }) {
     return (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.06)] p-5 flex items-start gap-4">
-            <div className={`w-11 h-11 rounded-xl ${iconBg} flex items-center justify-center shrink-0`}>
-                <Icon className="w-5 h-5 text-white" />
-            </div>
-            <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium text-textsec uppercase tracking-wide">{label}</div>
-                <div className="text-2xl font-bold text-textpri mt-0.5">{value}</div>
+        <div className="bg-surface p-5 rounded-lg border border-border hover:shadow-card-hover transition-all group">
+            {/* Top row: icon left, badge right */}
+            <div className="flex items-start justify-between mb-3">
+                <div className={`${iconBg} p-2.5 rounded-lg`}>
+                    <Icon size={20} className={iconColor} />
+                </div>
                 {delta !== undefined && (
-                    <div className={`flex items-center gap-1 mt-1 text-xs font-medium ${deltaUp ? 'text-emerald-600' : 'text-red-500'}`}>
-                        {deltaUp ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                    <span className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold ${deltaUp ? 'bg-emerald-400/10 text-emerald-500' : 'bg-error/10 text-error'}`}>
+                        {deltaUp
+                            ? <ArrowUpRight size={12} />
+                            : <ArrowDownRight size={12} />}
                         {delta}
-                    </div>
+                    </span>
                 )}
             </div>
+            {/* Number + label */}
+            <h3 className="text-2xl font-bold text-textpri mb-1" style={{ fontFamily: "'Syne', 'Inter', sans-serif" }}>{value}</h3>
+            <p className="text-sm text-textsec">{label}</p>
         </div>
     );
 }
@@ -97,10 +101,10 @@ function ProjectCard({ proj, index, openMenuId, setOpenMenuId, onNavigate, onOpe
     return (
         <div
             onClick={() => onNavigate(`/digital-twin?id=${proj._id}`)}
-            className={`bg-white rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.06)] p-5 pt-3 flex flex-col gap-4 hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] transition-shadow relative group cursor-pointer ${isMenuOpen ? 'z-20' : 'z-0'}`}
+            className={`bg-surface rounded-lg border border-border p-5 pt-4 flex flex-col gap-4 transition-shadow duration-150 hover:shadow-card-hover relative group cursor-pointer ${isMenuOpen ? 'z-20' : 'z-0'}`}
         >
             {/* Thumbnail preview */}
-            <div className="w-full h-32 rounded-xl overflow-hidden bg-gray-100">
+            <div className="w-full h-32 rounded-lg overflow-hidden bg-borderlight">
                 {proj.thumbnail ? (
                     <img
                         src={proj.thumbnail}
@@ -109,7 +113,7 @@ function ProjectCard({ proj, index, openMenuId, setOpenMenuId, onNavigate, onOpe
                         loading="lazy"
                     />
                 ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
+                    <div className="w-full h-full flex items-center justify-center text-texttert text-xs">
                         No preview
                     </div>
                 )}
@@ -117,12 +121,12 @@ function ProjectCard({ proj, index, openMenuId, setOpenMenuId, onNavigate, onOpe
 
             {/* Top row: icon + name + menu */}
             <div className="flex items-start gap-3">
-                <div className={`w-10 h-10 rounded-xl ${colorClass} flex items-center justify-center text-white font-bold text-sm shrink-0`}>
+                <div className={`w-10 h-10 rounded-lg ${colorClass} flex items-center justify-center text-white font-bold text-sm shrink-0`}>
                     {initial}
                 </div>
                 <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-textpri text-[15px] truncate">{proj.name}</div>
-                    <div className="text-xs text-textsec mt-0.5">Updated {timeAgo(proj.updatedAt)}</div>
+                    <div className="font-semibold text-textpri text-[15px] truncate" style={{ fontFamily: "'Syne', 'Inter', sans-serif" }}>{proj.name}</div>
+                    <div className="text-[14px] text-textsec mt-0.5">Updated {timeAgo(proj.updatedAt)}</div>
                 </div>
                 {/* Ellipsis menu */}
                 <div className="relative">
@@ -131,7 +135,7 @@ function ProjectCard({ proj, index, openMenuId, setOpenMenuId, onNavigate, onOpe
                             e.stopPropagation();
                             setOpenMenuId(isMenuOpen ? null : proj._id);
                         }}
-                        className="p-1.5 rounded-lg text-textsec hover:text-textpri hover:bg-gray-100 transition-colors opacity-0 group-hover:opacity-100 relative z-30"
+                        className="p-1.5 rounded-lg text-textsec hover:text-textpri hover:bg-borderlight transition-colors opacity-0 group-hover:opacity-100 relative z-30"
                         aria-label="Project menu"
                     >
                         <MoreHorizontal className="w-4 h-4" />
@@ -139,11 +143,11 @@ function ProjectCard({ proj, index, openMenuId, setOpenMenuId, onNavigate, onOpe
 
                     {isMenuOpen && (
                         <div
-                            className="absolute right-0 top-8 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1.5 text-sm"
+                            className="absolute right-0 top-8 w-48 bg-surface border border-border rounded-lg shadow-card z-50 py-1.5 text-sm"
                             onClick={(e) => e.stopPropagation()}
                         >
                             <button
-                                className="w-full text-left px-4 py-2 hover:bg-gray-50 text-textpri"
+                                className="w-full text-left px-4 py-2 hover:bg-appbg text-textpri"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     window.open(`/digital-twin?id=${proj._id}`, '_blank');
@@ -153,7 +157,7 @@ function ProjectCard({ proj, index, openMenuId, setOpenMenuId, onNavigate, onOpe
                                 Open in New Tab
                             </button>
                             <button
-                                className="w-full text-left px-4 py-2 hover:bg-gray-50 text-textpri"
+                                className="w-full text-left px-4 py-2 hover:bg-appbg text-textpri"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onNavigate(`/studio?id=${proj._id}`);
@@ -162,7 +166,7 @@ function ProjectCard({ proj, index, openMenuId, setOpenMenuId, onNavigate, onOpe
                                 Edit
                             </button>
                             <button
-                                className="w-full text-left px-4 py-2 hover:bg-gray-50 text-textpri"
+                                className="w-full text-left px-4 py-2 hover:bg-appbg text-textpri"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onOpenShare(proj);
@@ -170,9 +174,9 @@ function ProjectCard({ proj, index, openMenuId, setOpenMenuId, onNavigate, onOpe
                             >
                                 Share
                             </button>
-                            <hr className="my-1 border-gray-100" />
+                            <hr className="my-1 border-borderlight" />
                             <button
-                                className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600"
+                                className="w-full text-left px-4 py-2 hover:bg-error/10 text-error"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onDelete(proj._id);
@@ -199,9 +203,9 @@ function ProjectCard({ proj, index, openMenuId, setOpenMenuId, onNavigate, onOpe
                     <span className="text-xs text-textsec font-medium">Progress</span>
                     <span className="text-xs font-semibold text-textpri">{progress}%</span>
                 </div>
-                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div className="w-full h-2 bg-borderlight rounded-full overflow-hidden">
                     <div
-                        className="h-full rounded-full bg-gradient-to-r from-[#3BB2A5] to-[#6CCF6A] transition-all duration-500"
+                        className="h-full rounded-full bg-gradient-to-r from-brand to-brandend transition-all duration-500"
                         style={{ width: `${progress}%` }}
                     />
                 </div>
@@ -330,9 +334,9 @@ export default function DashboardPanel({
         <button
             key={key}
             onClick={() => setTab(key)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${designsTab === key
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${designsTab === key
                 ? 'bg-brand-50 text-brand'
-                : 'text-textsec hover:bg-gray-50 hover:text-textpri'
+                : 'text-textsec hover:bg-appbg hover:text-textpri'
                 }`}
             role="tab"
             aria-selected={designsTab === key}
@@ -349,37 +353,41 @@ export default function DashboardPanel({
                 {activeView === 'your-designs' && (
                     <>
                         {/* ── KPI Summary Cards ── */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                             <KPICard
                                 label="Total Projects"
                                 value={kpiData.total}
                                 icon={Briefcase}
-                                iconBg="bg-gradient-to-br from-blue-500 to-indigo-600"
-                                delta="+12% from last month"
+                                iconBg="bg-[#2C97D4]/10"
+                                iconColor="text-[#2C97D4]"
+                                delta="+12%"
                                 deltaUp={true}
                             />
                             <KPICard
                                 label="Active"
                                 value={kpiData.active}
                                 icon={Clock}
-                                iconBg="bg-gradient-to-br from-emerald-500 to-teal-600"
-                                delta="+8% from last month"
+                                iconBg="bg-emerald-400/10"
+                                iconColor="text-emerald-500"
+                                delta="+8%"
                                 deltaUp={true}
                             />
                             <KPICard
                                 label="Completed"
                                 value={kpiData.completed}
                                 icon={CheckCircle2}
-                                iconBg="bg-gradient-to-br from-violet-500 to-purple-600"
-                                delta="+5% from last month"
+                                iconBg="bg-violet-400/10"
+                                iconColor="text-violet-500"
+                                delta="+5%"
                                 deltaUp={true}
                             />
                             <KPICard
                                 label="On Hold"
                                 value={kpiData.onHold}
                                 icon={PauseCircle}
-                                iconBg="bg-gradient-to-br from-amber-500 to-orange-600"
-                                delta="-3% from last month"
+                                iconBg="bg-amber-400/10"
+                                iconColor="text-amber-500"
+                                delta="-3%"
                                 deltaUp={false}
                             />
                         </div>
@@ -393,7 +401,7 @@ export default function DashboardPanel({
                             </div>
 
                             {userPlan === 'Free' && (
-                                <div className="text-xs text-textsec bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg font-medium">
+                                <div className="text-xs bg-amber-400/10 text-amber-500 px-3 py-1.5 rounded-lg font-medium">
                                     Free plan: 1 shared project
                                 </div>
                             )}
@@ -416,7 +424,7 @@ export default function DashboardPanel({
                                 ))}
                                 {projects.length === 0 && (
                                     <div className="col-span-full flex flex-col items-center justify-center py-20 text-center">
-                                        <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
+                                        <div className="w-16 h-16 rounded-lg bg-borderlight flex items-center justify-center mb-4">
                                             <Briefcase className="w-7 h-7 text-textsec" />
                                         </div>
                                         <p className="text-textpri font-semibold text-lg">No projects yet</p>
@@ -430,17 +438,17 @@ export default function DashboardPanel({
                         {designsTab === 'shared' && (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                                 {sharedProjects.map((proj, idx) => (
-                                    <div key={proj._id} className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.06)] p-5 flex flex-col gap-3 hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] transition-shadow cursor-pointer" onClick={() => navigate(`/digital-twin?id=${proj._id}`)}>
+                                    <div key={proj._id} className="bg-surface rounded-lg border border-border p-5 flex flex-col gap-3 transition-shadow duration-150 hover:shadow-card-hover cursor-pointer" onClick={() => navigate(`/digital-twin?id=${proj._id}`)}>
                                         <div className="flex items-start gap-3">
-                                            <div className={`w-10 h-10 rounded-xl ${PROJECT_COLORS[idx % PROJECT_COLORS.length]} flex items-center justify-center text-white font-bold text-sm shrink-0`}>
+                                            <div className={`w-10 h-10 rounded-lg ${PROJECT_COLORS[idx % PROJECT_COLORS.length]} flex items-center justify-center text-white font-bold text-sm shrink-0`}>
                                                 {(proj.name || 'P').charAt(0).toUpperCase()}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <div className="font-semibold text-textpri text-[15px] truncate">{proj.name}</div>
-                                                <div className="text-xs text-textsec mt-0.5">Owner: {proj.owner?.name || '—'}</div>
+                                                <div className="font-semibold text-textpri text-[15px] truncate" style={{ fontFamily: "'Syne', 'Inter', sans-serif" }}>{proj.name}</div>
+                                                <div className="text-[14px] text-textsec mt-0.5">Owner: {proj.owner?.name || '—'}</div>
                                             </div>
                                         </div>
-                                        <span className={`inline-flex items-center self-start gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${proj.myPermission === 'edit' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>
+                                        <span className={`inline-flex items-center self-start gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${proj.myPermission === 'edit' ? 'bg-emerald-400/10 text-emerald-500' : 'bg-[#2C97D4]/10 text-[#2C97D4]'}`}>
                                             {proj.myPermission === 'edit' ? 'Can edit' : 'View only'}
                                         </span>
                                     </div>
@@ -459,7 +467,7 @@ export default function DashboardPanel({
                                 {trashedProjects.map((proj) => (
                                     <div
                                         key={proj._id}
-                                        className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.06)] p-5 flex flex-col justify-between gap-3"
+                                        className="bg-surface rounded-lg border border-border p-5 flex flex-col justify-between gap-3 transition-shadow duration-150 hover:shadow-card-hover"
                                     >
                                         <div>
                                             <div className="text-sm font-semibold text-textpri truncate mb-1">{proj.name}</div>
@@ -476,7 +484,7 @@ export default function DashboardPanel({
                                                 Restore
                                             </button>
                                             <button
-                                                className="flex-1 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-medium hover:bg-red-100 transition-colors"
+                                                className="flex-1 px-3 py-1.5 rounded-lg bg-error/10 text-error text-xs font-medium hover:bg-error/20 transition-colors"
                                                 onClick={() => handlePermanentDelete(proj._id)}
                                             >
                                                 Delete

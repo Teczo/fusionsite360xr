@@ -14,11 +14,11 @@ const fmt = {
 
 function Card({ title, subtitle, right, children }) {
     return (
-        <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-3">
+        <div className="bg-surface border border-border rounded-xl p-5 shadow-card">
+            <div className="flex items-center justify-between mb-4">
                 <div>
-                    <div className="text-xs uppercase tracking-wider text-white/60">{subtitle}</div>
-                    <h3 className="text-lg font-semibold">{title}</h3>
+                    {subtitle && <div className="text-xs font-medium text-texttert uppercase tracking-wider mb-0.5">{subtitle}</div>}
+                    <h3 className="text-sm font-semibold text-textpri" style={{ fontFamily: "'Syne', 'Inter', sans-serif" }}>{title}</h3>
                 </div>
                 {right}
             </div>
@@ -46,8 +46,8 @@ export default function AnalyticsProjects({ projectId, range }) {
             .catch(setErr);
     }, [projectId, range]);
 
-    if (err) return <div className="text-red-400">Failed to load analytics: {err.message || String(err)}</div>;
-    if (!data) return <div className="text-white/60">Loading project data…</div>;
+    if (err) return <div className="text-error text-sm">Failed to load analytics: {err.message || String(err)}</div>;
+    if (!data) return <div className="text-texttert text-sm">Loading project data…</div>;
 
     return (
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
@@ -56,11 +56,11 @@ export default function AnalyticsProjects({ projectId, range }) {
                     <div className="h-56">
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={data.retention || []} margin={{ left: 8, right: 8, top: 8, bottom: 8 }}>
-                                <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                                 <XAxis dataKey="t" tick={{ fontSize: 12 }} label={{ value: "seconds", position: "insideBottom", offset: -2 }} />
                                 <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
                                 <Tooltip />
-                                <Line type="monotone" dataKey="pct" stroke="#82ca9d" strokeWidth={2} dot={false} />
+                                <Line type="monotone" dataKey="pct" stroke="#3BB2A5" strokeWidth={2} dot={false} />
                             </LineChart>
                         </ResponsiveContainer>
                     </div>
@@ -69,8 +69,8 @@ export default function AnalyticsProjects({ projectId, range }) {
 
             <div className="xl:col-span-1">
                 <Card title="Views" subtitle="Selected range">
-                    <div className="text-4xl font-semibold">{fmt.n(data.views)}</div>
-                    <div className="text-white/60 text-sm mt-1">Selected range</div>
+                    <div className="text-3xl font-bold text-textpri" style={{ fontFamily: "'Syne', 'Inter', sans-serif" }}>{fmt.n(data.views)}</div>
+                    <div className="text-texttert text-sm mt-1">Selected range</div>
                 </Card>
             </div>
 
@@ -87,7 +87,7 @@ function ObjectTable({ objects }) {
             <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
                     <thead>
-                        <tr className="text-left text-white/70">
+                        <tr className="text-left text-textsec">
                             <th className="py-2 pr-4">Object</th>
                             <th className="py-2 pr-4">Taps</th>
                             <th className="py-2 pr-4">Avg View</th>
@@ -97,7 +97,7 @@ function ObjectTable({ objects }) {
                     </thead>
                     <tbody>
                         {(objects || []).map((o) => (
-                            <tr key={o.id} className="border-t border-white/10">
+                            <tr key={o.id} className="border-t border-border">
                                 <td className="py-2 pr-4 font-medium">{o.label}</td>
                                 <td className="py-2 pr-4">{fmt.n(o.taps)}</td>
                                 <td className="py-2 pr-4">{o.avgViewSec ? `${o.avgViewSec}s` : "—"}</td>

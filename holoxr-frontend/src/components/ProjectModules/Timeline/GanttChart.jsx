@@ -11,14 +11,14 @@ function GanttTooltip({ item, position }) {
 
   return (
     <div
-      className="pointer-events-none fixed z-50 rounded-lg border border-[#E6EAF0] bg-white px-3 py-2 shadow-md text-xs"
+      className="pointer-events-none fixed z-50 rounded-lg border border-border bg-surface px-3 py-2 shadow-md text-xs"
       style={{ left: position.x + 12, top: position.y - 10 }}
     >
-      <p className="font-semibold text-[#111827] mb-1">{item.name}</p>
-      <p className="text-[#6B7280]">Start: {formatDate(item.start)}</p>
-      <p className="text-[#6B7280]">Finish: {formatDate(item.end)}</p>
-      <p className="text-[#6B7280]">Duration: {item.durationDays} days</p>
-      {item.critical && <p className="text-[#EF4444] font-medium mt-1">Critical Path</p>}
+      <p className="font-semibold text-textpri mb-1">{item.name}</p>
+      <p className="text-textsec">Start: {formatDate(item.start)}</p>
+      <p className="text-textsec">Finish: {formatDate(item.end)}</p>
+      <p className="text-textsec">Duration: {item.durationDays} days</p>
+      {item.critical && <p className="text-error font-medium mt-1">Critical Path</p>}
     </div>
   );
 }
@@ -86,7 +86,7 @@ export default function GanttChart({ data }) {
 
   if (!chartData.items.length) {
     return (
-      <div className="flex items-center justify-center py-8 text-sm text-[#9CA3AF]">
+      <div className="flex items-center justify-center py-8 text-sm text-texttert">
         No schedule data to display
       </div>
     );
@@ -104,7 +104,7 @@ export default function GanttChart({ data }) {
           {chartData.items.map((item, i) => (
             <div
               key={i}
-              className="flex items-center pr-2 text-[11px] text-[#374151] truncate"
+              className="flex items-center pr-2 text-[11px] text-textpri truncate"
               style={{ height: ROW_HEIGHT }}
               title={item.name}
             >
@@ -119,7 +119,7 @@ export default function GanttChart({ data }) {
           {chartData.ticks.map((tick, i) => (
             <div
               key={i}
-              className="absolute top-0 bottom-0 border-l border-[#F3F4F6]"
+              className="absolute top-0 bottom-0 border-l border-borderlight"
               style={{ left: `${tick.leftPct}%` }}
             />
           ))}
@@ -153,7 +153,7 @@ export default function GanttChart({ data }) {
           {chartData.ticks.map((tick, i) => (
             <span
               key={i}
-              className="absolute text-[10px] text-[#9CA3AF] -translate-x-1/2"
+              className="absolute text-[10px] text-texttert -translate-x-1/2"
               style={{ left: `${tick.leftPct}%`, top: 4 }}
             >
               {formatDate(tick.ts)}
@@ -163,9 +163,9 @@ export default function GanttChart({ data }) {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center justify-center gap-6 mt-3 text-xs text-[#6B7280]">
+      <div className="flex items-center justify-center gap-6 mt-3 text-xs text-textsec">
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded-sm bg-[#2563EB]" />
+          <span className="inline-block h-3 w-3 rounded-sm bg-accent" />
           Normal
         </span>
         <span className="flex items-center gap-1.5">

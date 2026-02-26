@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CheckIcon } from '@heroicons/react/20/solid'
+import { Check } from 'lucide-react';
 import CurrentPlanBanner from './CurrentPlanBanner';
 
 // Two plans mapped to your Stripe Price IDs (from Vite env)
@@ -76,7 +76,7 @@ export default function BillingPricing() {
 
             <div className="mx-auto max-w-4xl text-center">
                 <p className="mt-2 text-4xl font-semibold tracking-tight text-balance sm:text-5xl">Choose the right plan for you</p>
-                <p className="mx-auto mt-4 max-w-2xl text-base text-gray-300">
+                <p className="mx-auto mt-4 max-w-2xl text-base text-textsec">
                     Choose an affordable plan packed with the essentials for building and sharing AR experiences.
                 </p>
             </div>
@@ -86,26 +86,26 @@ export default function BillingPricing() {
                     <div
                         key={tier.id}
                         className={classNames(
-                            tier.featured ? 'relative bg-zinc-900/70 ring-1 ring-white/10' : 'bg-white/5 ring-1 ring-white/10',
+                            tier.featured ? 'relative bg-zinc-900/70 ring-1 ring-white/10' : 'bg-surface/5 ring-1 ring-white/10',
                             idx === 0 ? 'rounded-t-3xl lg:rounded-tr-none lg:rounded-bl-3xl' : 'rounded-b-3xl lg:rounded-tr-3xl lg:rounded-bl-none',
                             'rounded-3xl p-8 sm:p-10 backdrop-blur-md border border-white/10'
                         )}
                     >
-                        <h3 id={tier.id} className="text-base font-semibold text-indigo-400">{tier.name}</h3>
+                        <h3 id={tier.id} className="text-base font-semibold text-accent">{tier.name}</h3>
 
                         <p className="mt-4 flex items-baseline gap-x-2">
                             <span className="text-5xl font-semibold tracking-tight">
                                 ${tier.priceMonthly}
                             </span>
-                            <span className="text-base text-gray-400">/month</span>
+                            <span className="text-base text-texttert">/month</span>
                         </p>
 
-                        <p className="mt-6 text-base text-gray-300">{tier.description}</p>
+                        <p className="mt-6 text-base text-textsec">{tier.description}</p>
 
-                        <ul role="list" className="mt-8 space-y-3 text-sm text-gray-300 sm:mt-10">
+                        <ul role="list" className="mt-8 space-y-3 text-sm text-textsec sm:mt-10">
                             {tier.features.map((feature) => (
                                 <li key={feature} className="flex gap-x-3">
-                                    <CheckIcon aria-hidden="true" className="h-6 w-5 flex-none text-indigo-400" />
+                                    <Check aria-hidden="true" className="h-5 w-5 flex-none text-brand" />
                                     {feature}
                                 </li>
                             ))}
@@ -126,14 +126,14 @@ export default function BillingPricing() {
                                 'mt-8 block w-full rounded-md px-3.5 py-2.5 text-center text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 sm:mt-10 transition',
                                 tier.featured
                                     ? 'w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold btn-gradient-primary'
-                                    : 'bg-white/10 text-white ring-1 ring-white/10 hover:bg-white/20 focus-visible:outline-white/75'
+                                    : 'bg-surface/10 text-white ring-1 ring-white/10 hover:bg-surface/20 focus-visible:outline-white/75'
                             )}
                         >
                             {loadingKey === tier.key ? 'Redirecting…' : 'Get started today'}
                         </button>
 
                         {tier.key === 'founding' && (
-                            <p className="mt-3 text-[11px] leading-snug text-gray-400">
+                            <p className="mt-3 text-[11px] leading-snug text-texttert">
                                 *Founding price is grandfathered for as long as the subscription remains active and in good standing.
                             </p>
                         )}

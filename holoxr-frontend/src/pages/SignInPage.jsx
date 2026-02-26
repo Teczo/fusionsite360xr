@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FcGoogle } from 'react-icons/fc';
-import { FaFacebookF, FaMicrosoft, FaEye, FaEyeSlash, FaCheck } from 'react-icons/fa';
+import { Eye, EyeOff, Loader } from 'lucide-react';
+
+const SYNE = { fontFamily: "'Syne', 'Inter', sans-serif" };
 
 export default function SignInPage() {
     const navigate = useNavigate();
@@ -33,7 +34,7 @@ export default function SignInPage() {
             }
 
             localStorage.setItem('token', data.token);
-            navigate('/dashboard');
+            navigate('/workspace');
         } catch (err) {
             console.error(err);
             setError('Network error during sign in');
@@ -56,82 +57,81 @@ export default function SignInPage() {
     ];
 
     return (
-        <div className="flex min-h-screen bg-white">
+        <div className="min-h-screen flex">
+
             {/* ─── Left Panel: Login Form ─── */}
-            <div
-                className="flex items-center justify-center w-full lg:w-1/2 p-6 sm:p-8 md:p-12"
-            >
-                <div className="w-full max-w-[450px] login-fade-in">
+            <div className="flex-1 flex items-center justify-center px-8 py-12 bg-surface">
+                <div className="w-full max-w-md login-fade-in">
+
                     {/* Logo & Brand */}
-                    <div className="flex items-center gap-3 mb-10">
-                        <img src="/holo-icon.png" alt="FusionSite 360" className="h-12 w-auto" />
-                        <span className="text-xl font-bold text-[#1A202C]">FusionSite 360</span>
+                    <div className="flex items-center gap-3 mb-8">
+                        <img src="/holo-icon.png" alt="FusionSite 360" className="h-12 w-12" />
+                        <div>
+                            <h1 className="text-2xl font-bold text-textpri" style={SYNE}>
+                                FusionSite 360
+                            </h1>
+                            <p className="text-sm text-textsec">XR Platform</p>
+                        </div>
                     </div>
 
                     {/* Heading */}
-                    <h1 className="text-3xl font-bold text-[#1A202C] mb-2">Welcome back!</h1>
-                    <p className="text-[#718096] mb-8">Sign in to continue to your dashboard</p>
+                    <div className="mb-8">
+                        <h2 className="text-3xl font-bold text-textpri mb-2" style={SYNE}>
+                            Welcome back
+                        </h2>
+                        <p className="text-textsec">Sign in to continue to your dashboard</p>
+                    </div>
+
+                    {/* Error */}
+                    {error && (
+                        <div className="mb-6 p-4 bg-error/10 border border-error/20 rounded-lg">
+                            <p className="text-sm text-error font-medium">{error}</p>
+                        </div>
+                    )}
 
                     {/* Form */}
                     <form onSubmit={handleSubmit} className="space-y-5">
-                        {error && (
-                            <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl">
-                                {error}
-                            </div>
-                        )}
 
                         {/* Email */}
                         <div>
-                            <label htmlFor="email" className="login-label">
+                            <label htmlFor="email" className="block text-sm font-semibold text-textpri mb-2">
                                 Email address
                             </label>
-                            <div className="relative">
-                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A0AEC0]">
-                                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                                    </svg>
-                                </span>
-                                <input
-                                    id="email"
-                                    name="email"
-                                    value={form.email}
-                                    onChange={handleChange}
-                                    placeholder="Enter your email address"
-                                    type="email"
-                                    required
-                                    className="login-input pl-11"
-                                />
-                            </div>
+                            <input
+                                id="email"
+                                name="email"
+                                type="email"
+                                value={form.email}
+                                onChange={handleChange}
+                                required
+                                placeholder="you@example.com"
+                                className="w-full px-4 py-3 border border-border rounded-lg bg-appbg text-textpri placeholder:text-texttert focus:outline-none focus:ring-2 focus:ring-[#2EA6D7]/40 focus:border-[#2EA6D7] transition-all text-sm"
+                            />
                         </div>
 
                         {/* Password */}
                         <div>
-                            <label htmlFor="password" className="login-label">
+                            <label htmlFor="password" className="block text-sm font-semibold text-textpri mb-2">
                                 Password
                             </label>
                             <div className="relative">
-                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A0AEC0]">
-                                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                                    </svg>
-                                </span>
                                 <input
                                     id="password"
                                     name="password"
+                                    type={showPassword ? 'text' : 'password'}
                                     value={form.password}
                                     onChange={handleChange}
-                                    placeholder="Enter your password"
-                                    type={showPassword ? 'text' : 'password'}
                                     required
-                                    className="login-input pl-11 pr-11"
+                                    placeholder="Enter your password"
+                                    className="w-full px-4 py-3 pr-12 border border-border rounded-lg bg-appbg text-textpri placeholder:text-texttert focus:outline-none focus:ring-2 focus:ring-[#2EA6D7]/40 focus:border-[#2EA6D7] transition-all text-sm"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A0AEC0] hover:text-[#718096] transition-colors focus:outline-none"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-textsec hover:text-textpri transition-colors"
                                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                                 >
-                                    {showPassword ? <FaEyeSlash size={16} /> : <FaEye size={16} />}
+                                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                                 </button>
                             </div>
                         </div>
@@ -143,20 +143,13 @@ export default function SignInPage() {
                                     type="checkbox"
                                     checked={rememberMe}
                                     onChange={(e) => setRememberMe(e.target.checked)}
-                                    className="sr-only"
+                                    className="w-4 h-4 rounded border-border text-[#2EA6D7] focus:ring-2 focus:ring-[#2EA6D7]/40"
                                 />
-                                <span className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all duration-200 ${
-                                    rememberMe
-                                        ? 'bg-gradient-to-r from-[#2EA6D7] to-[#6CCF6A] border-transparent'
-                                        : 'border-[#CBD5E0] bg-white'
-                                }`}>
-                                    {rememberMe && <FaCheck size={10} className="text-white" />}
-                                </span>
-                                <span className="text-sm text-[#718096]">Remember me</span>
+                                <span className="text-sm text-textsec">Remember me</span>
                             </label>
                             <button
                                 type="button"
-                                className="text-sm font-semibold text-[#2EA6D7] hover:text-[#2390BE] transition-colors focus:outline-none focus:ring-2 focus:ring-[#2EA6D7]/30 rounded"
+                                className="text-sm font-semibold text-[#2EA6D7] hover:text-[#2390BE] transition-colors"
                             >
                                 Forgot password?
                             </button>
@@ -166,104 +159,82 @@ export default function SignInPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="btn-login-gradient btn-shimmer disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="w-full bg-gradient-to-r from-[#2EA6D7] to-[#6CCF6A] text-white font-semibold py-3 rounded-lg hover:shadow-lg hover:shadow-[#2EA6D7]/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-base"
                         >
-                            {loading ? 'Signing in…' : 'Sign In'}
+                            {loading ? (
+                                <>
+                                    <Loader size={20} className="animate-spin" />
+                                    Signing in...
+                                </>
+                            ) : (
+                                'Sign in'
+                            )}
                         </button>
                     </form>
 
-                    {/* Divider */}
-                    <div className="flex items-center my-6">
-                        <div className="flex-1 h-px bg-[#E2E8F0]" />
-                        <span className="mx-4 text-sm text-[#A0AEC0]">or continue with</span>
-                        <div className="flex-1 h-px bg-[#E2E8F0]" />
+                    {/* Footer */}
+                    <div className="mt-8 text-center">
+                        <p className="text-sm text-textsec">
+                            Don&apos;t have an account?{' '}
+                            <button
+                                type="button"
+                                onClick={() => navigate('/signup')}
+                                className="font-semibold text-[#2EA6D7] hover:text-[#2390BE] transition-colors"
+                            >
+                                Sign up
+                            </button>
+                        </p>
                     </div>
-
-                    {/* Social Logins */}
-                    <div className="flex justify-center gap-4 mb-6">
-                        <button
-                            aria-label="Log in with Google"
-                            className="w-12 h-12 flex items-center justify-center rounded-xl border border-[#E2E8F0] bg-white hover:bg-[#F7FAFC] hover:border-[#CBD5E0] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#2EA6D7]/30"
-                        >
-                            <FcGoogle size={22} />
-                        </button>
-                        <button
-                            aria-label="Log in with Microsoft"
-                            className="w-12 h-12 flex items-center justify-center rounded-xl border border-[#E2E8F0] bg-white hover:bg-[#F7FAFC] hover:border-[#CBD5E0] transition-all duration-200 text-[#00A4EF] focus:outline-none focus:ring-2 focus:ring-[#2EA6D7]/30"
-                        >
-                            <FaMicrosoft size={18} />
-                        </button>
-                        <button
-                            aria-label="Log in with Facebook"
-                            className="w-12 h-12 flex items-center justify-center rounded-xl border border-[#E2E8F0] bg-white hover:bg-[#F7FAFC] hover:border-[#CBD5E0] transition-all duration-200 text-[#1877F2] focus:outline-none focus:ring-2 focus:ring-[#2EA6D7]/30"
-                        >
-                            <FaFacebookF size={18} />
-                        </button>
-                    </div>
-
-                    {/* Sign Up Link */}
-                    <p className="text-center text-sm text-[#718096]">
-                        Don&apos;t have an account?{' '}
-                        <button
-                            type="button"
-                            onClick={() => navigate('/signup')}
-                            className="font-semibold text-[#2EA6D7] hover:text-[#2390BE] transition-colors focus:outline-none focus:ring-2 focus:ring-[#2EA6D7]/30 rounded"
-                        >
-                            Sign up
-                        </button>
-                    </p>
                 </div>
             </div>
 
-            {/* ─── Right Panel: Marketing ─── */}
+            {/* ─── Right Panel: Branding ─── */}
             <div
-                className="hidden lg:flex flex-col items-center justify-center w-1/2 relative overflow-hidden"
-                style={{
-                    background: 'linear-gradient(135deg, #2EA6D7 0%, #4BB87E 50%, #6CCF6A 100%)',
-                }}
+                className="hidden lg:flex flex-1 items-center justify-center p-12 relative overflow-hidden"
+                style={{ background: 'linear-gradient(135deg, #2EA6D7 0%, #4BB87E 50%, #6CCF6A 100%)' }}
             >
-                {/* Pattern overlay */}
-                <div className="absolute inset-0 login-pattern-bg" />
+                {/* Background pattern */}
+                <div className="absolute inset-0 opacity-10">
+                    <div className="absolute inset-0" style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+                    }} />
+                </div>
 
-                {/* Content */}
-                <div className="relative z-10 max-w-md px-8 login-fade-in-delay">
+                <div className="relative z-10 text-white max-w-lg login-fade-in-delay">
                     {/* Logo */}
                     <div className="flex items-center gap-3 mb-10">
                         <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
                             <img src="/holo-icon.png" alt="FusionSite 360" className="h-9 w-auto" />
                         </div>
                         <div>
-                            <h3 className="text-white text-lg font-bold leading-tight">FusionSite 360</h3>
+                            <h3 className="text-white text-lg font-bold leading-tight" style={SYNE}>FusionSite 360</h3>
                             <p className="text-white/70 text-xs">XR Platform</p>
                         </div>
                     </div>
 
-                    {/* Headline */}
-                    <h2 className="text-3xl sm:text-4xl font-bold text-white leading-tight mb-4">
+                    <h2 className="text-4xl font-bold mb-4 leading-tight" style={SYNE}>
                         Immersive 3D &amp; AR Experiences
                     </h2>
-                    <p className="text-white/80 text-base leading-relaxed mb-8">
+                    <p className="text-lg text-white/90 leading-relaxed mb-8">
                         Build, publish, and share interactive augmented reality content for education, training, and beyond.
                     </p>
 
-                    {/* Feature list */}
-                    <ul className="space-y-4 mb-10">
+                    <div className="space-y-4 mb-12">
                         {features.map((feature, idx) => (
-                            <li key={idx} className="flex items-start gap-3">
-                                <span className="mt-0.5 w-6 h-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-                                    <FaCheck size={10} className="text-white" />
-                                </span>
-                                <span className="text-white/90 text-sm leading-relaxed">{feature}</span>
-                            </li>
+                            <div key={idx} className="flex items-start gap-3">
+                                <div className="w-6 h-6 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center shrink-0 mt-0.5">
+                                    <div className="w-2 h-2 rounded-full bg-white" />
+                                </div>
+                                <p className="text-white/90 text-sm leading-relaxed">{feature}</p>
+                            </div>
                         ))}
-                    </ul>
+                    </div>
 
-                    {/* KPI Stats */}
-                    <div className="flex gap-6 login-fade-in-delay-2">
+                    <div className="grid grid-cols-3 gap-6 login-fade-in-delay-2">
                         {stats.map((stat, idx) => (
-                            <div key={idx} className="text-center">
-                                <div className="text-2xl font-bold text-white">{stat.value}</div>
-                                <div className="text-white/60 text-xs mt-1">{stat.label}</div>
+                            <div key={idx}>
+                                <div className="text-3xl font-bold mb-1" style={SYNE}>{stat.value}</div>
+                                <div className="text-sm text-white/80">{stat.label}</div>
                             </div>
                         ))}
                     </div>

@@ -7,11 +7,11 @@ const fmt = {
 
 function Card({ title, subtitle, right, children }) {
     return (
-        <div className="bg-black/20 backdrop-blur-xl border border-white/10 rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-3">
+        <div className="bg-surface border border-border rounded-xl p-5 shadow-card">
+            <div className="flex items-center justify-between mb-4">
                 <div>
-                    <div className="text-xs uppercase tracking-wider text-white/60">{subtitle}</div>
-                    <h3 className="text-lg font-semibold">{title}</h3>
+                    {subtitle && <div className="text-xs font-medium text-texttert uppercase tracking-wider mb-0.5">{subtitle}</div>}
+                    <h3 className="text-sm font-semibold text-textpri" style={{ fontFamily: "'Syne', 'Inter', sans-serif" }}>{title}</h3>
                 </div>
                 {right}
             </div>

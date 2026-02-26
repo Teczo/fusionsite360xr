@@ -1,3 +1,4 @@
+import { createContext, useContext, useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import SignUpPage from './pages/SignUpPage';
 import SignInPage from './pages/SignInPage';
@@ -19,54 +20,79 @@ import AiPage from "./pages/AiPage";
 import { RoleProvider } from './components/hooks/useRole';
 import AppLayout from './layouts/AppLayout';
 import DevIntelligence from './pages/DevIntelligence';
+import WorkspacePage from './pages/WorkspacePage';
 
+/* ── Theme context ──────────────────────────────────────────────────────────── */
+export const ThemeContext = createContext({ darkMode: false, toggleDarkMode: () => {} });
+export const useTheme = () => useContext(ThemeContext);
+
+/* ── Auth guard ─────────────────────────────────────────────────────────────── */
 const RequireAuth = ({ children }) => {
   const token = localStorage.getItem('token');
   return token ? children : <Navigate to="/signin" replace />;
 };
 
 export default function App() {
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
+
+  // Apply data-theme on <html> so ALL routes (login, workspace, dashboard) inherit it
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
+
+  const toggleDarkMode = () => {
+    setDarkMode(prev => {
+      const next = !prev;
+      localStorage.setItem('theme', next ? 'dark' : 'light');
+      return next;
+    });
+  };
+
   return (
-    <RoleProvider>
-      <Routes>
-        {/* Public routes */}
-        <Route path="/signup" element={<SignUpPage />} />
-        <Route path="/signin" element={<SignInPage />} />
-        <Route path="/ar-select/:id" element={<ARModeSelect />} />
-        <Route path="/ar/:id" element={<ARViewer />} />
-        <Route path="/ar-plane/:id" element={<ARPlane />} />
-        <Route path="/ar-image/:id" element={<ARImageTracker />} />
+    <ThemeContext.Provider value={{ darkMode, toggleDarkMode }}>
+      <RoleProvider>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/signup" element={<SignUpPage />} />
+          <Route path="/signin" element={<SignInPage />} />
 
-        {/* Auth-protected routes wrapped in unified responsive layout */}
-        <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
-          <Route path="/dashboard/:panel?" element={<DashboardPage />} />
-          <Route path="/digital-twin" element={<DigitalTwinDashboard />} />
-          <Route path="/twin"     element={<TwinPage />} />
-          <Route path="/timeline" element={<TimelinePage />} />
-          <Route path="/hse"      element={<HsePage />} />
-          <Route path="/files"    element={<FilesPage />} />
-          <Route path="/ai"       element={<AiPage />} />
-        </Route>
+          {/* Workspace selector — auth-protected, standalone (no AppLayout sidebar) */}
+          <Route path="/workspace" element={<RequireAuth><WorkspacePage /></RequireAuth>} />
+          <Route path="/ar-select/:id" element={<ARModeSelect />} />
+          <Route path="/ar/:id" element={<ARViewer />} />
+          <Route path="/ar-plane/:id" element={<ARPlane />} />
+          <Route path="/ar-image/:id" element={<ARImageTracker />} />
 
-        {/* Optional aliases so you can share simple links */}
-        <Route path="/billing" element={<Navigate to="/dashboard/billing" replace />} />
-        <Route path="/profile" element={<Navigate to="/dashboard/profile" replace />} />
-        <Route path="/studio" element={<RequireAuth><StudioPage /></RequireAuth>} />
+          {/* Auth-protected routes wrapped in unified responsive layout */}
+          <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
+            <Route path="/dashboard/:panel?" element={<DashboardPage />} />
+            <Route path="/digital-twin" element={<DigitalTwinDashboard />} />
+            <Route path="/twin"     element={<TwinPage />} />
+            <Route path="/timeline" element={<TimelinePage />} />
+            <Route path="/hse"      element={<HsePage />} />
+            <Route path="/files"    element={<FilesPage />} />
+            <Route path="/ai"       element={<AiPage />} />
+          </Route>
 
-        {/* Dev debug console — direct URL access only, not in navigation */}
-        <Route path="/dev/intelligence" element={<DevIntelligence />} />
+          {/* Optional aliases */}
+          <Route path="/billing" element={<Navigate to="/dashboard/billing" replace />} />
+          <Route path="/profile" element={<Navigate to="/dashboard/profile" replace />} />
+          <Route path="/studio" element={<RequireAuth><StudioPage /></RequireAuth>} />
 
-        {/* Catch-all */}
-        <Route path="*" element={<Navigate to="/signin" replace />} />
-      </Routes>
+          {/* Dev debug console */}
+          <Route path="/dev/intelligence" element={<DevIntelligence />} />
 
-      {/* Toaster must be outside <Routes> */}
-      <Toaster
-        position="bottom-right"
-        toastOptions={{
-          style: { background: '#18191e', color: 'white', borderRadius: '8px', fontSize: '14px' },
-        }}
-      />
-    </RoleProvider>
+          {/* Catch-all */}
+          <Route path="*" element={<Navigate to="/signin" replace />} />
+        </Routes>
+
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            style: { background: '#18191e', color: 'white', borderRadius: '8px', fontSize: '14px' },
+          }}
+        />
+      </RoleProvider>
+    </ThemeContext.Provider>
   );
 }

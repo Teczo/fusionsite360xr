@@ -129,9 +129,9 @@ export default function ProjectDocuments({ projectId }) {
                 ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                         {documents.map((doc) => (
-                            <div key={doc._id} className="group relative rounded-xl border border-[#E6EAF0] bg-white p-3 hover:shadow-md transition-shadow">
+                            <div key={doc._id} className="group relative rounded-lg border border-border bg-surface p-3 hover:shadow-md transition-shadow">
 
-                                <div className="flex items-center justify-center h-24 bg-gray-50 rounded-lg mb-2 cursor-pointer" onClick={() => openPreview(doc)}>
+                                <div className="flex items-center justify-center h-24 bg-appbg rounded-lg mb-2 cursor-pointer" onClick={() => openPreview(doc)}>
                                     {getIcon(doc.fileType)}
                                 </div>
 

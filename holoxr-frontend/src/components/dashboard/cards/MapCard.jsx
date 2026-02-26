@@ -62,17 +62,17 @@ export default function MapCard({ project }) {
     }, [lat, lng, name, address]);
 
     return (
-        <div className="rounded-2xl border border-[#E6EAF0] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] overflow-hidden">
+        <div className="rounded-lg border border-border bg-surface shadow-card overflow-hidden">
             <div className="flex items-center justify-between p-4 pb-0">
-                <h3 className="text-sm font-semibold text-[#111827]">Project Location</h3>
+                <h3 className="text-sm font-semibold text-textpri">Project Location</h3>
             </div>
             <div className="p-4 pt-3">
                 <div
                     ref={mapRef}
-                    className="h-64 w-full rounded-xl overflow-hidden border border-[#E6EAF0]"
+                    className="h-64 w-full rounded-lg overflow-hidden border border-border"
                 />
                 {address && (
-                    <p className="mt-2 text-xs text-[#6B7280] truncate">{address}</p>
+                    <p className="mt-2 text-xs text-textsec truncate">{address}</p>
                 )}
             </div>
         </div>

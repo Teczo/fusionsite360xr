@@ -27,7 +27,7 @@ export default function MediaWidget({ projects }) {
       ) : (
         <div className="grid grid-cols-3 gap-2">
           {items.map((item) => (
-            <div key={item._id} className="rounded-lg border border-[#E6EAF0] overflow-hidden">
+            <div key={item._id} className="rounded-lg border border-border overflow-hidden">
               {item.type === 'video' ? (
                 <video src={item.url} className="w-full h-16 object-cover" muted preload="metadata" />
               ) : (

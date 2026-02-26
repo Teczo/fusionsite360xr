@@ -199,7 +199,7 @@ function UIPresetCard({ title, subtitle, onCreate }) {
       className="group relative rounded-xl overflow-hidden border border-gray-700 bg-[#1f2025] hover:bg-[#24252b] transition-colors p-4 text-left"
     >
       <div className="text-white font-semibold">{title}</div>
-      <div className="text-xs text-gray-400 mt-1">{subtitle}</div>
+      <div className="text-xs text-texttert mt-1">{subtitle}</div>
       <div className="mt-3 inline-flex items-center gap-2 text-sm text-blue-300 group-hover:text-blue-200">
         <span>Create</span>
         <span>→</span>
@@ -426,7 +426,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
       });
       const result = await response.json();
       if (response.ok) {
-        toast.success('✅ Uploaded');
+        toast.success('Uploaded');
         fetchItems();
         fetchFolders();
       } else {
@@ -498,7 +498,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
         body: JSON.stringify({ folder: targetFolderId || null }),
       });
       if (!res.ok) throw new Error('Move failed');
-      toast.success('✅ Moved');
+      toast.success('Moved');
       setMoveDlg({ open: false, item: null, target: null });
       fetchItems();
       fetchFolders();
@@ -517,7 +517,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
       });
 
       if (res.ok) {
-        toast.success('✅ File moved to trash.');
+        toast.success('File moved to trash.');
         fetchItems();
         fetchFolders();
         setOpenMenu(null);
@@ -539,7 +539,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
         method: 'PATCH',
       });
       if (res.ok) {
-        toast.success('✅ File restored');
+        toast.success('File restored');
         fetchTrashedItems();
         fetchItems();
         fetchFolders();
@@ -558,7 +558,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
         method: 'DELETE',
       });
       if (res.ok) {
-        toast.success('✅ File deleted permanently');
+        toast.success('File deleted permanently');
         fetchTrashedItems();
         fetchFolders();
         if (selectedItem?._id === fileId) setSelectedItem(null);
@@ -699,7 +699,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
           {item.thumbnail ? (
             <img src={item.thumbnail} alt={item.name} className="object-cover w-full h-full" />
           ) : (
-            <span className="text-xs text-gray-400">No Thumbnail</span>
+            <span className="text-xs text-texttert">No Thumbnail</span>
           )}
         </button>
 
@@ -713,7 +713,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
               {meta.label}
             </span>
           </div>
-          <div className="text-[11px] text-gray-400 mt-1">
+          <div className="text-[11px] text-texttert mt-1">
             {item.uploadedAt || item.createdAt
               ? `${formatDistanceToNow(new Date(item.uploadedAt || item.createdAt))} ago`
               : '—'}
@@ -741,7 +741,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
           >
             <div className="px-3 py-2 border-b border-gray-700">
               <div className="truncate text-sm text-white">{item.name}</div>
-              <div className="text-xs text-gray-400">
+              <div className="text-xs text-texttert">
                 Uploaded by {item.uploader || 'Unknown'}
               </div>
             </div>
@@ -753,11 +753,11 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
                   setOpenMenu(null);
                 }}
               >
-                📁 Move to folder
+                Move to folder
               </button>
-              <button className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2b2f]">🏷️ Add tags</button>
-              <button className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2b2f]">🧪 Check compatibility</button>
-              <button className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2b2f]">⬇️ Download</button>
+              <button className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2b2f]">Add tags</button>
+              <button className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2b2f]">Check compatibility</button>
+              <button className="w-full text-left px-3 py-2 text-sm hover:bg-[#2a2b2f]">Download</button>
               <button
                 className="w-full text-left px-3 py-2 text-sm hover:bg-red-500/15 text-red-400"
                 onClick={() => {
@@ -765,7 +765,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
                   setOpenMenu(null);
                 }}
               >
-                🗑 Move to Trash
+                Move to Trash
               </button>
             </div>
           </div>
@@ -794,7 +794,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
           <h2 className="text-sm font-semibold text-white">Asset Library</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white rounded-md px-2 py-1"
+            className="text-texttert hover:text-white rounded-md px-2 py-1"
             aria-label="Close"
             title="Close"
           >
@@ -822,7 +822,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
             ))}
 
             <div className="mt-4">
-              <div className="text-xs uppercase text-gray-400 mb-2">Folders</div>
+              <div className="text-xs uppercase text-texttert mb-2">Folders</div>
               {breadcrumb.length > 0 && (
                 <button
                   onClick={() => {
@@ -864,7 +864,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
               </h2>
 
               {activeTab !== 'trash' && activeTab !== 'sketchfab' && (
-                <div className="text-sm text-gray-400 ml-4 flex items-center">
+                <div className="text-sm text-texttert ml-4 flex items-center">
                   <button onClick={() => { setActiveFolderId(null); setSelectedItem(null); }} className="hover:underline">Root</button>
                   {breadcrumb.map((b) => (
                     <span key={b.id} className="flex items-center">
@@ -994,11 +994,11 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
                           {item.thumbnail ? (
                             <img src={item.thumbnail} alt={item.name} className="object-cover w-full h-full" />
                           ) : (
-                            <span className="text-xs text-gray-400">No Thumbnail</span>
+                            <span className="text-xs text-texttert">No Thumbnail</span>
                           )}
                         </div>
                         <div className="text-sm truncate">{item.name}</div>
-                        <div className="text-[11px] text-gray-400 mb-3">
+                        <div className="text-[11px] text-texttert mb-3">
                           {item.uploadedAt ? `${formatDistanceToNow(new Date(item.uploadedAt))} ago` : '—'}
                         </div>
                         <div className="flex gap-2">
@@ -1018,7 +1018,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
                       </div>
                     ))}
                     {trashedItems.length === 0 && (
-                      <div className="text-sm text-gray-400">Trash is empty.</div>
+                      <div className="text-sm text-texttert">Trash is empty.</div>
                     )}
                   </div>
                 ) : activeTab === 'ui' ? (
@@ -1028,7 +1028,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
                     {/* If you later store UI assets (type:'ui') in your backend, you can also list them: */}
                     {filtered.length > 0 && (
                       <div className="mt-6">
-                        <div className="text-xs uppercase text-gray-400 mb-2">Saved UI Assets</div>
+                        <div className="text-xs uppercase text-texttert mb-2">Saved UI Assets</div>
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                           {filtered.map((item) => (
                             <AssetCard key={item._id} item={item} />
@@ -1043,7 +1043,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
                       <AssetCard key={item._id} item={item} />
                     ))}
                     {filtered.length === 0 && (
-                      <div className="text-sm text-gray-400">No assets found.</div>
+                      <div className="text-sm text-texttert">No assets found.</div>
                     )}
                   </div>
                 )
@@ -1056,7 +1056,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
                   <div className="flex items-start justify-between mb-2">
                     <h3 className="text-base font-semibold">Preview</h3>
                     <button
-                      className="text-gray-400 hover:text-white"
+                      className="text-texttert hover:text-white"
                       onClick={() => setSelectedItem(null)}
                       title="Close preview"
                     >
@@ -1068,20 +1068,20 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
                     {selectedItem.thumbnail ? (
                       <img src={selectedItem.thumbnail} alt={selectedItem.name} className="object-cover w-full h-full" />
                     ) : (
-                      <span className="text-xs text-gray-400">No Thumbnail</span>
+                      <span className="text-xs text-texttert">No Thumbnail</span>
                     )}
                   </div>
 
                   <div className="space-y-2 text-sm">
                     <div className="font-medium">{selectedItem.name}</div>
-                    <div className="text-gray-400">Type: {selectedItem.type}</div>
-                    <div className="text-gray-400">
+                    <div className="text-texttert">Type: {selectedItem.type}</div>
+                    <div className="text-texttert">
                       Uploaded {selectedItem.uploadedAt ? formatDistanceToNow(new Date(selectedItem.uploadedAt)) : '—'} ago
                     </div>
 
                     {/* FUTURE: metadata */}
                     <div className="pt-2 border-t border-gray-700">
-                      <div className="text-xs text-gray-400 mb-1">Metadata</div>
+                      <div className="text-xs text-texttert mb-1">Metadata</div>
                       <div className="text-xs text-gray-300">
                         {/* placeholders for future tags like subject/chapter/device/polycount */}
                         Tags: {selectedItem?.metadata?.tags?.join(', ') || '—'}
@@ -1149,7 +1149,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
           <div className="w-[420px] rounded-2xl border border-gray-700 bg-[#18191e] p-4">
             <div className="text-white font-semibold mb-2">Move “{moveDlg.item?.name}”</div>
 
-            <div className="text-xs text-gray-400 mb-2">Choose destination folder</div>
+            <div className="text-xs text-texttert mb-2">Choose destination folder</div>
 
             <div className="max-h-64 overflow-auto space-y-1 mb-3">
               <button
@@ -1212,7 +1212,7 @@ export default function LibraryModal({ isOpen, onClose, onSelectItem }) {
             if (activeFolderId === id) setActiveFolderId(null);
             await fetchFolders();
             await fetchItems();
-            toast.success('✅ Folder deleted');
+            toast.success('Folder deleted');
           } catch {
             toast.error('Failed to delete folder');
           }

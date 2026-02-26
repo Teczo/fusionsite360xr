@@ -35,11 +35,11 @@ export default function SCurvePanel({ projectId }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-[#111827]">S-Curve Progress</h2>
+        <h2 className="text-lg font-semibold text-textpri" style={{ fontFamily: "'Syne', 'Inter', sans-serif" }}>S-Curve Progress</h2>
         {canEdit && (
           <button
             onClick={() => setEditing(!editing)}
-            className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-xs font-semibold text-[#374151] hover:bg-[#F9FAFB] transition"
+            className="rounded-xl border border-border bg-surface px-3 py-2 text-xs font-semibold text-textpri hover:bg-appbg transition"
           >
             {editing ? 'Cancel' : 'Edit Data'}
           </button>

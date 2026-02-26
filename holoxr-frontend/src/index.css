@@ -1,74 +1,75 @@
+/* index.css — Tailwind v4 composition + design system entry point */
+
+/* Third-party map/leaflet styles (must be first) */
 @import "leaflet/dist/leaflet.css";
+
+/* Project design system (fonts → theme tokens → base styles) */
+@import "./styles/global.css";
+
+/* Tailwind v4 */
 @import "tailwindcss";
 
-/* 1) Theme tokens — Light Enterprise UI */
+/* ── 1) Tailwind v4 @theme block ──────────────────────────────────────────────
+   Maps semantic token names to Tailwind utility classes.
+   Values mirror theme.css :root for consistency.
+   ─────────────────────────────────────────────────────────────────────────── */
 @theme {
-  /* Primary brand: teal-green */
-  --color-brand: #3BB2A5;
+  /* Font families — required in Tailwind v4 @theme to generate font-sans / font-heading utilities */
+  --font-family-sans:    'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family-heading: 'Syne', 'Inter', sans-serif;
+
+  /* Brand */
+  --color-brand:     #3BB2A5;
   --color-brand-600: #2D9F93;
-  --color-brand-50: #E8F8F5;
+  --color-brand-50:  #E8F8F5;
   --color-brand-100: #D1F0EB;
+  --color-brandend:  #6CCF6A;
+
+  /* Accent */
+  --color-accent: #2EA6D7;
 
   /* Layout backgrounds */
-  --color-appbg: #F5F7FA;
+  --color-appbg:   #f8fafc;
   --color-surface: #FFFFFF;
 
   /* Text */
-  --color-textpri: #111827;
-  --color-textsec: #6B7280;
+  --color-textpri:  #111827;
+  --color-textsec:  #6B7280;
+  --color-texttert: #9CA3AF;
 
   /* Borders */
-  --color-border: #E5E7EB;
+  --color-border:      #e2e8f0;
+  --color-borderlight: #f1f5f9;
 
-  /* Accent colors */
+  /* Status */
   --color-success: #10B981;
   --color-warning: #F59E0B;
-  --color-error: #EF4444;
+  --color-error:   #EF4444;
 
-  /* Login redesign tokens (unchanged) */
+  /* Login tokens */
   --color-login-gradient-start: #2EA6D7;
-  --color-login-gradient-end: #6CCF6A;
-  --color-login-input-bg: #F0F5FA;
-  --color-login-input-border: #E2E8F0;
-  --color-login-text-heading: #1A202C;
-  --color-login-text-body: #718096;
-  --color-login-text-link: #2EA6D7;
+  --color-login-gradient-end:   #6CCF6A;
+  --color-login-input-bg:       #F0F5FA;
+  --color-login-input-border:   #E2E8F0;
+  --color-login-text-heading:   #1A202C;
+  --color-login-text-body:      #718096;
+  --color-login-text-link:      #2EA6D7;
 }
 
-/* 2) Custom utilities */
+/* ── 2) Custom Tailwind utility classes ───────────────────────────────────── */
+
 @utility btn-gradient-primary {
-  @apply bg-gradient-to-r from-[#3BB2A5] to-[#6CCF6A] text-white transition hover:opacity-90 shadow-sm;
+  background: linear-gradient(to right, #2C97D4, #76C267);
+  color: #ffffff;
+  transition: opacity 150ms ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  &:hover { opacity: 0.9; }
 }
 
-@utility btn-primary {
-  @apply bg-brand text-white hover:bg-brand-600 rounded-xl font-semibold px-4 py-2 shadow-sm;
-}
-
-@utility card {
-  @apply bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] overflow-hidden;
-}
-
-@utility card-hover {
-  @apply transition hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)];
-}
-
-@utility text-title {
-  @apply text-textpri;
-}
-
-@utility text-subtle {
-  @apply text-textsec;
-}
-
-/* Login page utilities (unchanged) */
-@utility login-input {
-  @apply w-full bg-[#F0F5FA] border border-[#E2E8F0] px-4 py-3 rounded-xl text-sm
-    placeholder-[#A0AEC0] transition-all duration-200
-    focus:outline-none focus:ring-2 focus:ring-[#2EA6D7]/40 focus:border-[#2EA6D7];
-}
-
-@utility login-label {
-  @apply block text-sm font-semibold text-[#1A202C] mb-1.5;
+@utility nav-item-active {
+  background: linear-gradient(to right, #2C97D4, #76C267);
+  color: #ffffff;
+  box-shadow: 0 10px 15px rgba(44, 151, 212, 0.3);
 }
 
 @utility btn-login-gradient {
@@ -81,111 +82,58 @@
     focus:outline-none focus:ring-2 focus:ring-[#2EA6D7]/50;
 }
 
-/* Subtle cross-pattern for marketing panel */
-.login-pattern-bg {
-  background-image:
-    radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px);
-  background-size: 24px 24px;
+@utility login-input {
+  @apply w-full bg-[#F0F5FA] border border-[#E2E8F0] px-4 py-3 rounded-xl text-sm
+    placeholder-[#A0AEC0] transition-all duration-200
+    focus:outline-none focus:ring-2 focus:ring-[#2EA6D7]/40 focus:border-[#2EA6D7];
 }
 
-/* Fade-in animation */
-@keyframes loginFadeIn {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
+@utility login-label {
+  @apply block text-sm font-semibold text-[#1A202C] mb-1.5;
 }
 
-.login-fade-in {
-  animation: loginFadeIn 0.6s ease-out both;
+@utility text-title  { @apply text-textpri; }
+@utility text-subtle { @apply text-textsec; }
+
+/* ── 3) Dark mode Tailwind token overrides ────────────────────────────────── */
+/* Mirrors theme.css vars but scoped to Tailwind utility generation in @theme  */
+
+[data-theme="dark"] {
+  --color-appbg:       #0f172a;
+  --color-surface:     #1e293b;
+  --color-textpri:     #ffffff;
+  --color-textsec:     #94a3b8;
+  --color-texttert:    #64748b;
+  --color-border:      #334155;
+  --color-borderlight: #334155;
 }
 
-.login-fade-in-delay {
-  animation: loginFadeIn 0.6s ease-out 0.15s both;
+/* Smooth color transitions when toggling */
+[data-theme="dark"] *,
+[data-theme="dark"] *::before,
+[data-theme="dark"] *::after {
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
 }
 
-.login-fade-in-delay-2 {
-  animation: loginFadeIn 0.6s ease-out 0.3s both;
-}
-
-/* Gradient shimmer on button */
-@keyframes shimmer {
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
-}
-
-.btn-shimmer:hover {
-  background-size: 200% auto;
-  animation: shimmer 2s linear infinite;
-}
-
-/* --- Fonts --- */
-@font-face {
-  font-family: 'Lato';
-  src: url('/fonts/Lato/Lato-Regular.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Lato';
-  src: url('/fonts/Lato/Lato-Bold.ttf') format('truetype');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
+/* ── 5) Layout CSS variables ──────────────────────────────────────────────── */
 
 :root {
-  --left-panel-width: 50%;
+  --left-panel-width:  50%;
   --right-panel-width: 50%;
-
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color: #111827;
-  background-color: #F5F7FA;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  text-decoration: inherit;
-}
-
-body {
-  margin: 0;
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
-
-h1 {
-  font-size: 2.1em;
-  line-height: 1.1;
-}
-
-html,
-body,
-#root {
-  height: 100%;
-}
+/* ── 6) 3D canvas & app container ────────────────────────────────────────── */
 
 canvas {
   background: transparent !important;
 }
 
+/* Body background inherits from theme token — works in both light and dark */
 body {
-  overscroll-behavior: none;
-  background-color: #0f172a;
+  background-color: var(--color-appbg, #f8fafc);
 }
 
-/* PWA safe-area handling for standalone mode */
-.app-container {
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
-  height: 100dvh;
+/* Dark override — applied only when the twin/studio canvas is active */
+body.canvas-route {
+  background-color: #0f172a;
 }
