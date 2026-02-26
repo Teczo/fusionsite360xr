@@ -18,6 +18,7 @@ import {
     Globe,
     RefreshCw,
 } from "lucide-react";
+import { useTheme } from '../../App';
 
 export default function Sidebar({
     sidebarOpen,
@@ -32,6 +33,7 @@ export default function Sidebar({
 }) {
     const navigate = useNavigate();
     const location = useLocation();
+    const { darkMode } = useTheme();
 
     // Detect projectId from URL query params
     const projectId = new URLSearchParams(location.search).get("id");
@@ -65,10 +67,13 @@ export default function Sidebar({
 
     // ES AppShell exact nav styles — colours from provided CSS spec
     // Active:   linear-gradient(to right, #2C97D4, #76C267) + shadow rgba(44,151,212,0.3)
-    // Inactive: #475569 text, hover bg #f1f5f9, hover text #0f172a
+    // Inactive light: #475569 text, hover bg #f1f5f9, hover text #0f172a
+    // Inactive dark:  #94a3b8 text, hover bg #334155, hover text #ffffff
     const baseItem = `w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-[150ms] ${collapsed ? "justify-center" : ""}`;
     const activeItem = "nav-item-active";
-    const idleItem = "text-[#475569] hover:bg-[#f1f5f9] hover:text-[#0f172a]";
+    const idleItem = darkMode
+        ? "text-[#94a3b8] hover:bg-[#334155] hover:text-white"
+        : "text-[#475569] hover:bg-[#f1f5f9] hover:text-[#0f172a]";
     const linkClass = ({ isActive }) => `${baseItem} ${isActive ? activeItem : idleItem}`;
 
     const initial = (userName || "").trim().charAt(0).toUpperCase() || "U";
