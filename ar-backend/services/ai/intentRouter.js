@@ -35,7 +35,12 @@ async function keywordRouter(projectId, question) {
   }
 
   // 4. Cascading delay simulation
-  if (q.includes('if') || q.includes('delay') || q.includes('impact')) {
+  if (
+    (q.includes('delay') && q.includes('impact')) ||
+    q.includes('cascading delay') ||
+    q.includes('downstream') ||
+    (q.includes('what happens') && q.includes('delay'))
+  ) {
     const idMatch = question.match(/([a-f0-9]{24})/i);
     const daysMatch = question.match(/(\d+)\s*days?/i);
     if (!idMatch) {
