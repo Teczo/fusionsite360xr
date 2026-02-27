@@ -8,11 +8,6 @@ const MS_PER_DAY = 1000 * 60 * 60 * 24;
 // Does NOT persist any changes to DB.
 export async function simulateCascadingDelay(projectId, activityId, delayDays) {
 
-  console.log("----- SIMULATION DEBUG START -----");
-  console.log("Incoming projectId:", projectId);
-  console.log("Incoming activityId:", activityId);
-  console.log("Incoming delayDays:", delayDays);
-
   if (!mongoose.Types.ObjectId.isValid(projectId)) {
     throw new Error("Invalid projectId format");
   }
@@ -24,14 +19,9 @@ export async function simulateCascadingDelay(projectId, activityId, delayDays) {
   const pid = new mongoose.Types.ObjectId(projectId);
   const rootId = new mongoose.Types.ObjectId(activityId);
 
-  console.log("Converted projectId:", pid.toString());
-  console.log("Converted activityId:", rootId.toString());
-
   const allActivities = await ScheduleActivity
     .find({ projectId: pid })
     .lean();
-
-  console.log("Total activities fetched:", allActivities.length);
 
   if (!allActivities.length) {
     return { impactedActivities: [], totalProjectDelay: 0 };
@@ -42,8 +32,6 @@ export async function simulateCascadingDelay(projectId, activityId, delayDays) {
   for (const act of allActivities) {
     activityMap.set(String(act._id), act);
   }
-
-  console.log("ActivityMap keys:", Array.from(activityMap.keys()));
 
   // ─── Build successor adjacency map (_id based) ────────────────────────────
   const successorMap = new Map();
@@ -98,8 +86,6 @@ export async function simulateCascadingDelay(projectId, activityId, delayDays) {
   const totalProjectDelay = impactedActivities.length
     ? Math.max(...impactedActivities.map(a => a.propagatedDelay))
     : 0;
-
-  console.log("Impacted activities:", impactedActivities.map(a => a.activityId));
 
   return {
     impactedActivities,

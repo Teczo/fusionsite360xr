@@ -10,6 +10,8 @@ import { BlobServiceClient } from '@azure/storage-blob';
 import http from 'http';
 import { WebSocketServer } from 'ws';
 
+import rateLimit from 'express-rate-limit';
+
 import authRoutes from './routes/auth.js';
 import projectRoutes from './routes/project.js';
 import fileRoutes from './routes/file.js';
@@ -150,6 +152,15 @@ app.use('/api', documentRoutes);
 app.use('/api', scheduleRoutes);
 app.use('/api', bimRoutes);
 app.use('/api', intelligenceRoutes);
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  keyGenerator: (req) => req.userId || req.ip,
+  message: { success: false, error: 'Too many AI requests. Please wait and try again.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/ai', aiLimiter);
 app.use('/api/ai', aiRoutes);
 app.use('/api', issueRoutes);
 
