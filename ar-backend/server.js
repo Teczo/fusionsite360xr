@@ -33,6 +33,7 @@ import scheduleRoutes from './routes/schedule.js';
 import intelligenceRoutes from './routes/intelligence.js';
 import intelligenceDevRoutes from './routes/dev/intelligenceDevRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
+import aiSettingsRoutes from './routes/aiSettingsRoutes.js';
 import bimRoutes from './routes/bim.js';
 import issueRoutes, { setBroadcast } from './routes/issues.js';
 
@@ -152,6 +153,7 @@ app.use('/api', documentRoutes);
 app.use('/api', scheduleRoutes);
 app.use('/api', bimRoutes);
 app.use('/api', intelligenceRoutes);
+app.use('/api/ai/settings', aiSettingsRoutes);
 const aiLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 20,
