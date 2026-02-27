@@ -5,6 +5,10 @@ import Cost from '../../models/Cost.js';
 import HSE from '../../models/HSE.js';
 import Issue from '../../models/Issue.js';
 import ContractorPerformance from '../../models/ContractorPerformance.js';
+import Project from '../../models/Project.js';
+import Assignment from '../../models/Assignment.js';
+import MaterialUsage from '../../models/MaterialUsage.js';
+import ProjectDocument from '../../models/ProjectDocument.js';
 
 // ─── 1. getQuantityByElementType ─────────────────────────────────────────────
 // BIMComponent uses the field `type` (not `elementType`); we query on it and
@@ -190,4 +194,95 @@ export async function predictZoneSafetyRisk(projectId) {
 
   zones.sort((a, b) => b.riskScore - a.riskScore);
   return zones;
+}
+
+// ─── 12. getResponsibility ────────────────────────────────────────────────────
+export async function getResponsibility(projectId, discipline) {
+  const pid = new mongoose.Types.ObjectId(projectId);
+  const filter = { projectId: pid };
+  if (discipline) {
+    filter.discipline = new RegExp(discipline, 'i');
+  }
+  const results = await Assignment
+    .find(filter)
+    .select('discipline contractor responsiblePerson zone status -_id')
+    .lean();
+  return results;
+}
+
+// ─── 13. getMaterialsByLevel ──────────────────────────────────────────────────
+export async function getMaterialsByLevel(projectId, level) {
+  const pid = new mongoose.Types.ObjectId(projectId);
+  const filter = { projectId: pid };
+  if (level) {
+    filter.level = new RegExp(level, 'i');
+  }
+  const results = await MaterialUsage
+    .find(filter)
+    .select('level materialType quantity unit -_id')
+    .lean();
+  return results;
+}
+
+// ─── 14. searchProjectDocuments ───────────────────────────────────────────────
+export async function searchProjectDocuments(projectId, query) {
+  const pid = new mongoose.Types.ObjectId(projectId);
+  if (!query || !query.trim()) {
+    return ProjectDocument
+      .find({ projectId: pid })
+      .select('fileName documentCategory fileType tags createdAt -_id')
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .lean();
+  }
+  return ProjectDocument
+    .find({ projectId: pid, $text: { $search: query } })
+    .select('fileName documentCategory fileType tags createdAt -_id')
+    .sort({ score: { $meta: 'textScore' } })
+    .limit(10)
+    .lean();
+}
+
+// ─── 15. getPortfolioOverview ─────────────────────────────────────────────────
+// Takes userId (not projectId) — aggregates across all projects the user owns.
+export async function getPortfolioOverview(userId) {
+  const projects = await Project
+    .find({ userId })
+    .select('_id name status')
+    .lean();
+
+  if (!projects.length) {
+    return { projectCount: 0, projects: [], summary: 'No projects found.' };
+  }
+
+  const projectIds = projects.map(p => p._id);
+
+  const [totalIncidents, delayResult, costResult] = await Promise.all([
+    HSE.countDocuments({ projectId: { $in: projectIds } }),
+    ScheduleActivity.aggregate([
+      { $match: { projectId: { $in: projectIds }, isDelayed: true } },
+      { $group: { _id: null, avgDelay: { $avg: '$delayDays' }, totalDelayed: { $sum: 1 } } },
+    ]),
+    Cost.aggregate([
+      { $match: { projectId: { $in: projectIds } } },
+      { $group: {
+        _id: null,
+        totalPlanned: { $sum: '$plannedCost' },
+        totalActual:  { $sum: '$actualCost' },
+      }},
+    ]),
+  ]);
+
+  return {
+    projectCount: projects.length,
+    projects: projects.map(p => ({ name: p.name, status: p.status })),
+    totalIncidents,
+    averageDelayDays:        delayResult[0]?.avgDelay?.toFixed(1) || 0,
+    totalDelayedActivities:  delayResult[0]?.totalDelayed || 0,
+    costSummary: costResult[0] ? {
+      totalPlanned:    costResult[0].totalPlanned,
+      totalActual:     costResult[0].totalActual,
+      variancePercent: ((costResult[0].totalActual - costResult[0].totalPlanned) / costResult[0].totalPlanned * 100).toFixed(1),
+    } : null,
+  };
 }
