@@ -210,6 +210,69 @@ export const AI_TOOLS = [
             required: [],
         },
     },
+
+    // ─── Responsibility / Assignments ──────────────────────────────────────────
+
+    {
+        name: 'get_responsibility',
+        description: `Find who is responsible for a specific discipline, system, trade, or component. Answers questions like: Who is responsible for HVAC? Who owns the electrical work? Which contractor handles piping? Who is assigned to Zone A? Responsibility lookups, assignment queries, subcontractor mapping.`,
+        parameters: {
+            type: 'object',
+            properties: {
+                discipline: {
+                    type: 'string',
+                    description: 'The discipline, trade, or system to look up. Examples: HVAC, Electrical, Structural, Piping, Fire Protection, Mechanical. Case-insensitive partial match.',
+                },
+            },
+            required: [],
+        },
+    },
+
+    // ─── Materials ─────────────────────────────────────────────────────────────
+
+    {
+        name: 'get_materials_by_level',
+        description: `List materials used on a given level, floor, or area of the project. Answers questions like: What materials are used in Level 3? How much concrete is on the ground floor? Steel quantity per floor. Material breakdown, material takeoff, bill of materials by level.`,
+        parameters: {
+            type: 'object',
+            properties: {
+                level: {
+                    type: 'string',
+                    description: 'Level or floor identifier. Examples: Level 3, Ground Floor, Basement, Roof. If not specified, returns materials for all levels.',
+                },
+            },
+            required: [],
+        },
+    },
+
+    // ─── Document Search ───────────────────────────────────────────────────────
+
+    {
+        name: 'search_project_documents',
+        description: `Search through project documents, inspection reports, drawings, submittals, and uploaded files. Answers questions like: Show me the inspection reports for foundation. Find the safety plan document. Any drawings for structural steel? Document retrieval, report lookup, file search.`,
+        parameters: {
+            type: 'object',
+            properties: {
+                query: {
+                    type: 'string',
+                    description: 'Search keywords. Examples: foundation inspection, safety plan, structural drawings, commissioning report.',
+                },
+            },
+            required: ['query'],
+        },
+    },
+
+    // ─── Portfolio ─────────────────────────────────────────────────────────────
+
+    {
+        name: 'get_portfolio_overview',
+        description: `Get a summary across ALL projects owned by the user. Portfolio-level analytics including total incidents, average delays, cost variance across projects. Answers questions like: Across all projects what is the average delay? Top factors for schedule overruns? How are my projects performing overall? Portfolio summary, cross-project comparison, executive overview.`,
+        parameters: {
+            type: 'object',
+            properties: {},
+            required: [],
+        },
+    },
 ];
 
 export const AI_SYSTEM_PROMPT = `You are FusionXR AI, an intelligent assistant for construction and oil & gas project management. You help project managers, engineers, and executives query BIM data, schedules, costs, and safety records.

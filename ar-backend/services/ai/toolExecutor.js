@@ -21,6 +21,10 @@ import {
     rankContractorsByDelay,
     getZoneIssueDensity,
     predictZoneSafetyRisk,
+    getResponsibility,
+    getMaterialsByLevel,
+    searchProjectDocuments,
+    getPortfolioOverview,
 } from '../intelligence/queryService.js';
 
 import {
@@ -86,6 +90,22 @@ const TOOL_MAP = {
     // ─── Zones / Issues ────────────────────────────────────────────────────────
     get_zone_issue_density: (args) =>
         getZoneIssueDensity(args.projectId),
+
+    // ─── Responsibility / Assignments ──────────────────────────────────────────
+    get_responsibility: (args) =>
+        getResponsibility(args.projectId, args.discipline),
+
+    // ─── Materials ─────────────────────────────────────────────────────────────
+    get_materials_by_level: (args) =>
+        getMaterialsByLevel(args.projectId, args.level),
+
+    // ─── Document Search ───────────────────────────────────────────────────────
+    search_project_documents: (args) =>
+        searchProjectDocuments(args.projectId, args.query),
+
+    // ─── Portfolio (uses userId, not projectId) ────────────────────────────────
+    get_portfolio_overview: (args) =>
+        getPortfolioOverview(args.userId),
 };
 
 export { TOOL_MAP };
