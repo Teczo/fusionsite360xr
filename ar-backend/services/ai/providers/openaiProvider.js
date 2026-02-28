@@ -16,12 +16,12 @@ export function createOpenAIProvider({ apiKey, model }) {
         /**
          * Uses OpenAI function calling to classify the user's question into a structured intent.
          *
-         * @param {string} question
+         * @param {string|Array} questionOrMessages  Plain question string or pre-built messages array
          * @param {Array} tools  Universal tool definitions
          * @param {string} systemPrompt
          * @returns {{ toolName: string, args: object } | { toolName: null, fallbackText: string }}
          */
-        async classifyIntent(question, tools, systemPrompt) {
+        async classifyIntent(questionOrMessages, tools, systemPrompt) {
             const openaiTools = tools.map((tool) => ({
                 type: 'function',
                 function: {
@@ -31,12 +31,20 @@ export function createOpenAIProvider({ apiKey, model }) {
                 },
             }));
 
+            // Accept either a plain question string or a pre-built messages array
+            const userMessages = typeof questionOrMessages === 'string'
+                ? [{ role: 'user', content: questionOrMessages }]
+                : questionOrMessages;
+
+            // Prepend system message
+            const messages = [
+                { role: 'system', content: systemPrompt },
+                ...userMessages,
+            ];
+
             const response = await client.chat.completions.create({
                 model: resolvedModel,
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: question },
-                ],
+                messages,
                 tools: openaiTools,
                 tool_choice: 'auto',
             });
