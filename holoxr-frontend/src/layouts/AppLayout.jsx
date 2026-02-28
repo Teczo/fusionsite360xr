@@ -25,7 +25,7 @@ export default function AppLayout() {
     const navigate = useNavigate();
     const location = useLocation();
     // Routes that need a full-viewport canvas with no padding wrapper
-    const isFullPageRoute = location.pathname === '/twin';
+    const isFullPageRoute = ['/twin', '/ai'].includes(location.pathname);
 
     useEffect(() => {
         const fetchUser = async () => {
