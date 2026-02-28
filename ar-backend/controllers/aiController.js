@@ -3,6 +3,7 @@ import Project from '../models/Project.js';
 import { getProvider } from '../services/ai/llmAdapter.js';
 import { AI_TOOLS, AI_SYSTEM_PROMPT } from '../services/ai/tools.js';
 import { executeTool } from '../services/ai/toolExecutor.js';
+import AIAuditLog from '../models/AIAuditLog.js';
 
 /**
  * Detect if a query needs multi-step chaining.
@@ -121,7 +122,34 @@ async function agentLoop(provider, question, projectId, userId, selectedElementI
   };
 }
 
+/**
+ * Log an AI query to the audit log. Returns the log entry ID for feedback.
+ * Never throws — returns null on failure.
+ */
+async function logAIQuery({ userId, projectId, question, intent, provider, toolsCalled, isMultiStep, stepsUsed, startTime, success, error }) {
+  try {
+    const log = await AIAuditLog.create({
+      userId,
+      projectId: projectId || null,
+      question: question?.substring(0, 500),
+      intent: intent || 'unknown',
+      provider: provider || 'unknown',
+      toolsCalled: toolsCalled || [],
+      isMultiStep: isMultiStep || false,
+      stepsUsed: stepsUsed || 1,
+      responseTimeMs: Date.now() - startTime,
+      success: success !== false,
+      error: error || null
+    });
+    return log._id;
+  } catch (err) {
+    console.error('Audit log write failed:', err.message);
+    return null;
+  }
+}
+
 export async function handleAIQuery(req, res) {
+  const startTime = Date.now();
   try {
     const { projectId, question, selectedElementId } = req.body;
     const userId = req.userId; // Set by authMiddleware (Phase 0)
@@ -162,18 +190,37 @@ export async function handleAIQuery(req, res) {
         provider, question, projectId, userId, selectedElementId
       );
 
+      const auditLogId = await logAIQuery({
+        userId, projectId, question,
+        intent: agentResult.intent,
+        provider: provider.name,
+        toolsCalled: agentResult.toolsCalled || [],
+        isMultiStep: true,
+        stepsUsed: agentResult.data?.length || 1,
+        startTime, success: true
+      });
+
       return res.json({
         success: true,
         intent: agentResult.intent,
         data: agentResult.data,
         explanation: agentResult.explanation,
-        provider: provider.name
+        provider: provider.name,
+        auditLogId
       });
     }
     // --- End Phase 6 addition ---
 
     // --- If LLM chose no tool, return text response ---
     if (!classification.toolName) {
+      const auditLogId = await logAIQuery({
+        userId, projectId, question,
+        intent: 'general',
+        provider: provider.name,
+        toolsCalled: [],
+        startTime, success: true
+      });
+
       return res.json({
         success: true,
         intent: 'general',
@@ -181,6 +228,7 @@ export async function handleAIQuery(req, res) {
         explanation:
           classification.fallbackText ||
           'I was not able to determine what data to look up. Try asking about schedule, cost, safety incidents, or BIM elements.',
+        auditLogId
       });
     }
 
@@ -197,12 +245,22 @@ export async function handleAIQuery(req, res) {
 
     // --- If tool execution failed, return error gracefully ---
     if (result.error) {
+      const auditLogId = await logAIQuery({
+        userId, projectId, question,
+        intent: classification.toolName,
+        provider: provider.name,
+        toolsCalled: [classification.toolName],
+        startTime, success: false,
+        error: result.message
+      });
+
       return res.json({
         success: true, // pipeline succeeded; data retrieval failed
         intent: classification.toolName,
         data: null,
         explanation:
           result.message || 'Unable to retrieve data for this query.',
+        auditLogId
       });
     }
 
@@ -228,6 +286,14 @@ export async function handleAIQuery(req, res) {
     }
 
     // --- Return response (MUST match frontend contract) ---
+    const auditLogId = await logAIQuery({
+      userId, projectId, question,
+      intent: classification.toolName,
+      provider: provider.name,
+      toolsCalled: [classification.toolName],
+      startTime, success: true
+    });
+
     return res.json({
       success: true,
       intent: classification.toolName,
@@ -235,10 +301,22 @@ export async function handleAIQuery(req, res) {
       explanation:
         explanation || 'Data retrieved successfully. See the structured results below.',
       provider: provider.name, // additive field — frontend can safely ignore
+      auditLogId
     });
   } catch (err) {
     // --- Phase 0: Sanitized error response ---
     console.error('AI Query Error:', err);
+    // Fire-and-forget — we're already in an error state
+    logAIQuery({
+      userId: req.userId,
+      projectId: req.body?.projectId,
+      question: req.body?.question,
+      intent: 'error',
+      provider: 'unknown',
+      toolsCalled: [],
+      startTime, success: false,
+      error: err.message
+    });
     return res.status(500).json({
       success: false,
       error: 'An internal error occurred. Please try again.',
