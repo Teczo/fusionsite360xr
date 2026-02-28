@@ -16,17 +16,22 @@ export function createClaudeProvider({ apiKey, model }) {
         /**
          * Uses Claude tool use to classify the user's question into a structured intent.
          *
-         * @param {string} question
+         * @param {string|Array} questionOrMessages  Plain question string or pre-built messages array
          * @param {Array} tools  Universal tool definitions
          * @param {string} systemPrompt
          * @returns {{ toolName: string, args: object } | { toolName: null, fallbackText: string }}
          */
-        async classifyIntent(question, tools, systemPrompt) {
+        async classifyIntent(questionOrMessages, tools, systemPrompt) {
             const claudeTools = tools.map((tool) => ({
                 name: tool.name,
                 description: tool.description,
                 input_schema: tool.parameters,
             }));
+
+            // Accept either a plain question string or a pre-built messages array
+            const messages = typeof questionOrMessages === 'string'
+                ? [{ role: 'user', content: questionOrMessages }]
+                : questionOrMessages;
 
             const response = await client.messages.create({
                 model: resolvedModel,
@@ -34,7 +39,7 @@ export function createClaudeProvider({ apiKey, model }) {
                 system: systemPrompt,
                 tools: claudeTools,
                 tool_choice: { type: 'auto' },
-                messages: [{ role: 'user', content: question }],
+                messages,
             });
 
             const toolUseBlock = response.content.find((block) => block.type === 'tool_use');
