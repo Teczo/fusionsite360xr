@@ -17,6 +17,7 @@ import {
     FolderOpen,
     Bot,
     MonitorSmartphone,
+    Settings,
 } from "lucide-react";
 
 export default function Sidebar({
@@ -60,6 +61,7 @@ export default function Sidebar({
               { label: "HSE",           path: `/hse?id=${projectId}`,          icon: ShieldCheck },
               { label: "Files",         path: `/files?id=${projectId}`,        icon: FolderOpen },
               { label: "AI Assistant",  path: `/ai?id=${projectId}`,           icon: Bot },
+              { label: "AI Settings",   path: `/ai-settings?id=${projectId}`,  icon: Settings },
           ]
         : [];
 
@@ -70,7 +72,7 @@ export default function Sidebar({
     ];
 
     // Whether the current route belongs to Workspace
-    const workspacePaths = ["/digital-twin", "/twin", "/timeline", "/hse", "/files", "/ai"];
+    const workspacePaths = ["/digital-twin", "/twin", "/timeline", "/hse", "/files", "/ai", "/ai-settings"];
     const isWorkspaceActive =
         workspacePaths.includes(location.pathname) ||
         location.pathname.startsWith("/dashboard/your-designs");

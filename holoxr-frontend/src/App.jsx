@@ -16,6 +16,7 @@ import TimelinePage from "./pages/TimelinePage";
 import HsePage from "./pages/HsePage";
 import FilesPage from "./pages/FilesPage";
 import AiPage from "./pages/AiPage";
+import AiSettingsPage from "./pages/AiSettingsPage";
 import { RoleProvider } from './components/hooks/useRole';
 import AppLayout from './layouts/AppLayout';
 import DevIntelligence from './pages/DevIntelligence';
@@ -46,6 +47,7 @@ export default function App() {
           <Route path="/hse"      element={<HsePage />} />
           <Route path="/files"    element={<FilesPage />} />
           <Route path="/ai"       element={<AiPage />} />
+          <Route path="/ai-settings" element={<AiSettingsPage />} />
         </Route>
 
         {/* Optional aliases so you can share simple links */}

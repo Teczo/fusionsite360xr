@@ -178,6 +178,36 @@ export const issuesApi = {
     }),
 };
 
+// AI
+export const aiApi = {
+  query: (projectId, question, selectedElementId = null) =>
+    request('/api/ai/query', {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ projectId, question, selectedElementId }),
+    }),
+  getSettings: () => request('/api/ai/settings', { headers: headers() }),
+  updateSettings: (settings) =>
+    request('/api/ai/settings', {
+      method: 'PUT',
+      headers: headers(),
+      body: JSON.stringify(settings),
+    }),
+  removeKey: () =>
+    request('/api/ai/settings/key', { method: 'DELETE', headers: headers() }),
+  submitFeedback: (auditLogId, feedback, comment = null) =>
+    request('/api/ai/feedback', {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ auditLogId, feedback, comment }),
+    }),
+  getHistory: (limit = 20, projectId = null) => {
+    const params = new URLSearchParams({ limit });
+    if (projectId) params.append('projectId', projectId);
+    return request(`/api/ai/history?${params}`, { headers: headers() });
+  },
+};
+
 // BIM
 export const bimApi = {
   upload: (projectId, file) => {
