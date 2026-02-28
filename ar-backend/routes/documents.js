@@ -6,6 +6,8 @@ import ProjectDocument from '../models/ProjectDocument.js';
 import Project from '../models/Project.js';
 import auth from '../middleware/authMiddleware.js';
 import { requireRole } from '../middleware/rbac.js';
+import { extractTextFromBuffer } from '../utils/pdfExtractor.js';
+import { generateEmbedding } from '../services/ai/embeddingService.js';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -84,6 +86,26 @@ router.post(
             });
 
             await doc.save();
+
+            // --- Phase 5: Extract text and generate embedding (non-blocking) ---
+            try {
+              const extractedText = await extractTextFromBuffer(
+                req.file.buffer,
+                doc.fileType
+              );
+
+              if (extractedText && extractedText.length > 0) {
+                const embedding = await generateEmbedding(extractedText);
+
+                await ProjectDocument.findByIdAndUpdate(doc._id, {
+                  extractedText,
+                  ...(embedding ? { embedding } : {})
+                });
+              }
+            } catch (embeddingErr) {
+              // Never block the upload — embedding is best-effort
+              console.error('Document embedding failed (non-blocking):', embeddingErr.message);
+            }
 
             // Populate uploader info to return complete object
             await doc.populate('uploadedBy', 'name');

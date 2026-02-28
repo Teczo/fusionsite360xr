@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { generateEmbedding } from '../ai/embeddingService.js';
 import BIMComponent from '../../models/BIMComponent.js';
 import ScheduleActivity from '../../models/ScheduleActivity.js';
 import Cost from '../../models/Cost.js';
@@ -226,21 +227,76 @@ export async function getMaterialsByLevel(projectId, level) {
 
 // ─── 14. searchProjectDocuments ───────────────────────────────────────────────
 export async function searchProjectDocuments(projectId, query) {
-  const pid = new mongoose.Types.ObjectId(projectId);
+  const objectId = new mongoose.Types.ObjectId(projectId);
+
+  // If no query, return recent documents
   if (!query || !query.trim()) {
-    return ProjectDocument
-      .find({ projectId: pid })
+    return await ProjectDocument.find({ projectId: objectId })
       .select('fileName documentCategory fileType tags createdAt -_id')
       .sort({ createdAt: -1 })
       .limit(20)
       .lean();
   }
-  return ProjectDocument
-    .find({ projectId: pid, $text: { $search: query } })
-    .select('fileName documentCategory fileType tags createdAt -_id')
-    .sort({ score: { $meta: 'textScore' } })
-    .limit(10)
-    .lean();
+
+  // Try vector search first
+  const queryEmbedding = await generateEmbedding(query);
+
+  if (queryEmbedding) {
+    try {
+      const vectorResults = await ProjectDocument.aggregate([
+        {
+          $vectorSearch: {
+            index: 'document_vector_index',
+            path: 'embedding',
+            queryVector: queryEmbedding,
+            numCandidates: 50,
+            limit: 5,
+            filter: { projectId: objectId }
+          }
+        },
+        {
+          $project: {
+            fileName: 1,
+            documentCategory: 1,
+            fileType: 1,
+            tags: 1,
+            createdAt: 1,
+            extractedText: { $substr: ['$extractedText', 0, 500] },
+            score: { $meta: 'vectorSearchScore' }
+          }
+        }
+      ]);
+
+      if (vectorResults.length > 0) {
+        return vectorResults;
+      }
+    } catch (vectorErr) {
+      // Vector search failed — fall through to text search
+      console.error('Vector search failed, falling back to text search:', vectorErr.message);
+    }
+  }
+
+  // Fallback: basic text search (works without Atlas Vector Search index)
+  try {
+    return await ProjectDocument.find({
+      projectId: objectId,
+      $text: { $search: query }
+    })
+      .select('fileName documentCategory fileType tags createdAt -_id')
+      .sort({ score: { $meta: 'textScore' } })
+      .limit(10)
+      .lean();
+  } catch (textErr) {
+    // Text search also failed (maybe no text index) — last resort: regex
+    console.error('Text search failed, falling back to regex:', textErr.message);
+    return await ProjectDocument.find({
+      projectId: objectId,
+      fileName: { $regex: query, $options: 'i' }
+    })
+      .select('fileName documentCategory fileType tags createdAt -_id')
+      .limit(10)
+      .lean();
+  }
 }
 
 // ─── 15. getPortfolioOverview ─────────────────────────────────────────────────
