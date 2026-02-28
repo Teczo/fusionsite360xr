@@ -313,7 +313,7 @@ export async function getPortfolioOverview(userId) {
 
   const projectIds = projects.map(p => p._id);
 
-  const [totalIncidents, delayResult, costResult] = await Promise.all([
+  const [totalIncidents, delayResult, costResult, delayFactorResults, projectDelayResults] = await Promise.all([
     HSE.countDocuments({ projectId: { $in: projectIds } }),
     ScheduleActivity.aggregate([
       { $match: { projectId: { $in: projectIds }, isDelayed: true } },
@@ -326,6 +326,39 @@ export async function getPortfolioOverview(userId) {
         totalPlanned: { $sum: '$plannedCost' },
         totalActual:  { $sum: '$actualCost' },
       }},
+    ]),
+    ScheduleActivity.aggregate([
+      { $match: { projectId: { $in: projectIds }, isDelayed: true } },
+      { $group: {
+        _id: '$weatherSensitivity',
+        count: { $sum: 1 },
+        avgDelay: { $avg: '$delayDays' },
+        totalDelay: { $sum: '$delayDays' }
+      }},
+      { $sort: { totalDelay: -1 } },
+      { $limit: 5 }
+    ]),
+    ScheduleActivity.aggregate([
+      { $match: { projectId: { $in: projectIds }, isDelayed: true } },
+      { $group: {
+        _id: '$projectId',
+        delayedCount: { $sum: 1 },
+        avgDelay: { $avg: '$delayDays' }
+      }},
+      { $sort: { avgDelay: -1 } },
+      { $limit: 5 },
+      { $lookup: {
+        from: 'projects',
+        localField: '_id',
+        foreignField: '_id',
+        as: 'project'
+      }},
+      { $unwind: { path: '$project', preserveNullAndEmptyArrays: true } },
+      { $project: {
+        projectName: '$project.name',
+        delayedCount: 1,
+        avgDelay: { $round: ['$avgDelay', 1] }
+      }}
     ]),
   ]);
 
@@ -340,5 +373,16 @@ export async function getPortfolioOverview(userId) {
       totalActual:     costResult[0].totalActual,
       variancePercent: ((costResult[0].totalActual - costResult[0].totalPlanned) / costResult[0].totalPlanned * 100).toFixed(1),
     } : null,
+    delayFactors: delayFactorResults.map(f => ({
+      factor: f._id || 'Unspecified',
+      delayedActivities: f.count,
+      averageDelayDays: parseFloat(f.avgDelay?.toFixed(1)) || 0,
+      totalDelayDays: f.totalDelay
+    })),
+    worstProjects: projectDelayResults.map(p => ({
+      name: p.projectName || 'Unknown',
+      delayedActivities: p.delayedCount,
+      averageDelayDays: p.avgDelay
+    }))
   };
 }

@@ -9,6 +9,12 @@
  *   - The full error is logged server-side but never exposed to the client
  */
 
+import NodeCache from 'node-cache';
+
+// Cache tool results for 60 seconds
+// checkperiod: how often to check for expired keys (seconds)
+const resultCache = new NodeCache({ stdTTL: 60, checkperiod: 120 });
+
 import {
     getQuantityByElementType,
     getActivitiesByStatus,
@@ -128,12 +134,32 @@ export async function executeTool(toolName, args) {
         };
     }
 
+    // --- Phase 8: Check cache ---
+    // Build a deterministic cache key from tool name + relevant args
+    // Exclude userId from cache key prefix (it's in the secondary args)
+    const cacheKey = `${toolName}:${args.projectId || args.userId || 'global'}:${JSON.stringify(
+        Object.fromEntries(
+            Object.entries(args).filter(([k]) => !['projectId', 'userId'].includes(k))
+        )
+    )}`;
+
+    const cached = resultCache.get(cacheKey);
+    if (cached) {
+        return cached; // Return cached { success, data } object
+    }
+    // --- End cache check ---
+
     try {
         const result = await fn(args);
-        return {
+        const response = {
             success: true,
             data: result,
         };
+
+        // Cache the successful result
+        resultCache.set(cacheKey, response);
+
+        return response;
     } catch (err) {
         console.error(`Tool execution error [${toolName}]:`, err.message);
         return {
@@ -142,4 +168,18 @@ export async function executeTool(toolName, args) {
             message: 'Failed to retrieve data for this query. Please try again.',
         };
     }
+}
+
+/**
+ * Clear the tool result cache. Useful for testing or after data imports.
+ */
+export function clearToolCache() {
+    resultCache.flushAll();
+}
+
+/**
+ * Get cache stats for monitoring.
+ */
+export function getToolCacheStats() {
+    return resultCache.getStats();
 }
