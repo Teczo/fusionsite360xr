@@ -15,9 +15,42 @@ import ProjectDocument from '../../models/ProjectDocument.js';
 // BIMComponent uses the field `type` (not `elementType`); we query on it and
 // surface the result under the caller-facing key `elementType`.
 export async function getQuantityByElementType(projectId, elementType) {
-  const pid = new mongoose.Types.ObjectId(projectId);
-  const quantity = await BIMComponent.countDocuments({ projectId: pid, type: elementType });
-  return { elementType, quantity };
+  const objectId = new mongoose.Types.ObjectId(projectId);
+
+  if (elementType) {
+    // Search in both 'type' (old schema) and 'category'/'subcategory' (actual schema)
+    const regex = new RegExp(elementType, 'i');
+    const count = await BIMComponent.countDocuments({
+      projectId: objectId,
+      $or: [
+        { type: regex },
+        { category: regex },
+        { subcategory: regex },
+        { element_name: regex }
+      ]
+    });
+
+    return { elementType, count };
+  }
+
+  // No specific type — return breakdown by category
+  const results = await BIMComponent.aggregate([
+    { $match: { projectId: objectId } },
+    {
+      $group: {
+        _id: { $ifNull: ['$category', '$type'] },  // Use category if exists, fall back to type
+        count: { $sum: 1 },
+        subcategories: { $addToSet: { $ifNull: ['$subcategory', '$name'] } }
+      }
+    },
+    { $sort: { count: -1 } }
+  ]);
+
+  return results.map(r => ({
+    elementType: r._id || 'Unknown',
+    count: r.count,
+    subcategories: r.subcategories.filter(Boolean)
+  }));
 }
 
 // ─── 2. getActivitiesByStatus ─────────────────────────────────────────────────
@@ -108,19 +141,54 @@ export async function getMonthlyIncidentCount(projectId, month, year) {
 
 // ─── 7. getElementMetadata ────────────────────────────────────────────────────
 // BIMComponent uses `componentId` as its unique GUID field.
-export async function getElementMetadata(bimGuid) {
-  const component = await BIMComponent.findOne({ componentId: bimGuid }).lean();
+export async function getElementMetadata(projectId, componentId) {
+  const objectId = new mongoose.Types.ObjectId(projectId);
+
+  // Search by element_guid (actual schema) OR componentId (legacy) OR element_name
+  const component = await BIMComponent.findOne({
+    projectId: objectId,
+    $or: [
+      { element_guid: componentId },
+      { componentId: componentId },
+      { element_name: new RegExp(componentId, 'i') }
+    ]
+  }).lean();
+
   if (!component) {
-    throw new Error(`BIMComponent not found for componentId: ${bimGuid}`);
+    throw new Error(`BIMComponent not found for componentId: ${componentId}`);
   }
 
   let activity = null;
   if (component.activityId) {
-    activity = await ScheduleActivity.findOne({ activityId: component.activityId }).lean();
+    activity = await ScheduleActivity.findOne({ activityId: component.activityId, projectId: objectId }).lean();
   }
 
+  // Normalize the response so the LLM always sees a consistent shape
   return {
-    component,
+    name: component.element_name || component.name || 'Unknown',
+    type: component.category || component.type || 'Unknown',
+    subcategory: component.subcategory || null,
+    zone: component.level_zone || component.zoneId || 'Unknown',
+    status: component.status || 'Unknown',
+    discipline: component.discipline || null,
+    phase: component.phase || null,
+    material: component.material || null,
+    contractor: component.responsible_contractor || null,
+    // Physical properties — flat, not nested
+    weight_kg: component.weight_kg || null,
+    length_m: component.length_m || null,
+    area_m2: component.area_m2 || null,
+    volume_m3: component.volume_m3 > 0 ? component.volume_m3 : null,
+    mep_density_score: component.mep_density_score || null,
+    // Schedule
+    planned_start: component.planned_start || null,
+    planned_finish: component.planned_finish || null,
+    actual_start: component.actual_start || null,
+    actual_finish: component.actual_finish || null,
+    // Legacy nested properties (if they exist)
+    properties: component.properties || null,
+    // Raw element GUID for reference
+    element_guid: component.element_guid || component.componentId || null,
     activity: activity ?? null,
   };
 }
@@ -321,44 +389,54 @@ export async function getPortfolioOverview(userId) {
     ]),
     Cost.aggregate([
       { $match: { projectId: { $in: projectIds } } },
-      { $group: {
-        _id: null,
-        totalPlanned: { $sum: '$plannedCost' },
-        totalActual:  { $sum: '$actualCost' },
-      }},
+      {
+        $group: {
+          _id: null,
+          totalPlanned: { $sum: '$plannedCost' },
+          totalActual: { $sum: '$actualCost' },
+        }
+      },
     ]),
     ScheduleActivity.aggregate([
       { $match: { projectId: { $in: projectIds }, isDelayed: true } },
-      { $group: {
-        _id: '$weatherSensitivity',
-        count: { $sum: 1 },
-        avgDelay: { $avg: '$delayDays' },
-        totalDelay: { $sum: '$delayDays' }
-      }},
+      {
+        $group: {
+          _id: '$weatherSensitivity',
+          count: { $sum: 1 },
+          avgDelay: { $avg: '$delayDays' },
+          totalDelay: { $sum: '$delayDays' }
+        }
+      },
       { $sort: { totalDelay: -1 } },
       { $limit: 5 }
     ]),
     ScheduleActivity.aggregate([
       { $match: { projectId: { $in: projectIds }, isDelayed: true } },
-      { $group: {
-        _id: '$projectId',
-        delayedCount: { $sum: 1 },
-        avgDelay: { $avg: '$delayDays' }
-      }},
+      {
+        $group: {
+          _id: '$projectId',
+          delayedCount: { $sum: 1 },
+          avgDelay: { $avg: '$delayDays' }
+        }
+      },
       { $sort: { avgDelay: -1 } },
       { $limit: 5 },
-      { $lookup: {
-        from: 'projects',
-        localField: '_id',
-        foreignField: '_id',
-        as: 'project'
-      }},
+      {
+        $lookup: {
+          from: 'projects',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'project'
+        }
+      },
       { $unwind: { path: '$project', preserveNullAndEmptyArrays: true } },
-      { $project: {
-        projectName: '$project.name',
-        delayedCount: 1,
-        avgDelay: { $round: ['$avgDelay', 1] }
-      }}
+      {
+        $project: {
+          projectName: '$project.name',
+          delayedCount: 1,
+          avgDelay: { $round: ['$avgDelay', 1] }
+        }
+      }
     ]),
   ]);
 
@@ -366,11 +444,11 @@ export async function getPortfolioOverview(userId) {
     projectCount: projects.length,
     projects: projects.map(p => ({ name: p.name, status: p.status })),
     totalIncidents,
-    averageDelayDays:        delayResult[0]?.avgDelay?.toFixed(1) || 0,
-    totalDelayedActivities:  delayResult[0]?.totalDelayed || 0,
+    averageDelayDays: delayResult[0]?.avgDelay?.toFixed(1) || 0,
+    totalDelayedActivities: delayResult[0]?.totalDelayed || 0,
     costSummary: costResult[0] ? {
-      totalPlanned:    costResult[0].totalPlanned,
-      totalActual:     costResult[0].totalActual,
+      totalPlanned: costResult[0].totalPlanned,
+      totalActual: costResult[0].totalActual,
       variancePercent: ((costResult[0].totalActual - costResult[0].totalPlanned) / costResult[0].totalPlanned * 100).toFixed(1),
     } : null,
     delayFactors: delayFactorResults.map(f => ({

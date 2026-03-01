@@ -40,13 +40,14 @@ export default function App() {
 
         {/* Auth-protected routes wrapped in unified responsive layout */}
         <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
+          <Route path="/" element={<DashboardPage />} />
           <Route path="/dashboard/:panel?" element={<DashboardPage />} />
           <Route path="/digital-twin" element={<DigitalTwinDashboard />} />
-          <Route path="/twin"     element={<TwinPage />} />
+          <Route path="/twin" element={<TwinPage />} />
           <Route path="/timeline" element={<TimelinePage />} />
-          <Route path="/hse"      element={<HsePage />} />
-          <Route path="/files"    element={<FilesPage />} />
-          <Route path="/ai"       element={<AiPage />} />
+          <Route path="/hse" element={<HsePage />} />
+          <Route path="/files" element={<FilesPage />} />
+          <Route path="/ai" element={<AiPage />} />
           <Route path="/ai-settings" element={<AiSettingsPage />} />
         </Route>
 

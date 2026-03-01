@@ -85,9 +85,9 @@ const TOOL_MAP = {
     get_quantity_by_type: (args) =>
         getQuantityByElementType(args.projectId, args.elementType),
 
-    // Note: getElementMetadata takes only bimGuid — no projectId
+    // Note: getElementMetadata now takes both projectId and componentId
     get_element_metadata: (args) =>
-        getElementMetadata(args.componentId),
+        getElementMetadata(args.projectId, args.componentId),
 
     // ─── Contractors ───────────────────────────────────────────────────────────
     rank_contractors_by_delay: (args) =>

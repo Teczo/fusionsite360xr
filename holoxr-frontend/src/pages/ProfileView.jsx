@@ -25,16 +25,14 @@ export default function ProfileView({ setActiveView }) {
         const token = localStorage.getItem('token');
         (async () => {
             try {
-                setLoading(true);
                 const res = await fetch(`${import.meta.env.VITE_API_URL}/api/profile`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 const data = await res.json();
-                if (!res.ok) throw new Error(data?.error || 'Failed to load profile');
+                if (!res.ok) throw new Error(data?.error);
                 setUser(data);
             } catch (e) {
-                console.error(e);
-                setError('Couldn\'t load your profile.');
+                setError('Couldn’t load profile.');
             } finally {
                 setLoading(false);
             }
@@ -46,13 +44,11 @@ export default function ProfileView({ setActiveView }) {
     const notifications = profile.notifications || {};
 
     const memberSince = useMemo(() => {
-        const d = user?.createdAt ? new Date(user.createdAt) : null;
-        return d ? d.toLocaleDateString() : '—';
+        return user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : '—';
     }, [user]);
 
     const lastUpdated = useMemo(() => {
-        const d = user?.updatedAt ? new Date(user.updatedAt) : null;
-        return d ? d.toLocaleString() : '—';
+        return user?.updatedAt ? new Date(user.updatedAt).toLocaleString() : '—';
     }, [user]);
 
     const handleLogout = () => {
@@ -60,174 +56,146 @@ export default function ProfileView({ setActiveView }) {
         navigate('/signin');
     };
 
-    if (loading) return <div className="p-6 text-subtle">Loading profile…</div>;
-    if (error) return <div className="p-6 text-red-400">{error}</div>;
-    if (!user) return <div className="p-6 text-red-400">No profile data.</div>;
+    if (loading) return <div className="p-6 text-gray-500">Loading profile…</div>;
+    if (error) return <div className="p-6 text-red-500">{error}</div>;
+    if (!user) return null;
 
     return (
-        <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
-            {/* Header / Identity */}
-            <section className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5">
-                {/* Cover */}
-                <div className="relative h-40 sm:h-48">
-                    {profile.coverUrl ? (
-                        <img src={profile.coverUrl} alt="Cover" className="w-full h-full object-cover" />
-                    ) : (
-                        <div className="w-full h-full bg-gradient-to-r from-brand/20 to-brand/5" />
-                    )}
-                    {/* Avatar */}
-                    <div className="absolute -bottom-10 left-6">
-                        <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full border-4 border-[#0b0c0f] overflow-hidden bg-white/10">
-                            {profile.avatarUrl ? (
-                                <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center text-subtle">NO PHOTO</div>
-                            )}
-                        </div>
-                    </div>
-                </div>
+        <div className="max-w-6xl mx-auto px-6 py-10 space-y-8 bg-gray-50 min-h-screen">
 
-                {/* Identity + Actions */}
-                <div className="pt-14 px-6 pb-6">
-                    <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-                        <div>
-                            <h1 className="text-2xl sm:text-3xl font-semibold text-title">{user.name || 'Unnamed User'}</h1>
-                            <div className="flex flex-wrap items-center gap-3 mt-2 text-sm">
-                                <span className="inline-flex items-center gap-1 text-subtle"><Mail className="w-4 h-4" /> {user.email}</span>
-                                {profile.username && (
-                                    <span className="inline-flex items-center gap-1 text-subtle"><User2 className="w-4 h-4" /> holoxr.teczo.co/{profile.username}</span>
+            {/* HEADER */}
+            <section className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                <div className="h-40 bg-gradient-to-r from-indigo-500 to-indigo-400" />
+                <div className="px-8 pb-8">
+                    <div className="-mt-12 flex items-end justify-between">
+                        <div className="flex items-end gap-5">
+                            <div className="h-24 w-24 rounded-full bg-white border-4 border-white shadow-md overflow-hidden">
+                                {profile.avatarUrl ? (
+                                    <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
+                                        No Photo
+                                    </div>
                                 )}
-                                <span className="inline-flex items-center gap-1 text-subtle"><CalendarClock className="w-4 h-4" /> Member since {memberSince}</span>
+                            </div>
+
+                            <div>
+                                <h1 className="text-2xl font-semibold text-gray-900">
+                                    {user.name || 'Unnamed User'}
+                                </h1>
+                                <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-gray-500">
+                                    <span className="flex items-center gap-1">
+                                        <Mail className="w-4 h-4" /> {user.email}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                        <CalendarClock className="w-4 h-4" />
+                                        Member since {memberSince}
+                                    </span>
+                                </div>
                             </div>
                         </div>
-                        <div className="flex gap-2">
+
+                        <div className="flex gap-3">
                             <button
                                 onClick={() => setActiveView('profileedit')}
-                                className="inline-flex items-center gap-2 rounded-xl px-3 py-2 bg-white/10 hover:bg-white/15 border border-white/10 text-title"
+                                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                             >
-                                <Pencil className="w-4 h-4" /> Edit Profile
+                                <Pencil className="w-4 h-4 inline mr-2" />
+                                Edit Profile
                             </button>
+
                             <button
                                 onClick={handleLogout}
-                                className="inline-flex items-center gap-2 rounded-xl px-3 py-2 bg-red-600/90 hover:bg-red-600 text-white"
+                                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500"
                             >
-                                <LogOut className="w-4 h-4" /> Logout
+                                <LogOut className="w-4 h-4 inline mr-2" />
+                                Logout
                             </button>
                         </div>
                     </div>
                 </div>
             </section>
 
-            {/* Quick Actions */}
+            {/* QUICK ACTIONS */}
             <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <ActionCard icon={<CreditCard className="w-5 h-5" />} title="Manage Billing" onClick={() => setActiveView('billing')} subtitle="Plans, invoices, payment methods" />
-                <ActionCard icon={<BarChart3 className="w-5 h-5" />} title="View Analytics" onClick={() => setActiveView('analytics')} subtitle="Usage & engagement overview" />
-                <ActionCard icon={<Sparkles className="w-5 h-5" />} title="Your Designs" onClick={() => setActiveView('your-designs')} subtitle="Projects you created" />
-                <ActionCard icon={<Bell className="w-5 h-5" />} title="Notification Settings" onClick={() => setActiveView('profileedit')} subtitle="Email & push preferences" />
+                <ActionCard icon={<CreditCard />} title="Manage Billing" onClick={() => setActiveView('billing')} />
+                <ActionCard icon={<BarChart3 />} title="View Analytics" onClick={() => setActiveView('analytics')} />
+                <ActionCard icon={<Sparkles />} title="Your Designs" onClick={() => setActiveView('your-designs')} />
+                <ActionCard icon={<Bell />} title="Notification Settings" onClick={() => setActiveView('profileedit')} />
             </section>
 
-            {/* 2-column layout */}
-            <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {/* Left: About & Contact */}
-                <div className="space-y-4 lg:col-span-2">
-                    {profile.about?.trim()?.length > 0 && (
-                        <Card>
-                            <CardHeader icon={<User2 className="w-5 h-5" />} title="About" subtitle="A short bio that others can see" />
-                            <p className="text-textsec leading-relaxed">{profile.about}</p>
+            {/* MAIN GRID */}
+            <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                <div className="lg:col-span-2 space-y-6">
+                    {profile.about && (
+                        <Card title="About">
+                            <p className="text-gray-600 leading-relaxed">{profile.about}</p>
                         </Card>
                     )}
 
-                    <Card>
-                        <CardHeader icon={<Globe className="w-5 h-5" />} title="Contact & Address" subtitle="Where you are based" />
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <Info label="Full Name" value={`${profile.firstName || ''} ${profile.lastName || ''}`.trim() || '—'} />
+                    <Card title="Contact & Address">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <Info label="Full Name" value={`${profile.firstName || ''} ${profile.lastName || ''}`} />
                             <Info label="Country" value={address.country} />
                             <Info label="Street" value={address.street} />
                             <Info label="City" value={address.city} />
                             <Info label="State / Province" value={address.region} />
-                            <Info label="ZIP / Postal code" value={address.postalCode} />
+                            <Info label="ZIP" value={address.postalCode} />
                         </div>
                     </Card>
                 </div>
 
-                {/* Right: Security & Notifications */}
-                <div className="space-y-4">
-                    <Card>
-                        <CardHeader icon={<ShieldCheck className="w-5 h-5" />} title="Security" subtitle="Keep your account secure" />
-                        <div className="space-y-2">
-                            <Info label="Sign-in method" value={user?.authProvider || (user?.providers?.join(', ') || 'Email & password')} />
-                            <Info label="Email verified" value={user?.emailVerified ? 'Yes' : 'No'} />
-                            <Info label="Last updated" value={lastUpdated} />
-                            <button onClick={() => setActiveView('profileedit')} className="mt-2 inline-flex items-center gap-2 rounded-lg px-3 py-2 bg-white/10 hover:bg-white/15 border border-white/10 text-title">
-                                <ShieldCheck className="w-4 h-4" /> Update password / 2FA
-                            </button>
-                        </div>
+                <div className="space-y-6">
+                    <Card title="Security">
+                        <Info label="Email verified" value={user?.emailVerified ? 'Yes' : 'No'} />
+                        <Info label="Last updated" value={lastUpdated} />
                     </Card>
 
-                    <Card>
-                        <CardHeader icon={<Bell className="w-5 h-5" />} title="Notifications" subtitle="Your current preferences" />
-                        <ul className="text-textsec space-y-1 text-sm">
-                            <li>Comments: {notifications.comments ? 'On' : 'Off'}</li>
-                            <li>Candidates: {notifications.candidates ? 'On' : 'Off'}</li>
-                            <li>Offers: {notifications.offers ? 'On' : 'Off'}</li>
-                            <li>Push: {{
-                                everything: 'Everything',
-                                same_as_email: 'Same as email',
-                                none: 'No push notifications',
-                            }[notifications.push || 'everything']}
-                            </li>
-                        </ul>
+                    <Card title="Notifications">
+                        <Info label="Comments" value={notifications.comments ? 'On' : 'Off'} />
+                        <Info label="Offers" value={notifications.offers ? 'On' : 'Off'} />
                     </Card>
 
-                    <Card>
-                        <CardHeader icon={<Smartphone className="w-5 h-5" />} title="Devices" subtitle="Recent sessions (example)" />
-                        <ul className="text-textsec space-y-1 text-sm">
-                            <li>Current device · Active now</li>
-                            <li>Last login · {new Date().toLocaleDateString()}</li>
-                        </ul>
+                    <Card title="Devices">
+                        <Info label="Current device" value="Active now" />
+                        <Info label="Last login" value={new Date().toLocaleDateString()} />
                     </Card>
                 </div>
+
             </section>
         </div>
     );
 }
 
-function ActionCard({ icon, title, subtitle, onClick }) {
+function ActionCard({ icon, title, onClick }) {
     return (
-        <button onClick={onClick} className="group text-left rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors p-4 w-full">
-            <div className="flex items-center gap-3 text-title">
-                <div className="rounded-xl bg-black/30 p-2 border border-white/10">{icon}</div>
-                <div className="font-medium">{title}</div>
+        <button
+            onClick={onClick}
+            className="rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm hover:shadow-md transition"
+        >
+            <div className="flex items-center gap-3 text-gray-700 font-medium">
+                <div className="p-2 rounded-lg bg-gray-100">{icon}</div>
+                {title}
             </div>
-            <div className="text-subtle text-sm mt-1">{subtitle}</div>
         </button>
     );
 }
 
-function Card({ children }) {
+function Card({ title, children }) {
     return (
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">{children}</div>
-    );
-}
-
-function CardHeader({ icon, title, subtitle }) {
-    return (
-        <div className="flex items-start gap-3 mb-3">
-            <div className="rounded-xl bg-black/30 p-2 border border-white/10 text-title">{icon}</div>
-            <div>
-                <h3 className="text-title font-semibold">{title}</h3>
-                {subtitle && <p className="text-subtle text-sm">{subtitle}</p>}
-            </div>
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
+            {children}
         </div>
     );
 }
 
 function Info({ label, value }) {
-    const display = (value ?? '').toString().trim();
     return (
-        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-            <div className="text-subtle text-xs">{label}</div>
-            <div className="text-title">{display || '—'}</div>
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <div className="text-xs text-gray-500">{label}</div>
+            <div className="text-gray-800">{value || '—'}</div>
         </div>
     );
 }

@@ -39,6 +39,20 @@ export default function HSEList({ projectId }) {
     load();
   };
 
+  const handleClear = async () => {
+    const confirmed = window.confirm(
+      'Are you sure you want to clear all HSE data for this project? This cannot be undone.'
+    );
+    if (!confirmed) return;
+
+    try {
+      await hseApi.clear(projectId);
+      setItems([]);
+    } catch (err) {
+      alert(err.message || 'Failed to clear data');
+    }
+  };
+
   if (loading) return <LoadingSpinner />;
 
   return (
@@ -46,7 +60,16 @@ export default function HSEList({ projectId }) {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-[#111827]">HSE Incidents</h2>
         {canEdit && (
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            {items.length > 0 && (
+              <button
+                onClick={handleClear}
+                className="text-sm text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg transition"
+                disabled={loading}
+              >
+                Clear Data
+              </button>
+            )}
             <button
               onClick={() => { setEditing(null); setShowForm(true); }}
               className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-xs font-semibold text-[#374151] hover:bg-[#F9FAFB] transition"

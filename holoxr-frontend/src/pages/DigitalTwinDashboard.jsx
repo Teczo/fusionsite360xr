@@ -1,10 +1,11 @@
 import React, { useRef, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-
+import { IconCamera, IconTarget } from "@tabler/icons-react";
 import ScenePreviewCanvas from "./components/ScenePreviewCanvas";
 import TimelineList from "../components/ProjectModules/Timeline/TimelineList";
 import HSEList from "../components/ProjectModules/HSE/HSEList";
 import AlertsList from "../components/ProjectModules/Alerts/AlertsList";
+import ContractorPerformanceCard from "../components/ProjectModules/ContractorPerformanceCard";
 import SCurvePanel from "../components/ProjectModules/SCurve/SCurvePanel";
 import MediaGallery from "../components/ProjectModules/Media/MediaGallery";
 import ProjectDocuments from "../components/ProjectModules/Documents/ProjectDocuments";
@@ -12,6 +13,7 @@ import ProjectDocuments from "../components/ProjectModules/Documents/ProjectDocu
 import MapCard from "../components/dashboard/cards/MapCard";
 import WeatherCard from "../components/dashboard/cards/WeatherCard";
 import LocationSetupCard from "../components/dashboard/cards/LocationSetupCard";
+import LocationModal from "../components/modals/LocationModal";
 
 import { bimApi } from "../services/api";
 import { toast } from "react-hot-toast";
@@ -24,6 +26,7 @@ import { toast } from "react-hot-toast";
 export default function DigitalTwinDashboard() {
     const [isTwinFullscreen, setIsTwinFullscreen] = useState(false);
     const [project, setProject] = useState(null);
+    const [showLocationModal, setShowLocationModal] = useState(false);
 
     const fileInputRef = useRef(null);
     const [isUploadingBim, setIsUploadingBim] = useState(false);
@@ -86,6 +89,12 @@ export default function DigitalTwinDashboard() {
         return () => { cancelled = true; };
     }, [projectId]);
 
+    useEffect(() => {
+        const handleOpenEditLocation = () => setShowLocationModal(true);
+        window.addEventListener('open-edit-project-location', handleOpenEditLocation);
+        return () => window.removeEventListener('open-edit-project-location', handleOpenEditLocation);
+    }, []);
+
     const hasLocation = project?.location?.latitude && project?.location?.longitude;
 
     useEffect(() => {
@@ -98,123 +107,6 @@ export default function DigitalTwinDashboard() {
 
     return (
         <div className="w-full">
-            {/* KPI cards */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <KpiCard
-                    icon={<IconChart />}
-                    title="Production Output"
-                    value="47,032"
-                    sub="Units today"
-                    delta="+5.8%"
-                    deltaTone="up"
-                    foot="vs last period"
-                />
-                <KpiCard
-                    icon={<IconBolt />}
-                    title="Overall OEE"
-                    value="92.3%"
-                    sub="Target: 90%"
-                    delta="+2.1%"
-                    deltaTone="up"
-                    foot="vs last period"
-                />
-                <KpiCard
-                    icon={<IconUsers />}
-                    title="Active Workforce"
-                    value="3,247"
-                    sub="Across all facilities"
-                    delta="+1.2%"
-                    deltaTone="up"
-                    foot="vs last period"
-                />
-                <KpiCard
-                    icon={<IconClock />}
-                    title="Downtime Hours"
-                    value="12.4"
-                    sub="vs. last week"
-                    delta="-18%"
-                    deltaTone="down"
-                    foot="vs last period"
-                />
-            </div>
-
-
-            {/* 3D Digital Twin + S-Curve (Side-by-side on desktop) */}
-            <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
-                {/* S-Curve Panel */}
-                <Card>
-                    <SCurvePanel projectId={projectId} />
-                </Card>
-                {/* 3D Digital Twin Panel */}
-                <div className="rounded-2xl border border-[#E6EAF0] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
-                    <div className="flex items-center gap-3 p-4 flex-wrap">
-                        {projectId && (
-                            <button
-                                onClick={() => {
-                                    const deepLink = `fusionxr://open?projectId=${projectId}`;
-                                    window.location.href = deepLink;
-                                }}
-                                className="rounded-xl btn-gradient-primary px-4 py-2 text-xs font-semibold text-white
-                   hover:bg-[#1D4ED8] transition focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30"
-                                title="Open in AR (iOS App)"
-                            >
-                                View in AR
-                            </button>
-                        )}
-
-
-                        <CameraPresetBar onPreset={requestCamera} />
-
-                        <button
-                            onClick={requestCapture}
-                            className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-xs font-semibold text-[#374151] hover:bg-[#F9FAFB] transition focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
-                            title="Capture View"
-                        >
-                            Capture View
-                        </button>
-
-                        <button
-                            onClick={() => setIsTwinFullscreen(true)}
-                            className="inline-flex items-center justify-center rounded-xl border border-[#E6EAF0] bg-white p-2 hover:bg-[#F9FAFB] transition"
-                            aria-label="Expand"
-                            title="Expand"
-                        >
-                            <IconExpand />
-                        </button>
-                        <button
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={!projectId || isUploadingBim}
-                            className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-xs font-semibold text-[#374151] hover:bg-[#F9FAFB] transition disabled:opacity-50"
-                            title="Upload BIM CSV"
-                        >
-                            {isUploadingBim ? "Uploading..." : "Upload BIM"}
-                        </button>
-                    </div>
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".csv"
-                        className="hidden"
-                        onChange={handleBimFileChange}
-                    />
-
-                    <div className="relative h-[420px] overflow-hidden rounded-b-2xl bg-gradient-to-b from-[#F9FAFB] to-[#EEF2F7] min-w-0 min-h-0">
-                        <ScenePreviewCanvas
-                            projectId={projectId}
-                            cameraRequest={cameraRequest}
-                            captureRequest={captureRequest}
-                        />
-
-
-
-                        {/* subtle vignette */}
-                        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.0)_0%,rgba(0,0,0,0.05)_100%)]" />
-                    </div>
-                </div>
-
-
-            </div>
-
             {/* Map + Weather / Location Setup */}
             {projectId && (
                 <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -232,20 +124,125 @@ export default function DigitalTwinDashboard() {
             {/* Timeline – Full Width Horizontal Panel */}
             {projectId && (
                 <div className="mt-5">
+                    {/* S-Curve Panel */}
+                    <Card>
+                        <SCurvePanel projectId={projectId} />
+                    </Card>
+                </div>
+            )}
+
+
+            {/* 3D Digital Twin + S-Curve (Side-by-side on desktop) */}
+            <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+
+
+                <Card>
+                    <HSEList projectId={projectId} />
+                </Card>
+                {/* 3D Digital Twin Panel */}
+                <div className="rounded-2xl border border-[#E6EAF0] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
+
+
+                    {/* Top Bar */}
+                    <div className="flex items-center justify-between p-4 border-b border-[#E6EAF0]">
+
+                        {/* LEFT — Segmented Views */}
+                        <div className="flex items-center rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-1">
+                            {[
+                                { label: 'Overview', key: 'overview' },
+                                { label: 'Top', key: 'top' },
+                                { label: 'Side', key: 'side' },
+                                { label: 'Ground', key: 'ground' },
+                            ].map((v) => (
+                                <button
+                                    key={v.key}
+                                    onClick={() => requestCamera(v.key)}
+                                    className="px-4 py-1.5 text-xs font-medium text-[#374151] rounded-lg hover:bg-white transition"
+                                >
+                                    {v.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* RIGHT — Icon Controls */}
+                        <div className="flex items-center gap-2">
+
+                            <button
+                                onClick={() => requestCamera('assetFocus')}
+                                className="p-2 rounded-xl border border-[#E6EAF0] bg-white hover:bg-[#F9FAFB] transition"
+                                title="Asset Focus"
+                            >
+                                <IconTarget className="w-4 h-4 text-[#374151]" />
+                            </button>
+
+                            <button
+                                onClick={requestCapture}
+                                className="p-2 rounded-xl border border-[#E6EAF0] bg-white hover:bg-[#F9FAFB] transition"
+                                title="Capture View"
+                            >
+                                <IconCamera className="w-4 h-4 text-[#374151]" />
+                            </button>
+
+                            <button
+                                onClick={() => setIsTwinFullscreen(true)}
+                                className="p-2 rounded-xl border border-[#E6EAF0] bg-white hover:bg-[#F9FAFB] transition"
+                                title="Expand"
+                            >
+                                <IconExpand className="w-4 h-4 text-[#374151]" />
+                            </button>
+
+                        </div>
+                    </div>
+
+
+                    <div className="relative h-[420px] overflow-hidden rounded-b-2xl bg-gradient-to-b from-[#F9FAFB] to-[#EEF2F7] min-w-0 min-h-0">
+                        <ScenePreviewCanvas
+                            projectId={projectId}
+                            cameraRequest={cameraRequest}
+                            captureRequest={captureRequest}
+                        />
+                        {/* Floating AR Button */}
+                        {projectId && (
+                            <button
+                                onClick={() => {
+                                    const deepLink = `fusionxr://open?projectId=${projectId}`;
+                                    window.location.href = deepLink;
+                                }}
+                                className="absolute bottom-4 right-4 rounded-xl btn-gradient-primary px-4 py-2 text-xs font-semibold text-white shadow-lg hover:bg-indigo-500 transition"
+                            >
+                                View in AR
+                            </button>
+                        )}
+
+
+                        {/* subtle vignette */}
+                        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.0)_0%,rgba(0,0,0,0.05)_100%)]" />
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            {/* Timeline – Full Width Horizontal Panel */}
+            {projectId && (
+                <div className="mt-5">
                     <Card>
                         <TimelineList projectId={projectId} />
                     </Card>
                 </div>
             )}
 
-            {/* HSE + Alerts row */}
+            {/* HSE + Alerts + Contractor row */}
             {projectId && (
                 <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
-                    <Card>
-                        <HSEList projectId={projectId} />
-                    </Card>
+
                     <Card>
                         <AlertsList projectId={projectId} />
+                    </Card>
+                    <Card>
+                        <ContractorPerformanceCard projectId={projectId} />
                     </Card>
                 </div>
             )}
@@ -349,6 +346,20 @@ export default function DigitalTwinDashboard() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {showLocationModal && projectId && (
+                <LocationModal
+                    projectId={projectId}
+                    projectLocation={project?.location}
+                    onClose={() => setShowLocationModal(false)}
+                    onSave={(newLocation) => {
+                        setProject((prev) => ({
+                            ...prev,
+                            location: newLocation
+                        }));
+                    }}
+                />
             )}
         </div>
     );

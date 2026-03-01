@@ -284,4 +284,19 @@ router.delete('/projects/:id/hse/:hseId', auth, requireRole('admin'), async (req
   }
 });
 
+// DELETE /projects/:id/hse
+router.delete('/projects/:id/hse', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid project id' });
+    }
+    const result = await HSE.deleteMany({ projectId: id });
+    res.json({ success: true, deleted: result.deletedCount });
+  } catch (err) {
+    console.error('Clear HSE failed:', err);
+    res.status(500).json({ error: 'Failed to clear data' });
+  }
+});
+
 export default router;

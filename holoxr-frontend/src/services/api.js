@@ -13,6 +13,16 @@ async function request(url, opts = {}) {
   return data;
 }
 
+// Projects
+export const projectApi = {
+  updateLocation: (projectId, location) =>
+    request(`/api/projects/${projectId}/location`, {
+      method: 'PATCH',
+      headers: headers(),
+      body: JSON.stringify({ location }),
+    }),
+};
+
 // Timeline
 export const timelineApi = {
   list: (projectId) => request(`/api/projects/${projectId}/timeline`, { headers: headers() }),
@@ -54,6 +64,10 @@ export const hseApi = {
       body: formData,
     });
   },
+  clear: (projectId) =>
+    request(`/api/projects/${projectId}/hse`, {
+      method: 'DELETE', headers: headers(),
+    }),
 };
 
 // Alerts
@@ -79,6 +93,10 @@ export const scurveApi = {
   update: (projectId, body) =>
     request(`/api/projects/${projectId}/s-curve`, {
       method: 'PUT', headers: headers(), body: JSON.stringify(body),
+    }),
+  generate: (projectId) =>
+    request(`/api/projects/${projectId}/s-curve/generate`, {
+      method: 'POST', headers: headers(),
     }),
 };
 
@@ -131,6 +149,10 @@ export const scheduleApi = {
   },
   list: (projectId) =>
     request(`/api/projects/${projectId}/schedule`, { headers: headers() }),
+  clear: (projectId) =>
+    request(`/api/projects/${projectId}/schedule`, {
+      method: 'DELETE', headers: headers(),
+    }),
 };
 
 // User role
@@ -142,6 +164,15 @@ export const userApi = {
 export const issuesApi = {
   list: (projectId) =>
     request(`/api/projects/${projectId}/issues`, { headers: headers() }),
+  upload: (projectId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request(`/api/projects/${projectId}/issues/upload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: formData,
+    });
+  },
   create: (projectId, body) =>
     request(`/api/projects/${projectId}/issues`, {
       method: 'POST', headers: headers(), body: JSON.stringify(body),
@@ -175,6 +206,10 @@ export const issuesApi = {
       method: 'DELETE',
       headers: headers(),
       body: JSON.stringify({ attachmentUrl }),
+    }),
+  clear: (projectId) =>
+    request(`/api/projects/${projectId}/issues`, {
+      method: 'DELETE', headers: headers(),
     }),
 };
 
@@ -228,5 +263,77 @@ export const bimApi = {
   get: (projectId, elementGuid) =>
     request(`/api/projects/${projectId}/bim/${encodeURIComponent(elementGuid)}`, {
       headers: headers(),
+    }),
+};
+
+// Cost
+export const costApi = {
+  list: (projectId) => request(`/api/projects/${projectId}/cost`, { headers: headers() }),
+  upload: (projectId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request(`/api/projects/${projectId}/cost/upload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: formData,
+    });
+  },
+  clear: (projectId) =>
+    request(`/api/projects/${projectId}/cost`, {
+      method: 'DELETE', headers: headers(),
+    }),
+};
+
+// Contractor Performance
+export const contractorApi = {
+  list: (projectId) => request(`/api/projects/${projectId}/contractor-performance`, { headers: headers() }),
+  upload: (projectId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request(`/api/projects/${projectId}/contractor-performance/upload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: formData,
+    });
+  },
+  clear: (projectId) =>
+    request(`/api/projects/${projectId}/contractor-performance`, {
+      method: 'DELETE', headers: headers(),
+    }),
+};
+
+// Assignments
+export const assignmentApi = {
+  list: (projectId) => request(`/api/projects/${projectId}/assignments`, { headers: headers() }),
+  upload: (projectId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request(`/api/projects/${projectId}/assignments/upload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: formData,
+    });
+  },
+  clear: (projectId) =>
+    request(`/api/projects/${projectId}/assignments`, {
+      method: 'DELETE', headers: headers(),
+    }),
+};
+
+// Materials
+export const materialApi = {
+  list: (projectId) => request(`/api/projects/${projectId}/materials`, { headers: headers() }),
+  upload: (projectId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request(`/api/projects/${projectId}/materials/upload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: formData,
+    });
+  },
+  clear: (projectId) =>
+    request(`/api/projects/${projectId}/materials`, {
+      method: 'DELETE', headers: headers(),
     }),
 };
