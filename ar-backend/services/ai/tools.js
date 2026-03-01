@@ -159,28 +159,27 @@ export const AI_TOOLS = [
 
     {
         name: 'get_quantity_by_type',
-        description: `Returns the count of BIM elements of a specific type within the project model (quantity takeoff). Use when users ask: "How many columns are there?", "What is the beam count?", "How many pipe segments?", "Count the structural elements", "How many equipment units?", "BIM element quantity by type", "How many of type X do we have?". Common element types include: Column, Beam, Pipe, Slab, Wall, Equipment, Duct, Cable Tray.`,
+        description: 'Count BIM elements by type/category. Use for questions about quantities of structural elements, equipment, pipes, etc. Supports categories like: Structural, Mechanical, Electrical, Piping, HVAC, Safety, Marine Structural. Also searches subcategories like: Jacket Foundation, Pump, Pressure Vessel, Compressor, Pipe, Crane, Helideck, Flare System, Module, Lifeboat, Subsea Tree, Riser.',
         parameters: {
             type: 'object',
             properties: {
                 elementType: {
                     type: 'string',
-                    description: 'The BIM element type to count (e.g. "Column", "Beam", "Pipe", "Slab", "Wall", "Equipment", "Duct").',
+                    description: 'The type/category to count. Examples: "Structural", "Pump", "Pipe", "column", "beam", "HVAC". Leave empty to get a full breakdown of all categories.',
                 },
             },
-            required: ['elementType'],
         },
     },
 
     {
         name: 'get_element_metadata',
-        description: `Returns detailed metadata and specifications for a specific BIM component, including its type, properties, installation status, power rating, and linked schedule activity. Use when users ask: "Tell me about component X", "What are the specs for this element?", "Show me the installation date for this component", "Equipment details for BIM GUID X", "What is the power rating of this unit?", "Component properties", "BIM element history". Requires the component's unique identifier (componentId / BIM GUID).`,
+        description: 'Get detailed metadata for a specific BIM element including weight, dimensions, material, contractor, schedule dates, and discipline. Can search by element GUID, element name, or component ID. Use when the user asks about a specific piece of equipment, structural member, or component.',
         parameters: {
             type: 'object',
             properties: {
                 componentId: {
                     type: 'string',
-                    description: 'The unique BIM component identifier (componentId / GUID field on the BIMComponent record).',
+                    description: 'The element identifier — can be a GUID like {4e7f5g8d-...}, an element name like "fixed_platform_jacket", or a component ID like "PMP-P101".',
                 },
             },
             required: ['componentId'],

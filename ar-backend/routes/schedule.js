@@ -258,4 +258,19 @@ router.get('/projects/:projectId/schedule', auth, async (req, res) => {
   }
 });
 
+// DELETE /projects/:projectId/schedule
+router.delete('/projects/:projectId/schedule', auth, requireRole('admin'), async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+      return res.status(400).json({ error: 'Invalid project id' });
+    }
+    const result = await ScheduleActivity.deleteMany({ projectId });
+    res.json({ success: true, deleted: result.deletedCount });
+  } catch (err) {
+    console.error('Clear schedule failed:', err);
+    res.status(500).json({ error: 'Failed to clear data' });
+  }
+});
+
 export default router;

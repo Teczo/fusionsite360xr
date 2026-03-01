@@ -6,19 +6,22 @@ import Issue from '../models/Issue.js';
 import Project from '../models/Project.js';
 import User from '../models/User.js';
 import auth from '../middleware/authMiddleware.js';
-import { attachRole } from '../middleware/rbac.js';
+import { attachRole, requireRole } from '../middleware/rbac.js';
+import csv from 'csv-parser';
+import { Readable } from 'stream';
+import { registerUploadedDocument } from '../utils/registerUploadedDocument.js';
 
 // ─── Azure Blob (for attachments) ─────────────────────────────────────────────
 const _containerClient = process.env.AZURE_STORAGE_CONNECTION_STRING
   ? BlobServiceClient
-      .fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING)
-      .getContainerClient('uploads')
+    .fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING)
+    .getContainerClient('uploads')
   : null;
 
 // ─── Multer (10 MB limit, memory storage) ─────────────────────────────────────
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits:  { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 },
 });
 
 const ALLOWED_MIME_TYPES = new Set([
@@ -31,9 +34,9 @@ const ALLOWED_MIME_TYPES = new Set([
 const router = express.Router();
 
 // ─── Validation constants ──────────────────────────────────────────────────────
-const VALID_STATUSES   = ['Open', 'In Progress', 'Closed'];
+const VALID_STATUSES = ['Open', 'In Progress', 'Closed'];
 const VALID_SEVERITIES = ['Critical', 'Warning', 'Info'];
-const VALID_TYPES      = ['RFI', 'Observation', 'Safety', 'Clash', 'Defect'];
+const VALID_TYPES = ['RFI', 'Observation', 'Safety', 'Clash', 'Defect'];
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 async function verifyProject(projectId) {
@@ -55,9 +58,9 @@ function broadcast(projectId, payload) {
 // Attach populated user fields to a lean issue.
 async function populateIssue(issueDoc) {
   return Issue.findById(issueDoc._id ?? issueDoc.id)
-    .populate('createdBy',              'name email role')
-    .populate('assignedTo',             'name email role')
-    .populate('history.userId',         'name email')
+    .populate('createdBy', 'name email role')
+    .populate('assignedTo', 'name email role')
+    .populate('history.userId', 'name email')
     .populate('attachments.uploadedBy', 'name email')
     .lean();
 }
@@ -88,6 +91,72 @@ router.get('/projects/:projectId/members', auth, async (req, res) => {
   }
 });
 
+// ─── POST /api/projects/:projectId/issues/upload ──────────────────────────────
+router.post('/projects/:projectId/issues/upload', auth, requireRole('admin'), upload.single('file'), async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+      return res.status(400).json({ error: 'Invalid project id' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file provided' });
+    }
+
+    const rows = [];
+    const stream = Readable.from(req.file.buffer.toString());
+    await new Promise((resolve, reject) => {
+      stream.pipe(csv()).on('data', (data) => rows.push(data)).on('end', resolve).on('error', reject);
+    });
+
+    if (rows.length === 0) return res.status(400).json({ error: 'CSV file is empty' });
+
+    const records = [];
+    for (let i = 0; i < rows.length; i++) {
+      const norm = {};
+      for (const [k, v] of Object.entries(rows[i])) norm[k.trim().toLowerCase()] = v?.trim();
+
+      const title = norm.title || '';
+      if (!title) continue;
+
+      let severity = norm.severity || 'Info';
+      if (!['Critical', 'Warning', 'Info'].includes(severity)) severity = 'Info';
+
+      records.push({
+        projectId,
+        zoneId: norm.zone_id || norm.zoneid || '',
+        title,
+        description: norm.description || '',
+        severity,
+        status: ['Open', 'In Progress', 'Closed'].includes(norm.status) ? norm.status : 'Open',
+        position: { x: 0, y: 0, z: 0 }, // Issues need a position normally, default to 0
+        type: 'Observation', // default
+        createdBy: req.userId,
+        history: [{ action: 'created', userId: req.userId }]
+      });
+    }
+
+    if (records.length > 0) {
+      await Issue.deleteMany({ projectId }); // All uploads replace existing data
+      await Issue.insertMany(records);
+    }
+
+    const doc = await registerUploadedDocument({
+      projectId,
+      buffer: req.file.buffer,
+      originalName: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      category: 'issue-import',
+      userId: req.userId
+    });
+
+    res.json({ success: true, importedCount: records.length, totalRows: rows.length, documentId: doc ? doc._id : null });
+  } catch (err) {
+    console.error('Issue upload failed:', err);
+    res.status(500).json({ error: 'Issue upload failed: ' + err.message });
+  }
+});
+
 // ─── GET /api/projects/:projectId/issues ──────────────────────────────────────
 // All authenticated users can list issues.
 router.get('/projects/:projectId/issues', auth, async (req, res) => {
@@ -99,9 +168,9 @@ router.get('/projects/:projectId/issues', auth, async (req, res) => {
 
     const issues = await Issue.find({ projectId })
       .sort({ createdAt: -1 })
-      .populate('createdBy',              'name email role')
-      .populate('assignedTo',             'name email role')
-      .populate('history.userId',         'name email')
+      .populate('createdBy', 'name email role')
+      .populate('assignedTo', 'name email role')
+      .populate('history.userId', 'name email')
       .populate('attachments.uploadedBy', 'name email')
       .lean();
 
@@ -139,14 +208,14 @@ router.post('/projects/:projectId/issues', auth, async (req, res) => {
 
     const issue = new Issue({
       projectId,
-      title:       title.trim(),
+      title: title.trim(),
       description: description || '',
       severity,
-      type:        type || 'Observation',
-      position:    { x: position.x, y: position.y, z: position.z },
-      createdBy:   req.userId,
-      status:      'Open',
-      history:     [{ action: 'created', userId: req.userId }],
+      type: type || 'Observation',
+      position: { x: position.x, y: position.y, z: position.z },
+      createdBy: req.userId,
+      status: 'Open',
+      history: [{ action: 'created', userId: req.userId }],
     });
 
     await issue.save();
@@ -173,8 +242,8 @@ router.patch('/issues/:issueId', auth, attachRole, async (req, res) => {
     const issue = await Issue.findById(issueId);
     if (!issue) return res.status(404).json({ error: 'Issue not found' });
 
-    const isAdmin    = req.userRole === 'admin';
-    const isCreator  = String(issue.createdBy) === String(req.userId);
+    const isAdmin = req.userRole === 'admin';
+    const isCreator = String(issue.createdBy) === String(req.userId);
     const isAssigned = issue.assignedTo && String(issue.assignedTo) === String(req.userId);
 
     // At minimum the user must be creator, assignee, or admin for any mutation
@@ -235,13 +304,13 @@ router.patch('/issues/:issueId', auth, attachRole, async (req, res) => {
       const from = issue.status;
       issue.status = status;
       if (status === 'Closed') issue.resolvedAt = new Date();
-      if (status === 'Open')   issue.resolvedAt = null;
+      if (status === 'Open') issue.resolvedAt = null;
 
       issue.history.push({
-        action:    'status_changed',
-        userId:    req.userId,
+        action: 'status_changed',
+        userId: req.userId,
         timestamp: new Date(),
-        meta:      { from, to: status },
+        meta: { from, to: status },
       });
     }
 
@@ -254,8 +323,8 @@ router.patch('/issues/:issueId', auth, attachRole, async (req, res) => {
       if (assignedTo === null || assignedTo === '') {
         issue.assignedTo = null;
         issue.history.push({
-          action:    'unassigned',
-          userId:    req.userId,
+          action: 'unassigned',
+          userId: req.userId,
           timestamp: new Date(),
         });
       } else {
@@ -268,10 +337,10 @@ router.patch('/issues/:issueId', auth, attachRole, async (req, res) => {
 
         issue.assignedTo = assignedTo;
         issue.history.push({
-          action:    'assigned',
-          userId:    req.userId,
+          action: 'assigned',
+          userId: req.userId,
           timestamp: new Date(),
-          meta:      { assignedTo: assignedTo, assigneeName: assignee.name },
+          meta: { assignedTo: assignedTo, assigneeName: assignee.name },
         });
       }
     }
@@ -288,10 +357,10 @@ router.patch('/issues/:issueId', auth, attachRole, async (req, res) => {
       }
       issue.dueDate = parsed;
       issue.history.push({
-        action:    'due_date_set',
-        userId:    req.userId,
+        action: 'due_date_set',
+        userId: req.userId,
         timestamp: new Date(),
-        meta:      { dueDate: parsed?.toISOString() ?? null },
+        meta: { dueDate: parsed?.toISOString() ?? null },
       });
     }
 
@@ -354,8 +423,8 @@ router.post(
       const issue = await Issue.findById(issueId);
       if (!issue) return res.status(404).json({ error: 'Issue not found' });
 
-      const isAdmin    = req.userRole === 'admin';
-      const isCreator  = String(issue.createdBy) === String(req.userId);
+      const isAdmin = req.userRole === 'admin';
+      const isCreator = String(issue.createdBy) === String(req.userId);
       const isAssigned = issue.assignedTo && String(issue.assignedTo) === String(req.userId);
 
       if (!isAdmin && !isCreator && !isAssigned) {
@@ -379,26 +448,26 @@ router.post(
         return res.status(500).json({ error: 'File storage not configured' });
       }
 
-      const blobName  = `issues/${issueId}/${Date.now()}-${originalname}`;
+      const blobName = `issues/${issueId}/${Date.now()}-${originalname}`;
       const blockBlob = _containerClient.getBlockBlobClient(blobName);
       await blockBlob.uploadData(buffer, {
         blobHTTPHeaders: { blobContentType: mimetype },
       });
 
       issue.attachments.push({
-        url:        blockBlob.url,
-        fileName:   originalname,
-        fileType:   mimetype,
-        fileSize:   size,
+        url: blockBlob.url,
+        fileName: originalname,
+        fileType: mimetype,
+        fileSize: size,
         uploadedBy: req.userId,
         uploadedAt: new Date(),
       });
 
       issue.history.push({
-        action:    'attachment_added',
-        userId:    req.userId,
+        action: 'attachment_added',
+        userId: req.userId,
         timestamp: new Date(),
-        meta:      { fileName: originalname },
+        meta: { fileName: originalname },
       });
 
       await issue.save();
@@ -439,7 +508,7 @@ router.delete('/issues/:issueId/attachments', auth, attachRole, async (req, res)
       return res.status(404).json({ error: 'Attachment not found' });
     }
 
-    const isAdmin    = req.userRole === 'admin';
+    const isAdmin = req.userRole === 'admin';
     const isUploader = String(attachment.uploadedBy) === String(req.userId);
 
     if (!isAdmin && !isUploader) {
@@ -454,10 +523,10 @@ router.delete('/issues/:issueId/attachments', auth, attachRole, async (req, res)
     issue.attachments = issue.attachments.filter((a) => a.url !== attachmentUrl);
 
     issue.history.push({
-      action:    'attachment_removed',
-      userId:    req.userId,
+      action: 'attachment_removed',
+      userId: req.userId,
       timestamp: new Date(),
-      meta:      { fileName },
+      meta: { fileName },
     });
 
     await issue.save();
@@ -465,7 +534,7 @@ router.delete('/issues/:issueId/attachments', auth, attachRole, async (req, res)
     // Best-effort blob deletion
     if (_containerClient) {
       try {
-        const urlObj    = new URL(attachmentUrl);
+        const urlObj = new URL(attachmentUrl);
         const pathParts = urlObj.pathname.split('/uploads/');
         if (pathParts.length > 1) {
           await _containerClient.getBlockBlobClient(pathParts[1]).deleteIfExists();
@@ -481,6 +550,21 @@ router.delete('/issues/:issueId/attachments', auth, attachRole, async (req, res)
   } catch (err) {
     console.error('Failed to remove attachment:', err);
     res.status(500).json({ error: 'Failed to remove attachment' });
+  }
+});
+
+// ─── DELETE /api/projects/:projectId/issues ──────────────────────────────────────
+router.delete('/projects/:projectId/issues', auth, requireRole('admin'), async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+      return res.status(400).json({ error: 'Invalid project id' });
+    }
+    const result = await Issue.deleteMany({ projectId });
+    res.json({ success: true, deleted: result.deletedCount });
+  } catch (err) {
+    console.error('Clear issues failed:', err);
+    res.status(500).json({ error: 'Failed to clear data' });
   }
 });
 

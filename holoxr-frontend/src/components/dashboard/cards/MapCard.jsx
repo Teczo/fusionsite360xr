@@ -65,6 +65,12 @@ export default function MapCard({ project }) {
         <div className="rounded-2xl border border-[#E6EAF0] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] overflow-hidden">
             <div className="flex items-center justify-between p-4 pb-0">
                 <h3 className="text-sm font-semibold text-[#111827]">Project Location</h3>
+                <button
+                    onClick={() => window.dispatchEvent(new CustomEvent('open-edit-project-location'))}
+                    className="text-xs font-medium text-[#3B82F6] hover:text-[#2563EB] transition-colors"
+                >
+                    Edit Location
+                </button>
             </div>
             <div className="p-4 pt-3">
                 <div

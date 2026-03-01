@@ -49,11 +49,11 @@ router.post('/projects', auth, async (req, res) => {
         // Build clean data — omit empty optional fields
         const data = { userId: req.userId, name };
 
-        if (description)  data.description = description;
-        if (startDate)     data.startDate = startDate;
-        if (endDate)       data.endDate = endDate;
-        if (status)        data.status = status;
-        if (projectCode)   data.projectCode = projectCode;
+        if (description) data.description = description;
+        if (startDate) data.startDate = startDate;
+        if (endDate) data.endDate = endDate;
+        if (status) data.status = status;
+        if (projectCode) data.projectCode = projectCode;
 
         if (Array.isArray(tags) && tags.length > 0) {
             data.tags = tags;
@@ -63,8 +63,8 @@ router.post('/projects', auth, async (req, res) => {
         }
         if (location && (location.address || location.latitude != null || location.longitude != null)) {
             data.location = {};
-            if (location.address)          data.location.address = location.address;
-            if (location.latitude != null)  data.location.latitude = location.latitude;
+            if (location.address) data.location.address = location.address;
+            if (location.latitude != null) data.location.latitude = location.latitude;
             if (location.longitude != null) data.location.longitude = location.longitude;
         }
 
@@ -197,6 +197,45 @@ router.put('/projects/:id', auth, async (req, res) => {
     } catch (err) {
         console.error('❌ Failed to update scene:', err);
         res.status(500).json({ error: 'Failed to update project' });
+    }
+});
+
+/* ---------------------------------------------------
+   UPDATE PROJECT LOCATION
+--------------------------------------------------- */
+
+router.patch('/projects/:id/location', auth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { location } = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'Invalid project id' });
+        }
+
+        // Validate location has required fields or is an object
+        if (!location || typeof location !== 'object') {
+            return res.status(400).json({ error: 'Location object is required' });
+        }
+
+        const project = await Project.findOne({ _id: id, userId: req.userId });
+        if (!project) {
+            return res.status(404).json({ error: 'Project not found' });
+        }
+
+        // Setup the specific location object fields matching our schema
+        const newLocation = {};
+        if (location.address) newLocation.address = location.address;
+        if (location.latitude != null) newLocation.latitude = location.latitude;
+        if (location.longitude != null) newLocation.longitude = location.longitude;
+
+        project.location = newLocation;
+        await project.save();
+
+        res.json({ message: 'Location updated', project });
+    } catch (err) {
+        console.error('❌ Failed to update location:', err);
+        res.status(500).json({ error: 'Failed to update project location' });
     }
 });
 
