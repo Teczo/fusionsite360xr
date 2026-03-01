@@ -112,20 +112,30 @@ export default function HSEList({ projectId }) {
         )
       }
 
-      {
-        items.length === 0 ? (
-          <EmptyState title="No HSE incidents" description="No health, safety, or environmental incidents recorded." />
+      <div className="max-h-[320px] overflow-y-auto pr-1">
+        {items.length === 0 ? (
+          <EmptyState
+            title="No HSE incidents"
+            description="No health, safety, or environmental incidents recorded."
+          />
         ) : (
           <div className="space-y-3">
             {items.map((item) => (
-              <div key={item._id} className="flex items-start gap-3 rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-4">
+              <div
+                key={item._id}
+                className="flex items-start gap-3 rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] p-4"
+              >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <Badge label={item.severity} variant={item.severity} />
-                    <span className="text-sm font-semibold text-[#111827]">{item.title}</span>
+                    <span className="text-sm font-semibold text-[#111827]">
+                      {item.title}
+                    </span>
                   </div>
                   {item.description && (
-                    <p className="text-xs text-[#6B7280] mb-1">{item.description}</p>
+                    <p className="text-xs text-[#6B7280] mb-1">
+                      {item.description}
+                    </p>
                   )}
                   <span className="text-xs text-[#9CA3AF]">
                     {new Date(item.date).toLocaleDateString()}
@@ -133,15 +143,28 @@ export default function HSEList({ projectId }) {
                 </div>
                 {canEdit && (
                   <div className="flex gap-2 flex-shrink-0">
-                    <button onClick={() => { setEditing(item); setShowForm(true); }} className="text-xs text-[#2563EB] hover:underline">Edit</button>
-                    <button onClick={() => handleDelete(item._id)} className="text-xs text-[#EF4444] hover:underline">Delete</button>
+                    <button
+                      onClick={() => {
+                        setEditing(item);
+                        setShowForm(true);
+                      }}
+                      className="text-xs text-[#2563EB] hover:underline"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(item._id)}
+                      className="text-xs text-[#EF4444] hover:underline"
+                    >
+                      Delete
+                    </button>
                   </div>
                 )}
               </div>
             ))}
           </div>
-        )
-      }
+        )}
+      </div>
     </div >
   );
 }

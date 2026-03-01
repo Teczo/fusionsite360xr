@@ -20,11 +20,10 @@ export default function ChatMessage({ role, content, data, intent, provider, aud
       </div>
       <div className="flex-1 min-w-0">
         <div
-          className={`inline-block max-w-[75%] rounded-2xl rounded-tl-sm px-4 py-3 text-sm leading-relaxed ${
-            isError
+          className={`inline-block max-w-[75%] rounded-2xl rounded-tl-sm px-4 py-3 text-sm leading-relaxed ${isError
               ? 'bg-red-50 text-red-700 border border-red-100'
               : 'bg-gray-50 text-textpri border border-gray-100'
-          }`}
+            }`}
         >
           {isLoading ? (
             <div className="flex gap-1 items-center h-4">
@@ -40,7 +39,7 @@ export default function ChatMessage({ role, content, data, intent, provider, aud
                 </span>
               )}
               {content && <p>{content}</p>}
-              {data !== undefined && <DataDisplay data={data} />}
+              {data != null && <DataDisplay data={data} />}
             </>
           )}
         </div>
@@ -52,10 +51,10 @@ export default function ChatMessage({ role, content, data, intent, provider, aud
                 {provider === 'claude'
                   ? 'Claude'
                   : provider === 'openai'
-                  ? 'OpenAI'
-                  : provider === 'azure-openai'
-                  ? 'Azure OpenAI'
-                  : provider}
+                    ? 'OpenAI'
+                    : provider === 'azure-openai'
+                      ? 'Azure OpenAI'
+                      : provider}
               </span>
             )}
             {auditLogId && <FeedbackButtons auditLogId={auditLogId} />}
@@ -67,6 +66,7 @@ export default function ChatMessage({ role, content, data, intent, provider, aud
 }
 
 function DataDisplay({ data }) {
+  if (!data) return null;
   if (Array.isArray(data)) {
     if (data.length === 0) {
       return <p className="mt-1 text-xs text-textsec italic">No records found.</p>;
