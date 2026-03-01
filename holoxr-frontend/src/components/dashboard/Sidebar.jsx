@@ -55,19 +55,18 @@ export default function Sidebar({
     // Workspace child routes — only built when inside a project
     const workspaceChildren = projectId
         ? [
-              { label: "Dashboard",     path: `/digital-twin?id=${projectId}`, icon: LayoutGrid },
-              { label: "Digital Twin",  path: `/twin?id=${projectId}`,         icon: MonitorSmartphone },
-              { label: "Timeline",      path: `/timeline?id=${projectId}`,     icon: Clock },
-              { label: "HSE",           path: `/hse?id=${projectId}`,          icon: ShieldCheck },
-              { label: "Files",         path: `/files?id=${projectId}`,        icon: FolderOpen },
-              { label: "AI Assistant",  path: `/ai?id=${projectId}`,           icon: Bot },
-              { label: "AI Settings",   path: `/ai-settings?id=${projectId}`,  icon: Settings },
-          ]
+            { label: "Dashboard", path: `/digital-twin?id=${projectId}`, icon: LayoutGrid },
+            { label: "Digital Twin", path: `/twin?id=${projectId}`, icon: MonitorSmartphone },
+            { label: "Timeline", path: `/timeline?id=${projectId}`, icon: Clock },
+            { label: "HSE", path: `/hse?id=${projectId}`, icon: ShieldCheck },
+            { label: "Files", path: `/files?id=${projectId}`, icon: FolderOpen },
+            { label: "AI Assistant", path: `/ai?id=${projectId}`, icon: Bot },
+        ]
         : [];
 
     // Always-visible top-level items
     const globalItems = [
-        { label: "Team",      path: "/dashboard/team",      icon: Users2 },
+        { label: "Team", path: "/dashboard/team", icon: Users2 },
         { label: "Analytics", path: "/dashboard/analytics", icon: ChartArea },
     ];
 
@@ -168,15 +167,16 @@ export default function Sidebar({
 
                     {/* ── Workspace ── */}
                     {projectId ? (
-                        // Inside a project: Workspace is a non-link parent, auto-expanded
+                        // Inside a project: Workspace navigates back to main page
                         <>
-                            <div
-                                className={`${baseItem} ${isWorkspaceActive ? activeItem : idleItem} cursor-default`}
+                            <button
+                                onClick={() => navigate("/")}
+                                className={`${baseItem} ${isWorkspaceActive ? activeItem : idleItem}`}
                                 title={collapsed ? "Workspace" : undefined}
                             >
                                 <Boxes className="w-[18px] h-[18px] shrink-0" />
                                 {!collapsed && <span>Workspace</span>}
-                            </div>
+                            </button>
 
                             {/* Children: indented when expanded, icon-only when collapsed */}
                             {workspaceChildren.map(({ label, path, icon: Icon }) => {
@@ -197,16 +197,15 @@ export default function Sidebar({
                             })}
                         </>
                     ) : (
-                        // No project: Workspace links to the designs panel
-                        <NavLink
-                            to="/dashboard/your-designs"
-                            className={linkClass}
+                        // No project: Workspace navigates to main page
+                        <button
+                            onClick={() => navigate("/")}
+                            className={`${baseItem} ${location.pathname === "/" || location.pathname.startsWith("/dashboard") ? activeItem : idleItem}`}
                             title={collapsed ? "Workspace" : undefined}
-                            onClick={() => setMenuOpen(false)}
                         >
                             <Boxes className="w-[18px] h-[18px] shrink-0" />
                             {!collapsed && <span>Workspace</span>}
-                        </NavLink>
+                        </button>
                     )}
 
                     {/* ── Team & Analytics (always visible) ── */}
@@ -280,6 +279,17 @@ export default function Sidebar({
                         >
                             <CreditCard className="w-4 h-4 text-textsec" />
                             Billing &amp; Plan
+                        </button>
+                        <button
+                            role="menuitem"
+                            onClick={() => {
+                                setMenuOpen(false);
+                                navigate("/ai-settings");
+                            }}
+                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-50 text-sm flex items-center gap-2.5 text-textpri"
+                        >
+                            <Settings className="w-4 h-4 text-textsec" />
+                            AI Settings
                         </button>
                     </div>
                 )}
