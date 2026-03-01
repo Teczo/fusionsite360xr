@@ -14,7 +14,7 @@ const hseSchema = new mongoose.Schema({
   // Existing documents that pre-date this field will have null here.
   incidentDate: { type: Date, default: null },
   // MIGRATION: default '' preserves compatibility with legacy documents that pre-date this field being required.
-  zoneId: { type: String, required: true, default: '' },
+  zoneId: { type: String, required: false, default: '' },
   source: {
     type: String,
     enum: ['manual', 'csv-import'],
