@@ -1,73 +1,77 @@
 import { useMemo } from 'react';
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 
-const COLORS = { Critical: '#EF4444', Warning: '#F59E0B', Info: '#3BB2A5' };
-
-const CustomTooltip = ({ active, payload }) => {
-    if (!active || !payload?.length) return null;
-    const { name, value } = payload[0];
-    return (
-        <div className="bg-white border border-gray-100 rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.1)] p-3 text-xs">
-            <p className="font-semibold text-textpri">{name}</p>
-            <p className="text-textsec mt-0.5">{value} incident{value !== 1 ? 's' : ''}</p>
-        </div>
-    );
-};
-
-const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-    if (percent < 0.05) return null;
-    const RADIAN = Math.PI / 180;
-    const r = innerRadius + (outerRadius - innerRadius) * 0.5;
-    const x = cx + r * Math.cos(-midAngle * RADIAN);
-    const y = cy + r * Math.sin(-midAngle * RADIAN);
-    return (
-        <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight={600}>
-            {`${(percent * 100).toFixed(0)}%`}
-        </text>
-    );
-};
+const SEV = [
+  { key: 'Critical', color: '#EF4444', bg: '#FEF2F2', text: '#DC2626' },
+  { key: 'Warning',  color: '#F59E0B', bg: '#FFFBEB', text: '#D97706' },
+  { key: 'Info',     color: '#3BB2A5', bg: '#F0FDFB', text: '#0F766E' },
+];
 
 export default function HSESeverityChart({ items }) {
-    const data = useMemo(() => {
-        const counts = { Critical: 0, Warning: 0, Info: 0 };
-        (items || []).forEach((i) => { if (counts[i.severity] !== undefined) counts[i.severity]++; });
-        return Object.entries(counts)
-            .filter(([, v]) => v > 0)
-            .map(([name, value]) => ({ name, value }));
-    }, [items]);
+  const { rows, total, openTotal } = useMemo(() => {
+    const map = {};
+    SEV.forEach(s => { map[s.key] = { total: 0, open: 0, closed: 0, lti: 0 }; });
+    (items || []).forEach(i => {
+      const s = map[i.severity];
+      if (!s) return;
+      s.total++;
+      if (i.status === 'Closed') s.closed++; else s.open++;
+      if (i.isLTI) s.lti++;
+    });
+    const total = Object.values(map).reduce((a, v) => a + v.total, 0);
+    const openTotal = Object.values(map).reduce((a, v) => a + v.open, 0);
+    const rows = SEV.map(s => ({ ...s, ...map[s.key] }));
+    return { rows, total, openTotal };
+  }, [items]);
 
-    if (!data.length) return (
-        <div className="flex items-center justify-center h-full text-textsec text-sm">No data available</div>
-    );
+  if (!total) return (
+    <div className="flex items-center justify-center h-full text-[#9CA3AF] text-sm">No data</div>
+  );
 
-    return (
-        <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-                <Pie
-                    data={data}
-                    cx="50%"
-                    cy="45%"
-                    innerRadius="40%"
-                    outerRadius="65%"
-                    paddingAngle={3}
-                    dataKey="value"
-                    labelLine={false}
-                    label={renderCustomLabel}
-                >
-                    {data.map((entry) => (
-                        <Cell key={entry.name} fill={COLORS[entry.name] || '#9CA3AF'} />
-                    ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-                <Legend
-                    iconType="circle"
-                    iconSize={8}
-                    wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
-                    formatter={(value, entry) => (
-                        <span style={{ color: '#374151' }}>{value} ({entry.payload.value})</span>
-                    )}
-                />
-            </PieChart>
-        </ResponsiveContainer>
-    );
+  return (
+    <div className="h-full flex flex-col justify-between gap-3 py-1">
+      {/* Stacked proportion bar */}
+      <div className="flex h-2 rounded-full overflow-hidden gap-px">
+        {rows.map(r => r.total > 0 && (
+          <div key={r.key} style={{ width: `${(r.total / total) * 100}%`, backgroundColor: r.color }} />
+        ))}
+      </div>
+
+      {/* Per-severity stat rows */}
+      <div className="space-y-2 flex-1">
+        {rows.map(r => {
+          const pct = total > 0 ? Math.round((r.total / total) * 100) : 0;
+          const closedPct = r.total > 0 ? Math.round((r.closed / r.total) * 100) : 0;
+          return (
+            <div key={r.key} className="rounded-xl p-3" style={{ backgroundColor: r.bg }}>
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: r.color }} />
+                  <span className="text-[11px] font-bold" style={{ color: r.text }}>{r.key}</span>
+                </div>
+                <span className="text-lg font-black leading-none" style={{ color: r.text }}>{r.total}</span>
+              </div>
+              <div className="flex items-center justify-between text-[10px]" style={{ color: r.text, opacity: 0.75 }}>
+                <span>{pct}% of total</span>
+                <span>{r.open} open · {closedPct}% resolved</span>
+              </div>
+              {r.total > 0 && (
+                <div className="mt-1.5 h-1 rounded-full overflow-hidden bg-black/10">
+                  <div className="h-full rounded-full bg-current" style={{ width: `${closedPct}%`, backgroundColor: r.color, opacity: 0.6 }} />
+                </div>
+              )}
+              {r.lti > 0 && (
+                <p className="text-[9px] font-semibold mt-1" style={{ color: r.text }}>⚠ {r.lti} Lost Time Injur{r.lti > 1 ? 'ies' : 'y'}</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer totals */}
+      <div className="flex items-center justify-between border-t border-gray-100 pt-2">
+        <span className="text-[10px] text-[#9CA3AF]">{total} total incidents</span>
+        <span className="text-[10px] font-semibold text-[#DC2626]">{openTotal} still open</span>
+      </div>
+    </div>
+  );
 }
