@@ -129,37 +129,25 @@ router.post('/projects/:id/hse/import', auth, upload.single('file'), async (req,
 
       validIncidents.push({
         projectId,
-        title: row.title || row.activity || 'Untitled Incident', // Map activity to title if needed
+        title: row.title || row.activity || 'Untitled Incident',
         description: row.description || '',
-        severity: row.severity, // Ensure this matches enum ['Critical', 'Warning', 'Info'] - ideally normalize
+        severity: row.severity,
         date: new Date(row.date),
+        zoneId: row.zoneId || row.zone || '',
         source: 'csv-import',
         importedFromDocumentId: doc._id,
         createdBy: req.userId,
         computedSeverityWeight: getSeverityWeight(row.severity),
-        // Extra fields not in main schema but mentioned in user request:
-        // incidentId, zone, injuryType, rootCause, contractor, weatherCondition
-        // These are NOT in the current HSE schema I viewed earlier.
-        // I should probably add them to 'description' or update schema if I missed them?
-        // User request said: "Create HSEIncident document with: ... zone, activity ... "
-        // But the Schema I read only had: title, description, severity, date.
-        // I will append extra info to description for now to avoid schema drift unless explicitly asked to expand schema further.
-        // Wait, user said "Structure HSEIncident collection" implying I should have those fields.
-        // I will stick to what exists for now and maybe append to description to be safe, OR I should have added them to schema.
-        // Re-reading: "HSEIncident schema (manual incident entry exists)" -> "Update HSEIncident schema to include: source, importedFromDocumentId..."
-        // It didn't explicitly say "Add zone, activity, etc." in the SCHEMA ENHANCEMENTS section, only source etc.
-        // However, in "BACKEND IMPLEMENTATION" -> "Create HSEIncident document with: ... zone, activity..."
-        // This implies the schema MIGHT already have them or I should add them.
-        // I viewed the schema and it was minimal.
-        // I will add the missing fields to the schema in a separate step if needed, but for now I will try to map loosely or just put in description.
-        // Actually, to be "Senior", I should probably add them if the user expects them to be stored structured. 
-        // But strict adherence to "SCHEMA ENHANCEMENTS" section lists only specific fields.
-        // I will check if I can add them to schema quickly or just map to description.
-        // Safe bet: Update schema to include these fields if they are important for AI/Reporting.
-        // I'll proceed with the import logic mapping them, and if they schema doesn't have them, Mongoose strips them.
-        // I'll add a structured `meta` field or similar if possible, or key-value in description.
-        // Let's stick to the visible schema: title, severity, date, description.
-        // I will format the description to include the extra data.
+        incidentType: row.incidentType || '',
+        isLTI: row.isLTI === 'true' || row.isLTI === '1',
+        manhours: Number(row.manhours) || 0,
+        status: row.status || 'Open',
+        subcontractor: row.subcontractor || '',
+        supervisor: row.supervisor || '',
+        permitType: row.permitType || '',
+        permitActive: row.permitActive === 'true' || row.permitActive === '1',
+        complianceCategory: row.complianceCategory || '',
+        closedAt: row.closedAt ? new Date(row.closedAt) : null,
       });
     }
 
@@ -202,7 +190,11 @@ router.post('/projects/:id/hse', auth, requireRole('admin'), async (req, res) =>
     const project = await verifyProject(id, req.userId);
     if (!project) return res.status(404).json({ error: 'Project not found' });
 
-    const { title, description, severity, date, zoneId, incidentDate } = req.body;
+    const {
+      title, description, severity, date, zoneId, incidentDate,
+      incidentType, isLTI, manhours, status, subcontractor, supervisor,
+      permitType, permitActive, complianceCategory, closedAt,
+    } = req.body;
     if (!title || !severity || !date) {
       return res.status(400).json({ error: 'title, severity, and date are required' });
     }
@@ -217,6 +209,16 @@ router.post('/projects/:id/hse', auth, requireRole('admin'), async (req, res) =>
       incidentDate: incidentDate || null,
       createdBy: req.userId,
       computedSeverityWeight: getSeverityWeight(severity),
+      incidentType: incidentType || '',
+      isLTI: isLTI === true || isLTI === 'true',
+      manhours: Number(manhours) || 0,
+      status: status || 'Open',
+      subcontractor: subcontractor || '',
+      supervisor: supervisor || '',
+      permitType: permitType || '',
+      permitActive: permitActive === true || permitActive === 'true',
+      complianceCategory: complianceCategory || '',
+      closedAt: closedAt || null,
     });
     await item.save();
     return res.status(201).json(item);
@@ -240,8 +242,20 @@ router.put('/projects/:id/hse/:hseId', auth, requireRole('admin'), async (req, r
     const project = await verifyProject(id, req.userId);
     if (!project) return res.status(404).json({ error: 'Project not found' });
 
-    const { title, description, severity, date, zoneId, incidentDate } = req.body;
-    const updateFields = { title, description, severity, date, zoneId, incidentDate };
+    const {
+      title, description, severity, date, zoneId, incidentDate,
+      incidentType, isLTI, manhours, status, subcontractor, supervisor,
+      permitType, permitActive, complianceCategory, closedAt,
+    } = req.body;
+
+    const updateFields = {
+      title, description, severity, date, zoneId, incidentDate,
+      incidentType, subcontractor, supervisor, permitType, complianceCategory,
+      status, closedAt,
+    };
+    if (isLTI !== undefined) updateFields.isLTI = isLTI === true || isLTI === 'true';
+    if (manhours !== undefined) updateFields.manhours = Number(manhours) || 0;
+    if (permitActive !== undefined) updateFields.permitActive = permitActive === true || permitActive === 'true';
 
     // Recalculate computedSeverityWeight whenever severity is changed
     if (severity !== undefined) {

@@ -16,6 +16,7 @@ const ScheduleActivitySchema = new mongoose.Schema({
   plannedDurationDays: { type: Number, default: 0 },
   delayDays: { type: Number, default: 0 },
   isDelayed: { type: Boolean, default: false },
+  percentComplete: { type: Number, default: 0, min: 0, max: 100 },
   criticalPath: { type: Boolean, default: false },
   weatherSensitivity: String,
   predecessors: [{ type: String }],
@@ -25,6 +26,9 @@ const ScheduleActivitySchema = new mongoose.Schema({
     enum: ["FS", "SS", "FF"],
     default: "FS"
   },
+  group: { type: String, default: '' },
+  type: { type: String, enum: ['task', 'group', 'subtask', 'milestone'], default: 'task' },
+  parentActivityId: { type: String, default: '' },
 }, { strict: true, timestamps: true });
 
 // Compound indexes

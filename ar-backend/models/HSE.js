@@ -23,6 +23,33 @@ const hseSchema = new mongoose.Schema({
   importedFromDocumentId: { type: mongoose.Schema.Types.ObjectId, ref: 'ProjectDocument' },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   computedSeverityWeight: { type: Number, default: 0 },
+  // ── Extended fields (v2 HSE redesign) ──────────────────────────────────────
+  incidentType: {
+    type: String,
+    enum: ['Near Miss','First Aid','Medical Treatment','Lost Time Injury','Fatality','Property Damage','Environmental',''],
+    default: '',
+  },
+  isLTI:        { type: Boolean, default: false },
+  manhours:     { type: Number, default: 0 },
+  status: {
+    type: String,
+    enum: ['Open','Closed'],
+    default: 'Open',
+  },
+  subcontractor: { type: String, default: '' },
+  supervisor:    { type: String, default: '' },
+  permitType: {
+    type: String,
+    enum: ['Work at Height','Confined Space','Hot Work','Heavy Lifting','Excavation',''],
+    default: '',
+  },
+  permitActive: { type: Boolean, default: false },
+  complianceCategory: {
+    type: String,
+    enum: ['PPE Violation','Housekeeping','Work at Height','Electrical','Lifting','Other',''],
+    default: '',
+  },
+  closedAt: { type: Date, default: null },
 }, { strict: true, timestamps: true });
 
 hseSchema.index({ projectId: 1, date: -1 });          // pre-existing
