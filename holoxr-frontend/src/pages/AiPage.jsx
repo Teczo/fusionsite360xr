@@ -37,6 +37,15 @@ export default function AiPage() {
 
     setInput('');
 
+    // Build history from existing messages, keeping last 10 text explanations
+    const history = messages
+      .filter((msg) => !msg.isLoading && msg.content && !msg.isError)
+      .slice(-10)
+      .map((msg) => ({
+        role: msg.role === 'user' ? 'user' : 'assistant',
+        content: msg.content,
+      }));
+
     const userMsg = { id: Date.now(), role: 'user', content: question };
     const loadingId = Date.now() + 1;
 
@@ -48,20 +57,20 @@ export default function AiPage() {
     setIsLoading(true);
 
     try {
-      const result = await aiApi.query(projectId, question);
+      const result = await aiApi.query(projectId, question, null, history);
 
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === loadingId
             ? {
-                ...msg,
-                isLoading: false,
-                content: result.explanation || 'No explanation available.',
-                data: result.data,
-                intent: result.intent,
-                provider: result.provider,
-                auditLogId: result.auditLogId,
-              }
+              ...msg,
+              isLoading: false,
+              content: result.explanation || 'No explanation available.',
+              data: result.data,
+              intent: result.intent,
+              provider: result.provider,
+              auditLogId: result.auditLogId,
+            }
             : msg
         )
       );
@@ -70,11 +79,11 @@ export default function AiPage() {
         prev.map((msg) =>
           msg.id === loadingId
             ? {
-                ...msg,
-                isLoading: false,
-                content: `Error: ${err.message}`,
-                isError: true,
-              }
+              ...msg,
+              isLoading: false,
+              content: `Error: ${err.message}`,
+              isError: true,
+            }
             : msg
         )
       );
@@ -118,6 +127,18 @@ export default function AiPage() {
           <h1 className="text-lg font-semibold text-textpri leading-tight">AI Assistant</h1>
           <p className="text-sm text-textsec truncate">Project: {projectId}</p>
         </div>
+        {messages.length > 0 && (
+          <button
+            onClick={() => {
+              setMessages([]);
+              setInput('');
+            }}
+            className="text-sm text-textsec hover:text-textpri px-3 py-1.5 rounded-lg hover:bg-gray-100 transition flex items-center gap-1.5"
+            title="Start a new chat"
+          >
+            New Chat
+          </button>
+        )}
         <Link
           to={`/ai-settings?id=${projectId}`}
           title="AI Settings"

@@ -57,9 +57,10 @@ export function createClaudeProvider({ apiKey, model }) {
          * @param {string} intent
          * @param {*} structuredData
          * @param {string} question
+         * @param {Array} history
          * @returns {string|null}
          */
-        async generateExplanation(intent, structuredData, question) {
+        async generateExplanation(intent, structuredData, question, history = []) {
             try {
                 const response = await client.messages.create({
                     model: resolvedModel,
@@ -67,6 +68,7 @@ export function createClaudeProvider({ apiKey, model }) {
                     temperature: 0,
                     system: 'You are a construction project AI assistant for FusionXR. Explain data clearly and concisely. Only reference facts present in the provided data. Do not invent or assume information.',
                     messages: [
+                        ...history,
                         {
                             role: 'user',
                             content: `Question: ${question}\n\nIntent: ${intent}\n\nStructured Data:\n${JSON.stringify(structuredData, null, 2)}`,

@@ -215,11 +215,11 @@ export const issuesApi = {
 
 // AI
 export const aiApi = {
-  query: (projectId, question, selectedElementId = null) =>
+  query: (projectId, question, selectedElementId = null, history = []) =>
     request('/api/ai/query', {
       method: 'POST',
       headers: headers(),
-      body: JSON.stringify({ projectId, question, selectedElementId }),
+      body: JSON.stringify({ projectId, question, selectedElementId, history }),
     }),
   getSettings: () => request('/api/ai/settings', { headers: headers() }),
   updateSettings: (settings) =>

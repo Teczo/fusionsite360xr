@@ -6,6 +6,38 @@ import { executeTool } from '../services/ai/toolExecutor.js';
 import AIAuditLog from '../models/AIAuditLog.js';
 
 /**
+ * Estimate token count based on English text length (approx 4 chars/token).
+ */
+function estimateTokens(messages) {
+  if (!Array.isArray(messages)) return 0;
+  return messages.reduce((sum, msg) => sum + (msg.content?.length || 0) / 4, 0);
+}
+
+/**
+ * Trim history to stay within token limits and message count.
+ */
+function trimHistory(history, maxTokens = 2000) {
+  if (!Array.isArray(history)) return [];
+
+  let trimmed = [...history].filter(msg => msg.role && typeof msg.content === 'string');
+
+  // Enforce max count
+  trimmed = trimmed.slice(-10);
+
+  // Enforce max tokens
+  while (trimmed.length > 0 && estimateTokens(trimmed) > maxTokens) {
+    trimmed.shift(); // Remove oldest
+  }
+
+  // Clean up if it starts with assistant
+  if (trimmed.length > 0 && trimmed[0].role === 'assistant') {
+    trimmed.shift();
+  }
+
+  return trimmed;
+}
+
+/**
  * Detect if a query needs multi-step chaining.
  * Returns true if the LLM selected a tool but critical required args are missing,
  * meaning it needs to look something up first.
@@ -33,8 +65,9 @@ function detectChainingNeeded(classification) {
  * The LLM calls a tool, sees the result, then decides if it needs another tool.
  * Stops when the LLM provides a text answer or maxSteps is reached.
  */
-async function agentLoop(provider, question, projectId, userId, selectedElementId, maxSteps = 3) {
+async function agentLoop(provider, question, projectId, userId, selectedElementId, conversationHistory = [], maxSteps = 3) {
   const messages = [
+    ...conversationHistory,
     { role: 'user', content: question }
   ];
   const allResults = [];
@@ -108,7 +141,8 @@ async function agentLoop(provider, question, projectId, userId, selectedElementI
     explanation = await provider.generateExplanation(
       'multi-step',
       allResults,
-      question
+      question,
+      conversationHistory
     );
   } catch (explainErr) {
     console.error('Agent loop explanation failed:', explainErr.message);
@@ -151,8 +185,10 @@ async function logAIQuery({ userId, projectId, question, intent, provider, tools
 export async function handleAIQuery(req, res) {
   const startTime = Date.now();
   try {
-    const { projectId, question, selectedElementId } = req.body;
+    const { projectId, question, selectedElementId, history } = req.body;
     const userId = req.userId; // Set by authMiddleware (Phase 0)
+
+    const conversationHistory = trimHistory(history);
 
     // --- Phase 0: ObjectId validation ---
     if (!mongoose.Types.ObjectId.isValid(projectId)) {
@@ -176,8 +212,13 @@ export async function handleAIQuery(req, res) {
     const provider = await getProvider(userId);
 
     // --- Phase 3: LLM classifies intent (picks a tool) ---
+    // If we have history, pass the messages array instead of a string
+    const classifyInput = conversationHistory.length > 0
+      ? [...conversationHistory, { role: 'user', content: question }]
+      : question;
+
     const classification = await provider.classifyIntent(
-      question,
+      classifyInput,
       AI_TOOLS,
       AI_SYSTEM_PROMPT
     );
@@ -187,7 +228,7 @@ export async function handleAIQuery(req, res) {
 
     if (needsChaining) {
       const agentResult = await agentLoop(
-        provider, question, projectId, userId, selectedElementId
+        provider, question, projectId, userId, selectedElementId, conversationHistory
       );
 
       const auditLogId = await logAIQuery({
@@ -274,7 +315,8 @@ export async function handleAIQuery(req, res) {
         explanation = await provider.generateExplanation(
           classification.toolName,
           result.data,
-          question
+          question,
+          conversationHistory
         );
       } catch (explainErr) {
         // Graceful degradation — if explanation fails, still return the data
