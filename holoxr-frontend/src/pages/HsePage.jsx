@@ -18,7 +18,7 @@ export default function HsePage() {
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full max-w-screen-2xl mx-auto">
       <HSEList projectId={projectId} />
     </div>
   );

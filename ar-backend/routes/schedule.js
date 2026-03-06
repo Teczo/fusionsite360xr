@@ -134,6 +134,14 @@ router.post(
         const criticalRaw = (norm.critical_path || norm.critical || '').toLowerCase();
         const criticalPath = ['true', 'yes', '1'].includes(criticalRaw);
 
+        const percentComplete = Math.min(100, Math.max(0, Number(norm.percent_complete ?? norm.percentcomplete ?? norm.progress ?? 0) || 0));
+
+        // Derive status from data
+        let status = 'Not Started';
+        if (percentComplete >= 100) status = 'Completed';
+        else if (isDelayed) status = 'Delayed';
+        else if (percentComplete > 0) status = 'In Progress';
+
         const predecessors = norm.predecessors
           ? norm.predecessors.split(',').map(p => p.trim()).filter(Boolean)
           : [];
@@ -143,14 +151,20 @@ router.post(
             ? norm.dependency_type.toUpperCase()
             : 'FS';
 
+        // Task type: group | task | subtask | milestone
+        const typeRaw = (norm.type || norm.task_type || 'task').toLowerCase();
+        const taskType = ['group', 'milestone', 'subtask'].includes(typeRaw) ? typeRaw : 'task';
+
         activities.push({
           projectId,
           activityId: norm.activity_id,
           name: norm.activity_name,
+          status,
           plannedStart,
           plannedFinish,
           actualStart,
           actualFinish,
+          percentComplete,
           durationDays,
           plannedDurationDays,
           delayDays,
@@ -160,6 +174,9 @@ router.post(
           predecessors,
           successors: [],
           dependencyType,
+          group: norm.group || norm.wbs_group || norm.phase || '',
+          type: taskType,
+          parentActivityId: norm.parent_activity_id || norm.parent_id || '',
         });
       }
 

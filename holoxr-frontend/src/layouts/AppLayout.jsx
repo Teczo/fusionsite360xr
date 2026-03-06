@@ -117,13 +117,13 @@ export default function AppLayout() {
 
                 {/* Main scrollable content area */}
                 <main
-                    className={`flex-1 min-h-0 ${isFullPageRoute ? 'overflow-hidden' : 'overflow-auto p-4 sm:p-6'}`}
+                    className={`flex-1 min-h-0 ${isFullPageRoute ? 'overflow-hidden' : 'overflow-auto'}`}
                     aria-label="Dashboard content"
                 >
                     {isFullPageRoute ? (
                         <Outlet context={outletCtx} />
                     ) : (
-                        <div className="p-4 sm:p-6 lg:p-8">
+                        <div className="px-6 py-6">
                             <Outlet context={outletCtx} />
                         </div>
                     )}

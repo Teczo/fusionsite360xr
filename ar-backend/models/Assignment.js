@@ -9,7 +9,13 @@ const assignmentSchema = new mongoose.Schema({
   responsiblePerson: { type: String },
   zone:              { type: String },
   componentIds:      [{ type: String }],
-  status:            { type: String, enum: ['active', 'completed', 'on-hold'], default: 'active' },
+  floor:             { type: String, default: '' },
+  workScope:         { type: String, default: '' },
+  shift:             { type: String, enum: ['day', 'night', 'both'], default: 'day' },
+  status:            { type: String, enum: ['scheduled', 'mobilizing', 'active', 'delayed', 'suspended', 'completed', 'on-hold', 'pending'], default: 'active' },
+  startDate:         { type: Date },
+  endDate:           { type: Date },
+  headcount:         { type: Number, default: 0 },
 }, { timestamps: true });
 
 assignmentSchema.index({ projectId: 1, discipline: 1 });

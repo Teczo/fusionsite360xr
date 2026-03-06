@@ -57,14 +57,29 @@ router.post(
                 const discipline = norm.discipline || '';
                 if (!discipline) continue;
 
+                // Normalise status
+                const rawStatus = (norm.status || 'active').toLowerCase().trim();
+                const statusMap = { active: 'active', completed: 'completed', 'on-hold': 'on-hold', onhold: 'on-hold', pending: 'pending', scheduled: 'scheduled', mobilizing: 'mobilizing', delayed: 'delayed', suspended: 'suspended' };
+                const status = statusMap[rawStatus] || 'pending';
+
+                // Normalise shift
+                const rawShift = (norm.shift || 'day').toLowerCase().trim();
+                const shift = ['day','night','both'].includes(rawShift) ? rawShift : 'day';
+
                 records.push({
                     projectId,
                     discipline,
-                    contractor: norm.contractor || '',
-                    responsiblePerson: norm.responsible_person || norm.responsibleperson || '',
-                    zone: norm.zone || '',
-                    componentIds: norm.component_ids ? norm.component_ids.split(';') : [],
-                    status: norm.status || 'active'
+                    contractor:        norm.contractor || '',
+                    responsiblePerson: norm.responsibleperson || norm.responsible_person || '',
+                    zone:              norm.zone || '',
+                    floor:             norm.floor || '',
+                    workScope:         norm.workscope || norm.work_scope || '',
+                    shift,
+                    componentIds:      norm.component_ids ? norm.component_ids.split(';') : [],
+                    status,
+                    startDate:  norm.startdate  || norm.start_date  || null,
+                    endDate:    norm.enddate    || norm.end_date    || null,
+                    headcount:  Number(norm.headcount || 0),
                 });
             }
 

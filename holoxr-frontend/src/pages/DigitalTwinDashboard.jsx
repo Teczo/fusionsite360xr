@@ -1,9 +1,8 @@
 import React, { useRef, useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import { IconCamera, IconTarget } from "@tabler/icons-react";
 import ScenePreviewCanvas from "./components/ScenePreviewCanvas";
-import TimelineList from "../components/ProjectModules/Timeline/TimelineList";
-import HSEList from "../components/ProjectModules/HSE/HSEList";
+import { scheduleApi, hseApi, bimApi } from "../services/api";
 import AlertsList from "../components/ProjectModules/Alerts/AlertsList";
 import ContractorPerformanceCard from "../components/ProjectModules/ContractorPerformanceCard";
 import SCurvePanel from "../components/ProjectModules/SCurve/SCurvePanel";
@@ -15,7 +14,6 @@ import WeatherCard from "../components/dashboard/cards/WeatherCard";
 import LocationSetupCard from "../components/dashboard/cards/LocationSetupCard";
 import LocationModal from "../components/modals/LocationModal";
 
-import { bimApi } from "../services/api";
 import { toast } from "react-hot-toast";
 
 /**
@@ -136,9 +134,7 @@ export default function DigitalTwinDashboard() {
             <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
 
 
-                <Card>
-                    <HSEList projectId={projectId} />
-                </Card>
+                <HSESummaryWidget projectId={projectId} />
                 {/* 3D Digital Twin Panel */}
                 <div className="rounded-2xl border border-[#E6EAF0] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.08)]">
 
@@ -225,12 +221,10 @@ export default function DigitalTwinDashboard() {
 
 
 
-            {/* Timeline – Full Width Horizontal Panel */}
+            {/* Schedule Summary Widget */}
             {projectId && (
                 <div className="mt-5">
-                    <Card>
-                        <TimelineList projectId={projectId} />
-                    </Card>
+                    <ScheduleSummaryWidget projectId={projectId} />
                 </div>
             )}
 
@@ -570,6 +564,168 @@ function CctvMock() {
             <div className="absolute bottom-3 left-3 rounded-lg bg-white/80 border border-[#E6EAF0] px-2 py-1 text-[11px] text-[#374151]">
                 Live feed (mock)
             </div>
+        </div>
+    );
+}
+
+/* ── Schedule Summary Widget ── */
+function ScheduleSummaryWidget({ projectId }) {
+    const [activities, setActivities] = React.useState([]);
+    const [loading, setLoading] = React.useState(true);
+
+    React.useEffect(() => {
+        if (!projectId) { setLoading(false); return; }
+        scheduleApi.list(projectId)
+            .then((data) => setActivities(Array.isArray(data) ? data : []))
+            .catch(() => setActivities([]))
+            .finally(() => setLoading(false));
+    }, [projectId]);
+
+    const total = activities.length;
+    const completed = activities.filter(a => a.percentComplete >= 100 || a.status === 'Completed').length;
+    const inProgress = activities.filter(a => (a.percentComplete > 0 && a.percentComplete < 100) || a.status === 'In Progress').length;
+    const delayed = activities.filter(a => a.isDelayed || a.status === 'Delayed').length;
+    const overallPct = total > 0
+        ? Math.round(activities.reduce((sum, a) => sum + (a.percentComplete || 0), 0) / total)
+        : 0;
+
+    return (
+        <div className="rounded-2xl border border-[#E6EAF0] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] p-5">
+            <div className="flex items-center justify-between mb-4">
+                <div>
+                    <div className="text-sm font-semibold text-[#111827]">Project Schedule</div>
+                    <div className="text-xs text-[#6B7280] mt-0.5">{total} activities</div>
+                </div>
+                <Link
+                    to={`/timeline?id=${projectId}`}
+                    className="text-xs font-semibold text-[#3BB2A5] hover:underline"
+                >
+                    View Full Timeline →
+                </Link>
+            </div>
+
+            {loading ? (
+                <div className="h-16 flex items-center justify-center text-xs text-[#9CA3AF]">Loading…</div>
+            ) : total === 0 ? (
+                <div className="h-16 flex items-center justify-center text-xs text-[#9CA3AF]">No schedule uploaded yet</div>
+            ) : (
+                <>
+                    <div className="grid grid-cols-4 gap-3 mb-4">
+                        {[
+                            { label: 'Completed', value: completed, color: '#22C55E' },
+                            { label: 'In Progress', value: inProgress, color: '#3BB2A5' },
+                            { label: 'Delayed', value: delayed, color: '#EF4444' },
+                            { label: 'Overall', value: `${overallPct}%`, color: '#6366F1' },
+                        ].map((s) => (
+                            <div key={s.label} className="rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] px-3 py-2.5 text-center">
+                                <div className="text-lg font-bold" style={{ color: s.color }}>{s.value}</div>
+                                <div className="text-[11px] text-[#6B7280] mt-0.5">{s.label}</div>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="h-2 rounded-full bg-[#EEF2F7] overflow-hidden">
+                        <div
+                            className="h-full rounded-full bg-[#3BB2A5] transition-all"
+                            style={{ width: `${overallPct}%` }}
+                        />
+                    </div>
+                    <div className="flex justify-between text-[11px] text-[#9CA3AF] mt-1">
+                        <span>0%</span>
+                        <span>{overallPct}% complete</span>
+                        <span>100%</span>
+                    </div>
+                </>
+            )}
+        </div>
+    );
+}
+
+/* ── HSE Summary Widget ── */
+function HSESummaryWidget({ projectId }) {
+    const [incidents, setIncidents] = React.useState([]);
+    const [loading, setLoading] = React.useState(true);
+
+    React.useEffect(() => {
+        if (!projectId) { setLoading(false); return; }
+        hseApi.list(projectId)
+            .then((data) => setIncidents(Array.isArray(data) ? data : []))
+            .catch(() => setIncidents([]))
+            .finally(() => setLoading(false));
+    }, [projectId]);
+
+    const total = incidents.length;
+    const critical = incidents.filter(i => i.severity === 'Critical').length;
+    const warning = incidents.filter(i => i.severity === 'Warning').length;
+    const thisMonth = incidents.filter(i => {
+        const d = new Date(i.date);
+        const now = new Date();
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }).length;
+    const recent = incidents
+        .slice()
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 3);
+
+    return (
+        <div className="rounded-2xl border border-[#E6EAF0] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] p-5 h-full">
+            <div className="flex items-center justify-between mb-4">
+                <div>
+                    <div className="text-sm font-semibold text-[#111827]">HSE Management</div>
+                    <div className="text-xs text-[#6B7280] mt-0.5">Health, Safety &amp; Environment</div>
+                </div>
+                <Link
+                    to={`/hse?id=${projectId}`}
+                    className="text-xs font-semibold text-[#3BB2A5] hover:underline"
+                >
+                    View Full HSE →
+                </Link>
+            </div>
+
+            {loading ? (
+                <div className="h-16 flex items-center justify-center text-xs text-[#9CA3AF]">Loading…</div>
+            ) : (
+                <>
+                    <div className="grid grid-cols-3 gap-3 mb-4">
+                        {[
+                            { label: 'Total', value: total, color: '#374151' },
+                            { label: 'Critical', value: critical, color: '#EF4444' },
+                            { label: 'This Month', value: thisMonth, color: '#F59E0B' },
+                        ].map((s) => (
+                            <div key={s.label} className="rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] px-3 py-2.5 text-center">
+                                <div className="text-lg font-bold" style={{ color: s.color }}>{s.value}</div>
+                                <div className="text-[11px] text-[#6B7280] mt-0.5">{s.label}</div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {recent.length === 0 ? (
+                        <div className="text-xs text-[#9CA3AF] text-center py-4">No incidents recorded</div>
+                    ) : (
+                        <div className="space-y-2">
+                            {recent.map((item) => {
+                                const sev = item.severity;
+                                const dotColor = sev === 'Critical' ? '#EF4444' : sev === 'Warning' ? '#F59E0B' : '#3BB2A5';
+                                return (
+                                    <div key={item._id} className="flex items-center gap-3 rounded-xl border border-[#E6EAF0] bg-[#F9FAFB] px-3 py-2">
+                                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: dotColor }} />
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-xs font-medium text-[#111827] truncate">{item.title}</div>
+                                            <div className="text-[11px] text-[#9CA3AF]">{new Date(item.date).toLocaleDateString()}</div>
+                                        </div>
+                                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md"
+                                            style={{
+                                                backgroundColor: sev === 'Critical' ? '#FEE2E2' : sev === 'Warning' ? '#FEF3C7' : '#D1FAE5',
+                                                color: sev === 'Critical' ? '#B91C1C' : sev === 'Warning' ? '#92400E' : '#065F46',
+                                            }}>
+                                            {sev}
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </>
+            )}
         </div>
     );
 }

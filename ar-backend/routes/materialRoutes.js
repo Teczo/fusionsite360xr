@@ -11,6 +11,15 @@ import { registerUploadedDocument } from '../utils/registerUploadedDocument.js';
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
+const DELIVERY_STATUS_MAP = {
+  ordered:     'ordered',
+  'in transit':'in transit',
+  intransit:   'in transit',
+  delivered:   'delivered',
+  delayed:     'delayed',
+  cancelled:   'cancelled',
+};
+
 // POST /projects/:projectId/materials/upload
 router.post(
     '/projects/:projectId/materials/upload',
@@ -48,22 +57,38 @@ router.post(
 
             for (let i = 0; i < rows.length; i++) {
                 const row = rows[i];
-
                 const norm = {};
                 for (const [k, v] of Object.entries(row)) {
-                    norm[k.trim().toLowerCase()] = v?.trim();
+                    norm[k.trim().toLowerCase().replace(/\s+/g, '_')] = v?.trim();
                 }
 
-                const materialType = norm.material_type || norm.materialtype || '';
-                if (!materialType) continue;
+                // Support both old column name (material_type) and new (material_name)
+                const materialName = norm.material_name || norm.material_type || norm.materialname || norm.materialtype || '';
+                if (!materialName) continue;
+
+                const rawStatus = (norm.delivery_status || norm.status || 'ordered').toLowerCase().replace(/\s+/g, ' ');
+                const deliveryStatus = DELIVERY_STATUS_MAP[rawStatus.replace(/\s/g, '')] || DELIVERY_STATUS_MAP[rawStatus] || 'ordered';
 
                 records.push({
                     projectId,
-                    level: norm.level || '',
-                    materialType,
-                    quantity: parseFloat(norm.quantity) || 0,
-                    unit: norm.unit || '',
-                    componentIds: norm.component_ids ? norm.component_ids.split(';') : []
+                    materialName,
+                    category:         norm.category || '',
+                    level:            norm.level || '',
+                    zone:             norm.zone || '',
+                    unit:             norm.unit || '',
+                    boqQty:           parseFloat(norm.boq_qty || norm.boqqty || norm.required_qty || norm.quantity || 0) || 0,
+                    deliveredQty:     parseFloat(norm.delivered_qty || norm.deliveredqty || 0) || 0,
+                    installedQty:     parseFloat(norm.installed_qty || norm.installedqty || 0) || 0,
+                    reorderLevel:     parseFloat(norm.reorder_level || norm.reorderlevel || 0) || 0,
+                    unitCostUsd:      parseFloat(norm.unit_cost_usd || norm.unit_cost || 0) || 0,
+                    supplier:         norm.supplier || '',
+                    poNumber:         norm.po_number || norm.ponumber || '',
+                    expectedDelivery: norm.expected_delivery || norm.expecteddelivery || null,
+                    actualDelivery:   norm.actual_delivery   || norm.actualdelivery   || null,
+                    deliveryStatus,
+                    linkedMilestone:  norm.linked_milestone  || norm.linkedmilestone  || '',
+                    milestoneDate:    norm.milestone_date    || norm.milestonedate    || null,
+                    componentIds:     norm.component_ids ? norm.component_ids.split(';') : [],
                 });
             }
 
@@ -98,12 +123,10 @@ router.post(
 router.get('/projects/:projectId/materials', auth, async (req, res) => {
     try {
         const { projectId } = req.params;
-
         if (!mongoose.Types.ObjectId.isValid(projectId)) {
             return res.status(400).json({ error: 'Invalid project id' });
         }
-
-        const records = await MaterialUsage.find({ projectId }).sort({ level: 1 });
+        const records = await MaterialUsage.find({ projectId }).sort({ category: 1, materialName: 1 });
         res.json(records);
     } catch (err) {
         console.error('Failed to fetch materials:', err);
