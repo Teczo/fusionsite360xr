@@ -1,7 +1,8 @@
 import { Bot } from 'lucide-react';
 import FeedbackButtons from './FeedbackButtons';
+import SuggestedFollowUps from './SuggestedFollowUps';
 
-export default function ChatMessage({ role, content, data, intent, provider, auditLogId, isLoading, isError }) {
+export default function ChatMessage({ role, content, data, intent, provider, auditLogId, isLoading, isError, suggestedFollowUps, onFollowUpSelect }) {
   if (role === 'user') {
     return (
       <div className="flex justify-end mb-4">
@@ -43,6 +44,10 @@ export default function ChatMessage({ role, content, data, intent, provider, aud
             </>
           )}
         </div>
+
+        {!isLoading && suggestedFollowUps && suggestedFollowUps.length > 0 && onFollowUpSelect && (
+          <SuggestedFollowUps suggestions={suggestedFollowUps} onSelect={onFollowUpSelect} />
+        )}
 
         {!isLoading && (
           <div className="flex items-center gap-2 mt-1 ml-1">

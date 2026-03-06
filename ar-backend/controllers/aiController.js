@@ -4,6 +4,8 @@ import { getProvider } from '../services/ai/llmAdapter.js';
 import { AI_TOOLS, AI_SYSTEM_PROMPT } from '../services/ai/tools.js';
 import { executeTool } from '../services/ai/toolExecutor.js';
 import AIAuditLog from '../models/AIAuditLog.js';
+import ChatThread from '../models/ChatThread.js';
+import ChatMessage from '../models/ChatMessage.js';
 
 /**
  * Estimate token count based on English text length (approx 4 chars/token).
@@ -35,6 +37,40 @@ function trimHistory(history, maxTokens = 2000) {
   }
 
   return trimmed;
+}
+
+/**
+ * Parse LLM explanation text that may contain a FOLLOW_UPS: JSON line.
+ * Returns { explanation, suggestedFollowUps }.
+ */
+function parseExplanationAndFollowUps(rawResponse) {
+  if (!rawResponse) return { explanation: null, suggestedFollowUps: [] };
+
+  const lines = rawResponse.split('\n');
+  const explanationLines = [];
+  let suggestedFollowUps = [];
+
+  for (const line of lines) {
+    if (line.trim().startsWith('FOLLOW_UPS:')) {
+      try {
+        const jsonStr = line.trim().replace('FOLLOW_UPS:', '').trim();
+        const parsed = JSON.parse(jsonStr);
+        if (Array.isArray(parsed)) {
+          suggestedFollowUps = parsed.slice(0, 3);
+        }
+      } catch (e) {
+        // LLM didn't format correctly — skip, not critical
+        console.warn('Failed to parse follow-ups:', e.message);
+      }
+    } else {
+      explanationLines.push(line);
+    }
+  }
+
+  return {
+    explanation: explanationLines.join('\n').trim() || null,
+    suggestedFollowUps
+  };
 }
 
 /**
@@ -92,7 +128,8 @@ async function agentLoop(provider, question, projectId, userId, selectedElementI
       return {
         intent: allResults.length > 0 ? 'multi-step' : 'general',
         data: allResults.length > 0 ? allResults : null,
-        explanation: classification.fallbackText || 'Analysis complete based on the available data.'
+        explanation: classification.fallbackText || 'Analysis complete based on the available data.',
+        suggestedFollowUps: []
       };
     }
 
@@ -136,9 +173,9 @@ async function agentLoop(provider, question, projectId, userId, selectedElementI
   }
 
   // Max steps reached or loop exited early — generate explanation from collected data
-  let explanation = null;
+  let rawExplanation = null;
   try {
-    explanation = await provider.generateExplanation(
+    rawExplanation = await provider.generateExplanation(
       'multi-step',
       allResults,
       question,
@@ -148,10 +185,13 @@ async function agentLoop(provider, question, projectId, userId, selectedElementI
     console.error('Agent loop explanation failed:', explainErr.message);
   }
 
+  const { explanation, suggestedFollowUps } = parseExplanationAndFollowUps(rawExplanation);
+
   return {
     intent: 'multi-step',
     data: allResults,
     explanation: explanation || 'Analysis complete. See the structured data below.',
+    suggestedFollowUps,
     toolsCalled
   };
 }
@@ -185,10 +225,51 @@ async function logAIQuery({ userId, projectId, question, intent, provider, tools
 export async function handleAIQuery(req, res) {
   const startTime = Date.now();
   try {
-    const { projectId, question, selectedElementId, history } = req.body;
+    const { projectId, question, selectedElementId, history, threadId } = req.body;
     const userId = req.userId; // Set by authMiddleware (Phase 0)
 
-    const conversationHistory = trimHistory(history);
+    // --- Thread Management ---
+    let activeThreadId = threadId || null;
+    let conversationHistory = [];
+
+    if (activeThreadId) {
+      // Load recent messages from DB for conversation context
+      try {
+        const recentMessages = await ChatMessage.find({ threadId: activeThreadId })
+          .sort({ createdAt: -1 })
+          .limit(10)
+          .lean();
+
+        // Reverse to chronological order, map to LLM format (text only)
+        conversationHistory = recentMessages
+          .reverse()
+          .map(msg => ({
+            role: msg.role,
+            content: msg.content
+          }));
+      } catch (err) {
+        console.error('Failed to load thread history:', err);
+        // Continue without history — don't fail the query
+      }
+
+      // Save the user message to the thread before processing
+      try {
+        await ChatMessage.create({
+          threadId: activeThreadId,
+          role: 'user',
+          content: question
+        });
+        await ChatThread.updateOne(
+          { _id: activeThreadId },
+          { lastMessageAt: new Date() }
+        );
+      } catch (err) {
+        console.error('Failed to save user message:', err);
+      }
+    } else {
+      // Fallback: use client-sent history array (backward compatibility)
+      conversationHistory = trimHistory(history);
+    }
 
     // --- Phase 0: ObjectId validation ---
     if (!mongoose.Types.ObjectId.isValid(projectId)) {
@@ -241,13 +322,34 @@ export async function handleAIQuery(req, res) {
         startTime, success: true
       });
 
+      // Save AI response to thread
+      if (activeThreadId) {
+        try {
+          await ChatMessage.create({
+            threadId: activeThreadId,
+            role: 'assistant',
+            content: agentResult.explanation || 'Analysis complete.',
+            data: agentResult.data,
+            intent: agentResult.intent,
+            provider: provider.name,
+            auditLogId: auditLogId || undefined,
+            suggestedFollowUps: agentResult.suggestedFollowUps || []
+          });
+          await autoTitleThread(activeThreadId, question);
+        } catch (err) {
+          console.error('Failed to save AI agent message:', err);
+        }
+      }
+
       return res.json({
         success: true,
         intent: agentResult.intent,
         data: agentResult.data,
         explanation: agentResult.explanation,
         provider: provider.name,
-        auditLogId
+        auditLogId,
+        threadId: activeThreadId || null,
+        suggestedFollowUps: agentResult.suggestedFollowUps || []
       });
     }
     // --- End Phase 6 addition ---
@@ -262,14 +364,38 @@ export async function handleAIQuery(req, res) {
         startTime, success: true
       });
 
+      const responseText = classification.fallbackText ||
+        'I was not able to determine what data to look up. Try asking about schedule, cost, safety incidents, or BIM elements.';
+
+      const { explanation: parsedExplanation, suggestedFollowUps } = parseExplanationAndFollowUps(responseText);
+      const finalExplanation = parsedExplanation || responseText;
+
+      // Save AI response to thread
+      if (activeThreadId) {
+        try {
+          await ChatMessage.create({
+            threadId: activeThreadId,
+            role: 'assistant',
+            content: finalExplanation,
+            intent: 'general',
+            provider: provider.name,
+            auditLogId: auditLogId || undefined,
+            suggestedFollowUps
+          });
+          await autoTitleThread(activeThreadId, question);
+        } catch (err) {
+          console.error('Failed to save AI general message:', err);
+        }
+      }
+
       return res.json({
         success: true,
         intent: 'general',
         data: null,
-        explanation:
-          classification.fallbackText ||
-          'I was not able to determine what data to look up. Try asking about schedule, cost, safety incidents, or BIM elements.',
-        auditLogId
+        explanation: finalExplanation,
+        auditLogId,
+        threadId: activeThreadId || null,
+        suggestedFollowUps
       });
     }
 
@@ -295,24 +421,44 @@ export async function handleAIQuery(req, res) {
         error: result.message
       });
 
+      const errorExplanation = result.message || 'Unable to retrieve data for this query.';
+
+      if (activeThreadId) {
+        try {
+          await ChatMessage.create({
+            threadId: activeThreadId,
+            role: 'assistant',
+            content: errorExplanation,
+            intent: classification.toolName,
+            provider: provider.name,
+            auditLogId: auditLogId || undefined,
+            suggestedFollowUps: []
+          });
+          await autoTitleThread(activeThreadId, question);
+        } catch (err) {
+          console.error('Failed to save AI error message:', err);
+        }
+      }
+
       return res.json({
         success: true, // pipeline succeeded; data retrieval failed
         intent: classification.toolName,
         data: null,
-        explanation:
-          result.message || 'Unable to retrieve data for this query.',
-        auditLogId
+        explanation: errorExplanation,
+        auditLogId,
+        threadId: activeThreadId || null,
+        suggestedFollowUps: []
       });
     }
 
     // --- Phase 3: LLM explains the structured data ---
-    let explanation = null;
+    let rawExplanation = null;
 
     // Skip explanation for very large result sets to save tokens/cost
     const resultJson = JSON.stringify(result.data);
     if (resultJson.length < 15000) {
       try {
-        explanation = await provider.generateExplanation(
+        rawExplanation = await provider.generateExplanation(
           classification.toolName,
           result.data,
           question,
@@ -321,11 +467,14 @@ export async function handleAIQuery(req, res) {
       } catch (explainErr) {
         // Graceful degradation — if explanation fails, still return the data
         console.error('Explanation generation failed:', explainErr.message);
-        explanation = null;
+        rawExplanation = null;
       }
     } else {
-      explanation = `Found ${Array.isArray(result.data) ? result.data.length : 'multiple'} records. The structured data is included below.`;
+      rawExplanation = `Found ${Array.isArray(result.data) ? result.data.length : 'multiple'} records. The structured data is included below.`;
     }
+
+    const { explanation, suggestedFollowUps } = parseExplanationAndFollowUps(rawExplanation);
+    const finalExplanation = explanation || 'Data retrieved successfully. See the structured results below.';
 
     // --- Return response (MUST match frontend contract) ---
     const auditLogId = await logAIQuery({
@@ -336,14 +485,34 @@ export async function handleAIQuery(req, res) {
       startTime, success: true
     });
 
+    // Save AI response to thread
+    if (activeThreadId) {
+      try {
+        await ChatMessage.create({
+          threadId: activeThreadId,
+          role: 'assistant',
+          content: finalExplanation,
+          data: result.data,
+          intent: classification.toolName,
+          provider: provider.name,
+          auditLogId: auditLogId || undefined,
+          suggestedFollowUps
+        });
+        await autoTitleThread(activeThreadId, question);
+      } catch (err) {
+        console.error('Failed to save AI message:', err);
+      }
+    }
+
     return res.json({
       success: true,
       intent: classification.toolName,
       data: result.data,
-      explanation:
-        explanation || 'Data retrieved successfully. See the structured results below.',
-      provider: provider.name, // additive field — frontend can safely ignore
-      auditLogId
+      explanation: finalExplanation,
+      provider: provider.name,
+      auditLogId,
+      threadId: activeThreadId || null,
+      suggestedFollowUps
     });
   } catch (err) {
     // --- Phase 0: Sanitized error response ---
@@ -359,9 +528,37 @@ export async function handleAIQuery(req, res) {
       startTime, success: false,
       error: err.message
     });
+
+    // Try to save error message to thread
+    if (req.body?.threadId) {
+      ChatMessage.create({
+        threadId: req.body.threadId,
+        role: 'assistant',
+        content: 'Sorry, something went wrong processing your question.',
+      }).catch(() => {});
+    }
+
     return res.status(500).json({
       success: false,
       error: 'An internal error occurred. Please try again.',
     });
+  }
+}
+
+/**
+ * Auto-generate thread title from the first message if still "New Chat".
+ * Never throws — fire and forget.
+ */
+async function autoTitleThread(threadId, question) {
+  try {
+    const thread = await ChatThread.findById(threadId).lean();
+    if (thread && thread.title === 'New Chat') {
+      const autoTitle = question.length > 50
+        ? question.substring(0, 47) + '...'
+        : question;
+      await ChatThread.updateOne({ _id: threadId }, { title: autoTitle });
+    }
+  } catch (err) {
+    console.error('Failed to auto-title thread:', err);
   }
 }
