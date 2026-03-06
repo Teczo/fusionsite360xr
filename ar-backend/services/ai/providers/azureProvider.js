@@ -74,9 +74,10 @@ export function createAzureProvider({ apiKey, azureEndpoint, azureDeploymentName
          * @param {string} intent
          * @param {*} structuredData
          * @param {string} question
+         * @param {Array} history
          * @returns {string|null}
          */
-        async generateExplanation(intent, structuredData, question) {
+        async generateExplanation(intent, structuredData, question, history = []) {
             try {
                 const response = await client.chat.completions.create({
                     model: azureDeploymentName,
@@ -86,9 +87,10 @@ export function createAzureProvider({ apiKey, azureEndpoint, azureDeploymentName
                             role: 'system',
                             content: 'You are a construction project AI assistant for FusionXR. Explain data clearly and concisely. Only reference facts present in the provided data. Do not invent or assume information.',
                         },
+                        ...history,
                         {
                             role: 'user',
-                            content: `Question: ${question}\n\nIntent: ${intent}\n\nStructured Data:\n${JSON.stringify(structuredData, null, 2)}\n\nOnly state facts from the data above.`,
+                            content: `Question: ${question}\n\nIntent: ${intent}\n\nStructured Data:\n${JSON.stringify(structuredData, null, 2)}\n\nOnly state facts from the data above.\n\nAfter your explanation, on a new line, provide exactly 3 suggested follow-up questions the user might ask next. Format them as a JSON array on a single line prefixed with "FOLLOW_UPS:" like this:\nFOLLOW_UPS:["Question 1?","Question 2?","Question 3?"]\n\nThe follow-ups should be directly related to the data shown, specific enough to get useful answers, and different from each other (one about details, one about impact, one about related data).`,
                         },
                     ],
                 });
