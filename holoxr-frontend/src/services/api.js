@@ -215,11 +215,11 @@ export const issuesApi = {
 
 // AI
 export const aiApi = {
-  query: (projectId, question, selectedElementId = null, history = []) =>
+  query: (projectId, question, selectedElementId = null, threadId = null) =>
     request('/api/ai/query', {
       method: 'POST',
       headers: headers(),
-      body: JSON.stringify({ projectId, question, selectedElementId, history }),
+      body: JSON.stringify({ projectId, question, selectedElementId, threadId }),
     }),
   getSettings: () => request('/api/ai/settings', { headers: headers() }),
   updateSettings: (settings) =>
@@ -241,6 +241,29 @@ export const aiApi = {
     if (projectId) params.append('projectId', projectId);
     return request(`/api/ai/history?${params}`, { headers: headers() });
   },
+  listThreads: (projectId) => {
+    const params = new URLSearchParams({ projectId });
+    return request(`/api/ai/threads?${params}`, { headers: headers() });
+  },
+  createThread: (projectId) =>
+    request('/api/ai/threads', {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ projectId }),
+    }),
+  getThreadMessages: (threadId) =>
+    request(`/api/ai/threads/${threadId}/messages`, { headers: headers() }),
+  deleteThread: (threadId) =>
+    request(`/api/ai/threads/${threadId}`, {
+      method: 'DELETE',
+      headers: headers(),
+    }),
+  renameThread: (threadId, title) =>
+    request(`/api/ai/threads/${threadId}`, {
+      method: 'PATCH',
+      headers: headers(),
+      body: JSON.stringify({ title }),
+    }),
 };
 
 // BIM

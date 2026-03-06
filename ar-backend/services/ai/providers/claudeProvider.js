@@ -71,7 +71,7 @@ export function createClaudeProvider({ apiKey, model }) {
                         ...history,
                         {
                             role: 'user',
-                            content: `Question: ${question}\n\nIntent: ${intent}\n\nStructured Data:\n${JSON.stringify(structuredData, null, 2)}`,
+                            content: `Question: ${question}\n\nIntent: ${intent}\n\nStructured Data:\n${JSON.stringify(structuredData, null, 2)}\n\nAfter your explanation, on a new line, provide exactly 3 suggested follow-up questions the user might ask next. Format them as a JSON array on a single line prefixed with "FOLLOW_UPS:" like this:\nFOLLOW_UPS:["Question 1?","Question 2?","Question 3?"]\n\nThe follow-ups should be directly related to the data shown, specific enough to get useful answers, and different from each other (one about details, one about impact, one about related data).`,
                         },
                     ],
                 });

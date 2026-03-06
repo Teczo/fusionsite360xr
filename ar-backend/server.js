@@ -38,6 +38,7 @@ import intelligenceRoutes from './routes/intelligence.js';
 import intelligenceDevRoutes from './routes/dev/intelligenceDevRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import aiSettingsRoutes from './routes/aiSettingsRoutes.js';
+import chatRoutes from './routes/chatRoutes.js';
 import bimRoutes from './routes/bim.js';
 import issueRoutes, { setBroadcast } from './routes/issues.js';
 
@@ -172,6 +173,7 @@ const aiLimiter = rateLimit({
 });
 app.use('/api/ai', aiLimiter);
 app.use('/api/ai', aiRoutes);
+app.use('/api/ai', chatRoutes);
 app.use('/api', issueRoutes);
 
 // DEV ONLY — Intelligence debug console routes.
